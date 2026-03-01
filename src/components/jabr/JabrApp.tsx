@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { PROJECTS, PIPELINE_STEPS, COLLECTIONS, DIAG_LABELS, DISTRIBUTION_CHANNELS, FORMAT_LABELS, EDITION_STATUS_LABELS, countISBN, primaryISBN, primaryPrice, type Project, type Edition, type EditionFormat } from '@/lib/data';
+import { useProjects } from '@/lib/useProjects';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
@@ -155,7 +156,7 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['settings', 'Paramètres', 'settings'],
 ];
 
-const Sidebar = ({ active, onNav, projects }: { active: string; onNav: (id: string) => void; projects: Project[] }) => {
+const Sidebar = ({ active, onNav, projects, persisted }: { active: string; onNav: (id: string) => void; projects: Project[]; persisted: boolean }) => {
   const corrCount = projects.reduce((s, p) => s + p.corrections.length, 0);
   const draftCount = projects.filter(p => p.status === 'draft').length;
   const audioCount = projects.filter(p => p.editions.some(e => e.format === 'audiobook')).length;
@@ -198,7 +199,10 @@ const Sidebar = ({ active, onNav, projects }: { active: string; onNav: (id: stri
       <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})` }}>SM</div>
       <div>
         <div className="text-white text-[13px] font-medium">Steve M.</div>
-        <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>Plan Studio</div>
+        <div className="flex items-center gap-1.5" style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>
+          <div className="w-1.5 h-1.5 rounded-full" style={{ background: persisted ? '#2EAE6D' : '#E07A2F' }} />
+          {persisted ? 'Sync Supabase' : 'Mode local'}
+        </div>
       </div>
     </div>
   </div>
@@ -1186,21 +1190,21 @@ export default function JabrApp() {
   const [page, setPage] = useState('dashboard');
   const [project, setProject] = useState<Project | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [projects, setProjects] = useState<Project[]>(PROJECTS);
+  const { projects, loading, persisted, addProject, updateProject, deleteProject } = useProjects();
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState<string | null>(null);
   const [notifOpen, setNotifOpen] = useState(false);
 
   const navigate = (id: string) => { setPage(id); setProject(null); };
   const openProject = (p: Project) => { setProject(p); setPage('detail'); };
-  const addProject = (p: Project) => { setProjects(prev => [...prev, p]); showToast(`Projet créé : ${p.title}`); };
+  const handleAdd = (p: Project) => { addProject(p); showToast(`Projet créé : ${p.title}`); };
   const showToast = (msg: string) => setToast(msg);
-  const updateProject = (updated: Project) => {
-    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
+  const handleUpdate = (updated: Project) => {
+    updateProject(updated);
     setProject(updated);
   };
-  const deleteProject = (id: number) => {
-    setProjects(prev => prev.filter(p => p.id !== id));
+  const handleDelete = (id: number) => {
+    deleteProject(id);
     setProject(null);
     setPage('dashboard');
   };
@@ -1212,7 +1216,13 @@ export default function JabrApp() {
   const notifCount = projects.filter(p => p.corrections.length > 0).reduce((s, p) => s + p.corrections.length, 0);
 
   const renderContent = () => {
-    if (project) return <DetailView project={project} onBack={() => navigate('dashboard')} onUpdate={updateProject} onToast={showToast} onDelete={deleteProject} />;
+    if (loading) return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mb-4" style={{ borderColor: c.or, borderTopColor: 'transparent' }} />
+        <p className="text-sm" style={{ color: c.gr }}>Chargement du catalogue…</p>
+      </div>
+    );
+    if (project) return <DetailView project={project} onBack={() => navigate('dashboard')} onUpdate={handleUpdate} onToast={showToast} onDelete={handleDelete} />;
     if (search && filtered.length === 0) return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="text-5xl mb-4">🔍</div>
@@ -1237,7 +1247,7 @@ export default function JabrApp() {
 
   return (
     <div className="flex min-h-screen" style={{ fontFamily: "'Inter', sans-serif", background: c.bc }}>
-      <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} />
+      <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} persisted={persisted} />
       <div className="flex-1 flex flex-col min-w-0">
         {/* TOP BAR */}
         <div className="flex justify-between items-center px-8 py-2.5 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>
@@ -1263,7 +1273,7 @@ export default function JabrApp() {
         </div>
         <div className="flex-1 p-7 overflow-y-auto" onClick={() => notifOpen && setNotifOpen(false)}>{renderContent()}</div>
       </div>
-      <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={addProject} />
+      <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={handleAdd} />
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>
   );
