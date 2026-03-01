@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { PROJECTS, PIPELINE_STEPS, COLLECTIONS, DIAG_LABELS, DISTRIBUTION_CHANNELS, type Project } from '@/lib/data';
+import { PROJECTS, PIPELINE_STEPS, COLLECTIONS, DIAG_LABELS, DISTRIBUTION_CHANNELS, FORMAT_LABELS, EDITION_STATUS_LABELS, countISBN, primaryISBN, primaryPrice, type Project, type Edition, type EditionFormat } from '@/lib/data';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
@@ -213,7 +213,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects }: { onProject:
         <StatCard value={allProjects.length} label="Projets" accent={c.mv} />
         <StatCard value={prog} label="En cours" accent={c.og} />
         <StatCard value={pub} label="Publiés" accent={c.ok} />
-        <StatCard value={`${allProjects.length}/100`} label="ISBN attribués" accent={c.or} />
+        <StatCard value={`${countISBN(allProjects)}/100`} label="ISBN attribués" accent={c.or} />
         <StatCard value={corr} label="Corrections" accent={c.er} />
       </div>
 
@@ -313,9 +313,10 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast }: { project: Projec
           </div>
           <div className="mt-3.5 text-[13px]">
             <span style={{ color: c.gr }}>ISBN </span>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", color: c.mv, fontSize: 12 }}>{p.isbn}</span>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", color: c.mv, fontSize: 12 }}>{primaryISBN(p)}</span>
             <span className="ml-4" style={{ color: c.gr }}>Pages </span><span>{p.pages}</span>
-            {p.price && <><span className="ml-4" style={{ color: c.gr }}>Prix </span><span className="font-semibold">{p.price}</span></>}
+            {primaryPrice(p) && <><span className="ml-4" style={{ color: c.gr }}>Prix </span><span className="font-semibold">{primaryPrice(p)}</span></>}
+            <span className="ml-4" style={{ color: c.gr }}>Éditions </span><span className="font-semibold">{p.editions.length}</span>
           </div>
         </div>
         <div className="text-center">
@@ -388,6 +389,29 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast }: { project: Projec
           <div className="text-center font-semibold text-[13px] py-2" style={{ color: c.ok }}>✓ Couverture conforme — prête pour production</div>
         )}
       </Card>
+
+      {/* Éditions / ISBN */}
+      <Card hover={false} className="p-6 mt-5">
+        <div className="flex justify-between items-center mb-4">
+          <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Éditions &amp; ISBN</div>
+          <span className="text-[12px] font-semibold" style={{ color: c.vm }}>{p.editions.length} format{p.editions.length > 1 ? 's' : ''} · {p.editions.length} ISBN</span>
+        </div>
+        <div className="space-y-2">
+          {p.editions.map((ed, i) => (
+            <div key={i} className="flex items-center gap-4 p-3 rounded-lg" style={{ background: c.ft }}>
+              <span className="text-xl">{FORMAT_LABELS[ed.format]?.icon}</span>
+              <div className="flex-1">
+                <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{FORMAT_LABELS[ed.format]?.label}</div>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: c.gr }}>{ed.isbn}</div>
+              </div>
+              {ed.price && <span className="text-[13px] font-semibold" style={{ color: c.mv }}>{ed.price}</span>}
+              <Badge bg={EDITION_STATUS_LABELS[ed.status]?.bg || c.gc} color={EDITION_STATUS_LABELS[ed.status]?.color || c.gr}>
+                {EDITION_STATUS_LABELS[ed.status]?.label}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 };
@@ -429,28 +453,37 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
 };
 
 // --- ISBN ---
-const ISBNView = ({ projects }: { projects: Project[] }) => (
+const ISBNView = ({ projects }: { projects: Project[] }) => {
+  const totalISBN = countISBN(projects);
+  return (
   <div>
     <div className="flex justify-between items-end mb-5">
-      <div><h2 className="text-2xl" style={{ color: c.mv }}>Registre ISBN</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Préfixe éditeur : 978-2-488647 · Stock : 100</p></div>
+      <div><h2 className="text-2xl" style={{ color: c.mv }}>Registre ISBN</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Préfixe éditeur : 978-2-488647 · Stock : 100 · 1 ISBN par format</p></div>
       <Btn>{icons.plus} Attribuer ISBN</Btn>
     </div>
-    <div className="flex gap-3.5 mb-6"><StatCard value={projects.length} label="Attribués" accent={c.or} /><StatCard value={100 - projects.length} label="Disponibles" accent={c.ok} /><StatCard value={`#${projects.length + 1}`} label="Prochain libre" accent={c.vm} /></div>
+    <div className="flex gap-3.5 mb-6"><StatCard value={totalISBN} label="Attribués" accent={c.or} /><StatCard value={100 - totalISBN} label="Disponibles" accent={c.ok} /><StatCard value={projects.length} label="Titres" accent={c.mv} /></div>
     <Card hover={false}>
-      <div className="grid grid-cols-[190px_1fr_90px_90px] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style={{ background: c.ft, color: c.mv, borderBottom: `2px solid ${c.or}` }}>
-        <div>ISBN</div><div>Titre</div><div>Genre</div><div>Statut</div>
+      <div className="grid grid-cols-[200px_1fr_90px_90px_90px] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style={{ background: c.ft, color: c.mv, borderBottom: `2px solid ${c.or}` }}>
+        <div>ISBN</div><div>Titre</div><div>Format</div><div>Prix</div><div>Statut</div>
       </div>
-      {projects.map((p, i) => (
-        <div key={p.id} className="grid grid-cols-[190px_1fr_90px_90px] px-5 py-2.5 text-[13px] cursor-pointer transition-colors hover:bg-[rgba(200,149,46,0.04)]" style={{ background: i % 2 === 0 ? 'white' : '#FAFAF8', borderBottom: `1px solid ${c.ft}` }}>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: c.mv }}>{p.isbn}</div>
-          <div className="font-medium truncate">{p.title}</div>
-          <div><GenreBadge genre={p.genre} /></div>
-          <div><StatusBadge status={p.status} /></div>
-        </div>
+      {projects.map(p => (
+        p.editions.map((ed, ei) => (
+          <div key={`${p.id}-${ei}`} className="grid grid-cols-[200px_1fr_90px_90px_90px] px-5 py-2.5 text-[13px] transition-colors hover:bg-[rgba(200,149,46,0.04)]"
+            style={{ background: ei === 0 ? 'white' : '#FAFAF8', borderBottom: ei === p.editions.length - 1 ? `2px solid ${c.gc}` : `1px solid ${c.ft}` }}>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: c.mv }}>{ed.isbn}</div>
+            <div className="truncate">
+              {ei === 0 ? <span className="font-medium">{p.title}</span> : <span style={{ color: c.gr, fontSize: 12, paddingLeft: 12 }}>↳ {p.title}</span>}
+            </div>
+            <div><Badge bg={ei === 0 ? '#E8E0F0' : c.ft} color={ei === 0 ? '#3E2768' : c.gr}>{FORMAT_LABELS[ed.format]?.icon} {FORMAT_LABELS[ed.format]?.label}</Badge></div>
+            <div className="text-[12px]" style={{ color: ed.price ? c.nr : c.gr }}>{ed.price || '—'}</div>
+            <div><Badge bg={EDITION_STATUS_LABELS[ed.status]?.bg || c.gc} color={EDITION_STATUS_LABELS[ed.status]?.color || c.gr}>{EDITION_STATUS_LABELS[ed.status]?.label}</Badge></div>
+          </div>
+        ))
       ))}
     </Card>
   </div>
-);
+  );
+};
 
 // --- COLLECTIONS ---
 const CollectionsView = ({ onProject, projects }: { onProject: (p: Project) => void; projects: Project[] }) => (
@@ -568,17 +601,28 @@ const NewProjectModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () 
   const [genre, setGenre] = useState('Roman');
   const [collection, setCollection] = useState('');
   const [pages, setPages] = useState('');
-  const nextIsbn = '978-2-488647-34-2';
+  const [formats, setFormats] = useState<EditionFormat[]>(['broché']);
+  const allFormats: EditionFormat[] = ['broché', 'poche', 'epub', 'audiobook', 'pdf', 'relié'];
+
+  const toggleFormat = (f: EditionFormat) => {
+    setFormats(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
+  };
 
   const handleCreate = () => {
-    if (!title.trim()) return;
+    if (!title.trim() || formats.length === 0) return;
+    const baseNum = 34 + Math.floor(Math.random() * 50);
+    const editions: Edition[] = formats.map((f, i) => ({
+      format: f,
+      isbn: `978-2-488647-${String(baseNum + i).padStart(2, '0')}-${Math.floor(Math.random() * 10)}`,
+      status: 'planned' as const,
+    }));
     const newProject: Project = {
       id: Date.now(),
       title: title.trim(),
       author: 'Steve Moradel',
       genre,
       collection: collection || undefined,
-      isbn: nextIsbn,
+      editions,
       score: 0,
       maxScore: 7,
       status: 'draft',
@@ -588,7 +632,7 @@ const NewProjectModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () 
       corrections: ['Ajouter EAN-13', 'Ajouter prix TTC', 'Ajouter ISBN texte', 'Fournir texte 4e', 'Fournir couverture', 'Ajouter dos', 'Ajouter logo'],
     };
     onAdd(newProject);
-    setTitle(''); setGenre('Roman'); setCollection(''); setPages('');
+    setTitle(''); setGenre('Roman'); setCollection(''); setPages(''); setFormats(['broché']);
     onClose();
   };
 
@@ -628,10 +672,28 @@ const NewProjectModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () 
           <input type="number" value={pages} onChange={e => setPages(e.target.value)} placeholder="Ex: 280"
             className="w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none mb-4 focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
 
+          <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: c.gr }}>Formats (1 ISBN par format)</label>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {allFormats.map(f => {
+              const sel = formats.includes(f);
+              return (
+                <button key={f} onClick={() => toggleFormat(f)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] cursor-pointer transition-colors border"
+                  style={{ background: sel ? '#E8E0F0' : 'white', borderColor: sel ? c.vm : c.gc, color: sel ? c.vm : c.gr, fontWeight: sel ? 600 : 400 }}>
+                  {FORMAT_LABELS[f]?.icon} {FORMAT_LABELS[f]?.label}
+                </button>
+              );
+            })}
+          </div>
+
           <div className="rounded-lg p-3.5 mb-5" style={{ background: c.ft }}>
-            <div className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.gr }}>ISBN auto-attribué</div>
-            <div className="font-semibold text-[15px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.mv }}>{nextIsbn}</div>
-            <div className="text-[11px] mt-0.5" style={{ color: c.gr }}>Prochain ISBN disponible dans le stock</div>
+            <div className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.gr }}>ISBN auto-attribués</div>
+            <div className="font-semibold text-[15px]" style={{ color: c.mv }}>{formats.length} ISBN × {formats.length} format{formats.length > 1 ? 's' : ''}</div>
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {formats.map(f => (
+                <span key={f} className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#E8E0F0', color: c.vm }}>{FORMAT_LABELS[f]?.icon} {FORMAT_LABELS[f]?.label}</span>
+              ))}
+            </div>
           </div>
           <div className="flex gap-3 justify-end">
             <Btn variant="secondary" onClick={onClose}>Annuler</Btn>
@@ -854,9 +916,9 @@ const NotifPanel = ({ open, onClose, projects }: { open: boolean; onClose: () =>
         <div className="px-4 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-2 h-2 rounded-full" style={{ background: c.ok }} />
-            <span className="text-[12px] font-semibold" style={{ color: c.ok }}>ISBN : {projects.length}/100 attribués</span>
+            <span className="text-[12px] font-semibold" style={{ color: c.ok }}>ISBN : {countISBN(projects)}/100 attribués</span>
           </div>
-          <div className="text-[11px]" style={{ color: c.gr }}>{100 - projects.length} ISBN disponibles</div>
+          <div className="text-[11px]" style={{ color: c.gr }}>{100 - countISBN(projects)} ISBN disponibles · {projects.length} titres</div>
         </div>
         <div className="px-4 py-3">
           <div className="flex items-center gap-2 mb-1">
