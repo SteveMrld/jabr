@@ -48,6 +48,10 @@ const icons: Record<string, React.ReactNode> = {
   manuscrits: sv(<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></>),
   analyse: sv(<><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></>),
   upload: sv(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>),
+  marketing: sv(<><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></>),
+  presse: sv(<><path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9c0-1.1.9-2 2-2h2" /><path d="M18 14h-8" /><path d="M15 18h-5" /><path d="M10 6h8v4h-8z" /></>),
+  image: sv(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>),
+  share: sv(<><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></>),
 };
 
 // ═══════════════════════════════════
@@ -102,8 +106,8 @@ const StatCard = ({ value, label, accent }: { value: string | number; label: str
   </div>
 );
 
-const Card = ({ children, className = '', hover = true, onClick }: { children: React.ReactNode; className?: string; hover?: boolean; onClick?: () => void }) => (
-  <div onClick={onClick} className={`bg-white rounded-xl border overflow-hidden transition-colors ${hover ? 'hover:border-[#C8952E]' : ''} ${className}`} style={{ borderColor: c.gc }}>
+const Card = ({ children, className = '', hover = true, onClick, style }: { children: React.ReactNode; className?: string; hover?: boolean; onClick?: () => void; style?: React.CSSProperties }) => (
+  <div onClick={onClick} className={`bg-white rounded-xl border overflow-hidden transition-colors ${hover ? 'hover:border-[#C8952E]' : ''} ${className}`} style={{ borderColor: c.gc, ...style }}>
     {children}
   </div>
 );
@@ -119,9 +123,9 @@ const CoverThumb = ({ emoji, size = 'md' }: { emoji: string; size?: 'sm' | 'md' 
   );
 };
 
-const Btn = ({ children, variant = 'primary', onClick }: { children: React.ReactNode; variant?: 'primary' | 'secondary'; onClick?: () => void }) => (
+const Btn = ({ children, variant = 'primary', onClick, className = '' }: { children: React.ReactNode; variant?: 'primary' | 'secondary'; onClick?: () => void; className?: string }) => (
   <button onClick={onClick}
-    className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-semibold text-[13px] transition-colors cursor-pointer ${variant === 'primary' ? 'text-white hover:bg-[#E8B84B]' : 'border hover:bg-gray-50'}`}
+    className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-semibold text-[13px] transition-colors cursor-pointer ${variant === 'primary' ? 'text-white hover:bg-[#E8B84B]' : 'border hover:bg-gray-50'} ${className}`}
     style={variant === 'primary' ? { background: c.or } : { borderColor: c.vm, color: c.vm }}>
     {children}
   </button>
@@ -152,6 +156,8 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['analyse', 'Analyse', 'analyse'],
   ['calibrage', 'Calibrage', 'calibrage'],
   ['couvertures', 'Couvertures', 'couvertures'],
+  ['marketing', 'Kit Marketing', 'marketing'],
+  ['presse', 'Dossier Presse', 'presse'],
   ['audiobooks', 'Audiobooks', 'audiobooks'],
   ['distribution', 'Distribution', 'distribution'],
   ['analytics', 'Analytics', 'analytics'],
@@ -1247,6 +1253,357 @@ const AnalyseView = ({ projects, onProject }: { projects: Project[]; onProject: 
 };
 
 // ═══════════════════════════════════
+// KIT MARKETING VIEW
+// ═══════════════════════════════════
+const SOCIAL_FORMATS = [
+  { id: 'ig-post', name: 'Instagram Post', w: 1080, h: 1080, icon: '📷', ratio: '1:1' },
+  { id: 'ig-story', name: 'Instagram Story', w: 1080, h: 1920, icon: '📱', ratio: '9:16' },
+  { id: 'fb-cover', name: 'Facebook Cover', w: 1200, h: 630, icon: '🌐', ratio: '1.9:1' },
+  { id: 'x-post', name: 'X / Twitter', w: 1200, h: 675, icon: '🐦', ratio: '16:9' },
+  { id: 'linkedin', name: 'LinkedIn Post', w: 1200, h: 627, icon: '💼', ratio: '1.91:1' },
+  { id: 'teaser', name: 'Teaser Vidéo 10s', w: 1080, h: 1920, icon: '🎬', ratio: '9:16' },
+];
+
+const MarketingView = ({ projects, onProject }: { projects: Project[]; onProject: (p: Project) => void }) => {
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedFormat, setSelectedFormat] = useState(SOCIAL_FORMATS[0]);
+
+  const previewProject = selectedProject || projects[0];
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Kit Marketing</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Visuels réseaux sociaux, teasers vidéo, fiches produit</p>
+        </div>
+        <Btn>{icons.download} Exporter le kit</Btn>
+      </div>
+
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={projects.length} label="Titres disponibles" accent={c.or} />
+        <StatCard value={SOCIAL_FORMATS.length} label="Formats gabarit" accent={c.vm} />
+        <StatCard value={projects.length * SOCIAL_FORMATS.length} label="Visuels générables" accent={c.ok} />
+      </div>
+
+      <div className="grid grid-cols-3 gap-5">
+        {/* Left — Sélection projet */}
+        <Card hover={false} className="p-0 col-span-1">
+          <div className="px-4 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 11, color: c.gr }}>Sélectionner un titre</span>
+          </div>
+          <div className="max-h-[460px] overflow-y-auto">
+            {projects.map(p => (
+              <div key={p.id} onClick={() => setSelectedProject(p)}
+                className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors"
+                style={{ background: previewProject.id === p.id ? 'rgba(200,149,46,0.06)' : 'transparent', borderLeft: previewProject.id === p.id ? `3px solid ${c.or}` : '3px solid transparent', borderBottom: `1px solid ${c.ft}` }}>
+                <CoverThumb emoji={p.cover} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-semibold truncate" style={{ color: c.nr }}>{p.title}</div>
+                  <div className="text-[10px]" style={{ color: c.gr }}>{p.genre} · {p.pages}p</div>
+                </div>
+                <GenreBadge genre={p.genre} />
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Center — Preview */}
+        <Card hover={false} className="p-5 col-span-1 flex flex-col">
+          <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 11, color: c.gr }}>
+            Aperçu · {selectedFormat.name}
+          </div>
+          {/* Preview mockup */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="relative rounded-lg overflow-hidden" style={{
+              width: selectedFormat.id.includes('story') || selectedFormat.id === 'teaser' ? 160 : 240,
+              height: selectedFormat.id.includes('story') || selectedFormat.id === 'teaser' ? 284 : selectedFormat.id === 'ig-post' ? 240 : 126,
+              background: `linear-gradient(135deg, ${c.mv}, #1A0F2E)`,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+            }}>
+              {/* Decorative glow */}
+              <div className="absolute top-4 right-4 w-20 h-20 rounded-full opacity-20" style={{ background: c.or, filter: 'blur(20px)' }} />
+              {/* Content */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
+                <div className="text-3xl mb-2">{previewProject.cover}</div>
+                <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: c.or }}>Jabrilia Éditions</div>
+                <div className="text-[13px] font-bold text-white leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
+                  {previewProject.title}
+                </div>
+                <div className="text-[9px] mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>{previewProject.author}</div>
+                {previewProject.genre && (
+                  <div className="mt-2 px-2 py-0.5 rounded-full text-[8px] font-semibold" style={{ background: 'rgba(200,149,46,0.2)', color: c.or }}>
+                    {previewProject.genre}
+                  </div>
+                )}
+              </div>
+              {/* Format badge */}
+              <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded text-[7px] font-bold" style={{ background: 'rgba(0,0,0,0.5)', color: 'rgba(255,255,255,0.6)' }}>
+                {selectedFormat.w}×{selectedFormat.h}
+              </div>
+              {/* Teaser play button */}
+              {selectedFormat.id === 'teaser' && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(200,149,46,0.8)' }}>
+                    <span className="text-white text-lg ml-0.5">▶</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="mt-3 text-center">
+            <div className="text-[10px]" style={{ color: c.gr }}>{selectedFormat.w}×{selectedFormat.h}px · Ratio {selectedFormat.ratio}</div>
+            <Btn className="mt-2">{selectedFormat.id === 'teaser' ? icons.share : icons.download} Générer</Btn>
+          </div>
+        </Card>
+
+        {/* Right — Formats */}
+        <Card hover={false} className="p-0 col-span-1">
+          <div className="px-4 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 11, color: c.gr }}>Formats disponibles</span>
+          </div>
+          {SOCIAL_FORMATS.map(fmt => (
+            <div key={fmt.id} onClick={() => setSelectedFormat(fmt)}
+              className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors"
+              style={{ background: selectedFormat.id === fmt.id ? 'rgba(200,149,46,0.06)' : 'transparent', borderLeft: selectedFormat.id === fmt.id ? `3px solid ${c.or}` : '3px solid transparent', borderBottom: `1px solid ${c.ft}` }}>
+              <span className="text-xl">{fmt.icon}</span>
+              <div className="flex-1">
+                <div className="text-[12px] font-semibold" style={{ color: c.nr }}>{fmt.name}</div>
+                <div className="text-[10px]" style={{ color: c.gr }}>{fmt.w}×{fmt.h} · {fmt.ratio}</div>
+              </div>
+              {selectedFormat.id === fmt.id && <span style={{ color: c.or }}>{icons.check}</span>}
+            </div>
+          ))}
+          <div className="p-4" style={{ borderTop: `1px solid ${c.ft}` }}>
+            <div className="text-[11px] font-semibold mb-2" style={{ color: c.mv }}>Éléments inclus</div>
+            {['Couverture du livre', 'Titre & auteur', 'Logo Jabrilia', 'Genre & accroche', 'Code couleur charte'].map(el => (
+              <div key={el} className="flex items-center gap-2 py-1 text-[11px]" style={{ color: c.gr }}>
+                <span style={{ color: c.ok }}>{icons.check}</span> {el}
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Quick batch export */}
+      <Card hover={false} className="p-5 mt-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-semibold text-[14px]" style={{ color: c.mv }}>Export par lot</div>
+            <div className="text-[12px] mt-0.5" style={{ color: c.gr }}>
+              Générer tous les visuels pour un titre en un clic — {SOCIAL_FORMATS.length} formats × {projects.length} titres = {SOCIAL_FORMATS.length * projects.length} fichiers
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Btn variant="secondary">{icons.image} Visuels seuls</Btn>
+            <Btn>{icons.download} Kit complet ZIP</Btn>
+          </div>
+        </div>
+      </Card>
+
+      {/* Fiches produit */}
+      <Card hover={false} className="p-5 mt-5">
+        <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Fiches produit par canal</div>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { canal: 'Amazon KDP', fields: 'Titre, sous-titre, description, mots-clés, catégories BISAC', icon: '📦' },
+            { canal: 'Pollen / Kiosque', fields: 'Fiche Dilicom, argumentaire libraire, texte 4e', icon: '📚' },
+            { canal: 'Apple Books / Kobo', fields: 'Description ePub, synopsis, extraits, métadonnées ONIX', icon: '📱' },
+          ].map(ch => (
+            <div key={ch.canal} className="p-4 rounded-xl" style={{ background: c.ft }}>
+              <span className="text-xl">{ch.icon}</span>
+              <div className="font-semibold text-[13px] mt-2" style={{ color: c.mv }}>{ch.canal}</div>
+              <div className="text-[11px] mt-1 leading-relaxed" style={{ color: c.gr }}>{ch.fields}</div>
+              <div className="mt-3">
+                <Btn variant="secondary">{icons.edit} Générer</Btn>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
+// DOSSIER DE PRESSE VIEW
+// ═══════════════════════════════════
+const PresseView = ({ projects, onProject }: { projects: Project[]; onProject: (p: Project) => void }) => {
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
+  const sections = [
+    { id: 'editeur', title: 'Présentation éditeur', desc: 'Jabrilia Éditions, ligne éditoriale, vision, chiffres clés', icon: '🏠', always: true },
+    { id: 'auteur', title: 'Biographie auteur', desc: 'Parcours, distinctions, publications, LinkedIn Top Voice 2020', icon: '✍️', always: true },
+    { id: 'synopsis', title: 'Synopsis & argumentaire', desc: 'Résumé long, points forts, public cible, angles presse', icon: '📝', always: false },
+    { id: 'extrait', title: 'Extrait de lecture', desc: 'Extrait choisi pour la presse (1-2 pages), incipit ou passage clé', icon: '📖', always: false },
+    { id: 'technique', title: 'Fiche technique', desc: 'ISBN, format, pages, prix, date parution, distributeur, impression', icon: '📐', always: false },
+    { id: 'visuels', title: 'Visuels HD', desc: 'Couverture, portrait auteur, logo Jabrilia, couverture à plat', icon: '🖼️', always: false },
+    { id: 'revues', title: 'Revue de presse', desc: 'Citations presse, critiques, podcasts, interviews passées', icon: '📰', always: true },
+    { id: 'contact', title: 'Contact presse', desc: 'Coordonnées, disponibilités interviews, liens sociaux', icon: '📧', always: true },
+  ];
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Dossier de Presse</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Génération de dossiers de presse par titre ou global</p>
+        </div>
+        <div className="flex gap-2">
+          <Btn variant="secondary">{icons.presse} Dossier global</Btn>
+          <Btn>{icons.download} Exporter PDF</Btn>
+        </div>
+      </div>
+
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={projects.length} label="Titres au catalogue" accent={c.or} />
+        <StatCard value={sections.length} label="Sections du dossier" accent={c.vm} />
+        <StatCard value={4} label="Distinctions auteur" accent={c.ok} />
+      </div>
+
+      <div className="grid grid-cols-3 gap-5">
+        {/* Left — Sélection */}
+        <div className="col-span-1 space-y-4">
+          {/* Dossier global */}
+          <Card hover={false} className="p-4 cursor-pointer transition-all" 
+            onClick={() => setSelectedProject(null)}
+            style={{ borderLeft: !selectedProject ? `3px solid ${c.or}` : '3px solid transparent' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})` }}>
+                <span className="text-white text-lg">J</span>
+              </div>
+              <div>
+                <div className="text-[13px] font-bold" style={{ color: c.mv }}>Dossier global</div>
+                <div className="text-[10px]" style={{ color: c.gr }}>Jabrilia Éditions · Tout le catalogue</div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Par titre */}
+          <Card hover={false} className="p-0">
+            <div className="px-4 py-2.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
+              <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 10, color: c.gr }}>Par titre</span>
+            </div>
+            <div className="max-h-[380px] overflow-y-auto">
+              {projects.map(p => (
+                <div key={p.id} onClick={() => setSelectedProject(p)}
+                  className="flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors hover:bg-[#FAF7F2]"
+                  style={{ background: selectedProject?.id === p.id ? 'rgba(200,149,46,0.06)' : 'transparent', borderLeft: selectedProject?.id === p.id ? `3px solid ${c.or}` : '3px solid transparent', borderBottom: `1px solid ${c.ft}` }}>
+                  <CoverThumb emoji={p.cover} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[11px] font-semibold truncate" style={{ color: c.nr }}>{p.title}</div>
+                    <div className="text-[10px]" style={{ color: c.gr }}>{p.editions.length} éd. · {primaryISBN(p)}</div>
+                  </div>
+                  <StatusBadge status={p.status} />
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* Center + Right — Contenu du dossier */}
+        <div className="col-span-2 space-y-4">
+          {/* Header */}
+          <Card hover={false} className="p-6">
+            <div className="flex items-center gap-4">
+              {selectedProject ? (
+                <>
+                  <div className="w-16 h-16 rounded-xl flex items-center justify-center text-3xl" style={{ background: c.ft }}>{selectedProject.cover}</div>
+                  <div>
+                    <div className="text-xl font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>{selectedProject.title}</div>
+                    <div className="text-[13px] mt-0.5" style={{ color: c.gr }}>{selectedProject.author} · {selectedProject.genre} · {selectedProject.pages} pages</div>
+                    <div className="flex gap-2 mt-2">
+                      {selectedProject.editions.slice(0, 4).map(ed => (
+                        <Badge key={ed.format} bg={c.ft} color={c.gr}>{FORMAT_LABELS[ed.format]?.icon} {ed.format}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})` }}>
+                    <span className="text-white text-2xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>J</span>
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Jabrilia Éditions</div>
+                    <div className="text-[13px] mt-0.5" style={{ color: c.gr }}>Maison d&apos;édition indépendante · {projects.length} titres · {countISBN(projects)} ISBN</div>
+                    <div className="flex gap-2 mt-2">
+                      <Badge bg="#D4F0E0" color="#1A6B42">Chevalier Ordre National du Mérite</Badge>
+                      <Badge bg="#E8E0F0" color="#3E2768">Prix de l&apos;Africanité 2024</Badge>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+
+          {/* Sections */}
+          <div className="grid grid-cols-2 gap-3">
+            {sections
+              .filter(s => s.always || selectedProject)
+              .map(s => (
+                <Card key={s.id} hover={false} className="p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl">{s.icon}</span>
+                    <div className="flex-1">
+                      <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{s.title}</div>
+                      <div className="text-[11px] mt-0.5 leading-relaxed" style={{ color: c.gr }}>{s.desc}</div>
+                      <div className="flex gap-2 mt-2.5">
+                        <Btn variant="secondary">{icons.edit} Éditer</Btn>
+                        <Btn variant="secondary">{icons.check} Valider</Btn>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+          </div>
+
+          {/* Informations auteur */}
+          <Card hover={false} className="p-5">
+            <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 11, color: c.gr }}>Informations auteur · Steve Moradel</div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { label: 'Distinctions', items: ['Chevalier de l\'Ordre National du Mérite (2022)', 'Prix de l\'Africanité (2024)', 'LinkedIn Top Voice (2020)', 'Personnalité de l\'Année Outre Mer Network (2018)'] },
+                { label: 'Enseignement', items: ['ESSEC Business School', 'INSEEC', 'Audencia'] },
+                { label: 'Expertise', items: ['Stratégie & Management', 'Sciences Humaines & Sociales', 'Géopolitique & Souveraineté maritime', 'Consultant exécutifs internationaux'] },
+                { label: 'Médias', items: ['Newsletter Les Pages de Jade (12 000 abonnés)', '100+ articles publiés (revues internationales)', 'Fondateur NGO Acting For Water (reconnu ONU)'] },
+              ].map(cat => (
+                <div key={cat.label}>
+                  <div className="text-[12px] font-semibold mb-1.5" style={{ color: c.mv }}>{cat.label}</div>
+                  {cat.items.map(item => (
+                    <div key={item} className="text-[11px] py-0.5 flex items-start gap-1.5" style={{ color: c.gr }}>
+                      <span style={{ color: c.or, marginTop: 2 }}>•</span> {item}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Export options */}
+          <Card hover={false} className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-semibold text-[14px]" style={{ color: c.mv }}>
+                  Exporter le dossier {selectedProject ? `« ${selectedProject.title} »` : 'global Jabrilia'}
+                </div>
+                <div className="text-[12px] mt-0.5" style={{ color: c.gr }}>
+                  {sections.filter(s => s.always || selectedProject).length} sections · PDF professionnel prêt à envoyer
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Btn variant="secondary">{icons.share} Lien partageable</Btn>
+                <Btn>{icons.download} Télécharger PDF</Btn>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════
 const SettingsView = () => {
@@ -1514,6 +1871,8 @@ export default function JabrApp() {
       case 'manuscrits': return <ManuscritsView projects={projects} onProject={openProject} onToast={showToast} />;
       case 'analyse': return <AnalyseView projects={projects} onProject={openProject} />;
       case 'audiobooks': return <AudiobooksView projects={projects} />;
+      case 'marketing': return <MarketingView projects={projects} onProject={openProject} />;
+      case 'presse': return <PresseView projects={projects} onProject={openProject} />;
       case 'settings': return <SettingsView />;
       default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} />;
     }
