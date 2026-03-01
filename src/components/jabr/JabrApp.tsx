@@ -42,6 +42,7 @@ const icons: Record<string, React.ReactNode> = {
   clock: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="7" /><path d="M12 8v4l2 2" /></svg>,
   search: sv(<><circle cx="11" cy="11" r="6" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>),
   edit: sv(<><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></>, 16),
+  download: sv(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></>),
 };
 
 // ═══════════════════════════════════
@@ -198,6 +199,29 @@ const DashboardView = ({ onProject, onNew, projects, allProjects }: { onProject:
   const pub = allProjects.filter(p => p.status === 'published').length;
   const prog = allProjects.filter(p => p.status === 'in-progress').length;
   const corr = allProjects.reduce((s, p) => s + p.corrections.length, 0);
+  const [sort, setSort] = useState<'title' | 'score' | 'status' | 'editions'>('title');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (key: typeof sort) => {
+    if (sort === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSort(key); setSortDir('asc'); }
+  };
+
+  const sorted = [...projects].sort((a, b) => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    if (sort === 'title') return a.title.localeCompare(b.title) * dir;
+    if (sort === 'score') return (a.score - b.score) * dir;
+    if (sort === 'editions') return (a.editions.length - b.editions.length) * dir;
+    const order = { published: 3, 'in-progress': 2, draft: 1 };
+    return (order[a.status] - order[b.status]) * dir;
+  });
+
+  const SortBtn = ({ label, k }: { label: string; k: typeof sort }) => (
+    <button onClick={() => toggleSort(k)} className="cursor-pointer bg-transparent border-none text-[10px] uppercase tracking-wider font-semibold flex items-center gap-0.5 hover:opacity-70"
+      style={{ color: sort === k ? c.or : c.gr }}>
+      {label} {sort === k && <span>{sortDir === 'asc' ? '↑' : '↓'}</span>}
+    </button>
+  );
 
   return (
     <div>
@@ -217,12 +241,29 @@ const DashboardView = ({ onProject, onNew, projects, allProjects }: { onProject:
         <StatCard value={corr} label="Corrections" accent={c.er} />
       </div>
 
+      {/* Quick actions */}
+      {corr > 0 && (
+        <div className="rounded-xl p-4 mb-5 flex items-center gap-3" style={{ background: '#FFF8F0', border: '1px solid #F4A55A' }}>
+          <span style={{ color: c.og }}>{icons.warn}</span>
+          <div className="flex-1">
+            <span className="text-[13px] font-semibold" style={{ color: c.og }}>{corr} correction{corr > 1 ? 's' : ''} bloquante{corr > 1 ? 's' : ''}</span>
+            <span className="text-[12px] ml-2" style={{ color: c.gr }}>sur {allProjects.filter(p => p.corrections.length > 0).length} couverture{allProjects.filter(p => p.corrections.length > 0).length > 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      )}
+
       <Card hover={false}>
         <div className="flex justify-between items-center px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Catalogue</span>
-          <span style={{ fontSize: 11, color: c.gr }}>{projects.length} titre{projects.length > 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-4">
+            <SortBtn label="Titre" k="title" />
+            <SortBtn label="Score" k="score" />
+            <SortBtn label="Statut" k="status" />
+            <SortBtn label="Éditions" k="editions" />
+            <span className="ml-2" style={{ fontSize: 11, color: c.gr }}>{projects.length} titre{projects.length > 1 ? 's' : ''}</span>
+          </div>
         </div>
-        {projects.map(p => (
+        {sorted.map(p => (
           <div key={p.id} onClick={() => onProject(p)}
             className="flex items-center gap-3.5 px-5 py-3 cursor-pointer transition-colors hover:bg-[#FAF7F2]"
             style={{ borderBottom: `1px solid ${c.ft}` }}>
@@ -237,6 +278,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects }: { onProject:
                 {p.collection && <CollBadge collection={p.collection} />}
               </div>
             </div>
+            <Badge bg={c.ft} color={c.vm}>{p.editions.length} éd.</Badge>
             <div className="w-[110px]"><ScoreBar score={p.score} max={p.maxScore} /></div>
             <StatusBadge status={p.status} />
             {p.corrections.length > 0 && <Badge bg="#FDE0E3" color="#A0303D">{p.corrections.length}</Badge>}
@@ -455,11 +497,22 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
 // --- ISBN ---
 const ISBNView = ({ projects }: { projects: Project[] }) => {
   const totalISBN = countISBN(projects);
+  const exportCSV = () => {
+    const rows = [['ISBN', 'Titre', 'Format', 'Prix', 'Statut édition', 'Statut projet', 'Genre'].join(';')];
+    projects.forEach(p => p.editions.forEach(ed => {
+      rows.push([ed.isbn, `"${p.title}"`, FORMAT_LABELS[ed.format]?.label, ed.price || '', EDITION_STATUS_LABELS[ed.status]?.label, p.status, p.genre].join(';'));
+    }));
+    const blob = new Blob(['\uFEFF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `jabr-isbn-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  };
   return (
   <div>
     <div className="flex justify-between items-end mb-5">
       <div><h2 className="text-2xl" style={{ color: c.mv }}>Registre ISBN</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Préfixe éditeur : 978-2-488647 · Stock : 100 · 1 ISBN par format</p></div>
-      <Btn>{icons.plus} Attribuer ISBN</Btn>
+      <div className="flex gap-2">
+        <Btn variant="secondary" onClick={exportCSV}>{icons.download} Export CSV</Btn>
+        <Btn>{icons.plus} Attribuer ISBN</Btn>
+      </div>
     </div>
     <div className="flex gap-3.5 mb-6"><StatCard value={totalISBN} label="Attribués" accent={c.or} /><StatCard value={100 - totalISBN} label="Disponibles" accent={c.ok} /><StatCard value={projects.length} label="Titres" accent={c.mv} /></div>
     <Card hover={false}>
@@ -520,16 +573,24 @@ const CollectionsView = ({ onProject, projects }: { onProject: (p: Project) => v
 
 // --- ANALYTICS ---
 const AnalyticsView = ({ projects }: { projects: Project[] }) => {
-  const avg = (projects.reduce((s, p) => s + p.score, 0) / projects.length).toFixed(1);
+  const avg = projects.length > 0 ? (projects.reduce((s, p) => s + p.score, 0) / projects.length).toFixed(1) : '0';
   const totalPages = projects.reduce((s, p) => s + p.pages, 0);
+  const totalEditions = countISBN(projects);
   const byGenre: Record<string, number> = {};
   projects.forEach(p => { byGenre[p.genre] = (byGenre[p.genre] || 0) + 1; });
+  const byFormat: Record<string, number> = {};
+  projects.forEach(p => p.editions.forEach(e => { byFormat[e.format] = (byFormat[e.format] || 0) + 1; }));
   return (
     <div>
       <h2 className="text-2xl mb-1" style={{ color: c.mv }}>Analytics</h2>
       <p className="mb-5" style={{ color: c.gr, fontSize: 13 }}>Vue d&apos;ensemble du catalogue</p>
-      <div className="flex gap-3.5 mb-7 flex-wrap"><StatCard value={projects.length} label="Titres" accent={c.mv} /><StatCard value={`${avg}/7`} label="Score moyen" accent={c.or} /><StatCard value={totalPages.toLocaleString()} label="Pages totales" accent={c.vm} /></div>
-      <div className="grid grid-cols-2 gap-5">
+      <div className="flex gap-3.5 mb-7 flex-wrap">
+        <StatCard value={projects.length} label="Titres" accent={c.mv} />
+        <StatCard value={totalEditions} label="Éditions (ISBN)" accent={c.or} />
+        <StatCard value={`${avg}/7`} label="Score moyen" accent={c.ok} />
+        <StatCard value={totalPages.toLocaleString()} label="Pages totales" accent={c.vm} />
+      </div>
+      <div className="grid grid-cols-3 gap-5">
         <Card hover={false} className="p-5">
           <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Score par titre</div>
           {projects.map((p, i) => (
@@ -559,28 +620,111 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
             ))}
           </Card>
         </div>
+        <Card hover={false} className="p-5">
+          <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Par format d&apos;édition</div>
+          {Object.entries(byFormat).sort((a, b) => b[1] - a[1]).map(([f, count]) => (
+            <div key={f} className="flex items-center justify-between py-2" style={{ borderBottom: `1px solid ${c.ft}` }}>
+              <div className="flex items-center gap-2">
+                <span>{FORMAT_LABELS[f as EditionFormat]?.icon}</span>
+                <span className="text-[12px] font-medium" style={{ color: c.mv }}>{FORMAT_LABELS[f as EditionFormat]?.label}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 rounded-full" style={{ width: `${(count / totalEditions) * 80}px`, background: c.or }} />
+                <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: c.mv }}>{count}</span>
+              </div>
+            </div>
+          ))}
+          <div className="mt-4 pt-3" style={{ borderTop: `1px solid ${c.gc}` }}>
+            <div className="text-[11px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Ratio éditions/titre</div>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: c.or }}>
+              {projects.length > 0 ? (totalEditions / projects.length).toFixed(1) : '0'}
+            </div>
+            <div className="text-[11px]" style={{ color: c.gr }}>formats par titre en moyenne</div>
+          </div>
+        </Card>
       </div>
     </div>
   );
 };
 
 // --- DISTRIBUTION ---
-const DistributionView = () => (
-  <div>
-    <h2 className="text-2xl mb-1" style={{ color: c.mv }}>Distribution</h2>
-    <p className="mb-5" style={{ color: c.gr, fontSize: 13 }}>Canaux de distribution et exports</p>
-    <div className="grid grid-cols-2 gap-4">
-      {DISTRIBUTION_CHANNELS.map(ch => (
-        <Card key={ch.name} className="p-5">
-          <div className="flex justify-between items-start">
-            <div><div className="font-semibold text-[15px]" style={{ color: c.mv }}>{ch.name}</div><div className="text-xs mt-0.5" style={{ color: c.gr }}>{ch.desc}</div></div>
-            <Badge bg={ch.color === c.ok ? '#D4F0E0' : ch.color === c.og ? '#FDE8D0' : '#E8E0F0'} color={ch.color}>{ch.status}</Badge>
+const DistributionView = ({ projects }: { projects: Project[] }) => {
+  const channelFormats: Record<string, EditionFormat[]> = {
+    'Pollen / Kiosque': ['broché', 'poche', 'relié'],
+    'Amazon KDP': ['broché', 'poche', 'epub', 'relié'],
+    'IngramSpark': ['broché', 'poche', 'relié'],
+    'Apple Books': ['epub', 'audiobook'],
+    'Kobo / Fnac': ['epub'],
+    'Spotify / Audible': ['audiobook'],
+  };
+
+  return (
+    <div>
+      <h2 className="text-2xl mb-1" style={{ color: c.mv }}>Distribution</h2>
+      <p className="mb-5" style={{ color: c.gr, fontSize: 13 }}>Canaux de distribution — compatibilité par format</p>
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={DISTRIBUTION_CHANNELS.filter(ch => ch.color === '#2EAE6D').length} label="Canaux prêts" accent={c.ok} />
+        <StatCard value={countISBN(projects)} label="ISBN total" accent={c.or} />
+        <StatCard value={projects.filter(p => p.editions.some(e => e.format === 'epub')).length} label="ePub prévus" accent={c.vm} />
+      </div>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        {DISTRIBUTION_CHANNELS.map(ch => {
+          const compat = channelFormats[ch.name] || [];
+          const eligibleEditions = projects.reduce((s, p) => s + p.editions.filter(e => compat.includes(e.format)).length, 0);
+          return (
+            <Card key={ch.name} className="p-5">
+              <div className="flex justify-between items-start mb-3">
+                <div><div className="font-semibold text-[15px]" style={{ color: c.mv }}>{ch.name}</div><div className="text-xs mt-0.5" style={{ color: c.gr }}>{ch.desc}</div></div>
+                <Badge bg={ch.color === c.ok ? '#D4F0E0' : ch.color === c.og ? '#FDE8D0' : '#E8E0F0'} color={ch.color}>{ch.status}</Badge>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Formats acceptés</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {compat.map(f => (
+                  <span key={f} className="text-[10px] px-2 py-0.5 rounded" style={{ background: c.ft, color: c.vm }}>{FORMAT_LABELS[f]?.icon} {FORMAT_LABELS[f]?.label}</span>
+                ))}
+              </div>
+              <div className="text-[11px] pt-2" style={{ borderTop: `1px solid ${c.ft}`, color: c.gr }}>
+                {eligibleEditions} édition{eligibleEditions > 1 ? 's' : ''} éligible{eligibleEditions > 1 ? 's' : ''}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Matrix view */}
+      <Card hover={false}>
+        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Matrice titre × canal</span>
+        </div>
+        <div className="overflow-x-auto">
+          <div className="grid px-5 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ gridTemplateColumns: '180px repeat(6, 1fr)', background: c.ft, color: c.gr }}>
+            <div>Titre</div>
+            {DISTRIBUTION_CHANNELS.map(ch => <div key={ch.name} className="text-center">{ch.name.split(' / ')[0]}</div>)}
           </div>
-        </Card>
-      ))}
+          {projects.map(p => {
+            const fmts = p.editions.map(e => e.format);
+            return (
+              <div key={p.id} className="grid px-5 py-2.5 items-center" style={{ gridTemplateColumns: '180px repeat(6, 1fr)', borderBottom: `1px solid ${c.ft}` }}>
+                <div className="text-[12px] font-medium truncate">{p.title}</div>
+                {DISTRIBUTION_CHANNELS.map(ch => {
+                  const compat = channelFormats[ch.name] || [];
+                  const has = compat.some(f => fmts.includes(f));
+                  return (
+                    <div key={ch.name} className="text-center">
+                      {has ? <span style={{ color: c.ok }}>●</span> : <span style={{ color: c.gc }}>○</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
     </div>
-  </div>
-);
+  );
+};
 
 // --- PLACEHOLDER ---
 const PlaceholderView = ({ icon, title, desc, btn }: { icon: string; title: string; desc: string; btn?: string }) => (
@@ -967,7 +1111,7 @@ export default function JabrApp() {
       case 'isbn': return <ISBNView projects={filtered} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
-      case 'distribution': return <DistributionView />;
+      case 'distribution': return <DistributionView projects={projects} />;
       case 'calibrage': return <CalibrageView projects={projects} />;
       case 'audiobooks': return <AudiobooksView projects={projects} />;
       case 'settings': return <SettingsView />;
