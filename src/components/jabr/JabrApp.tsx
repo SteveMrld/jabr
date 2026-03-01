@@ -213,7 +213,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects }: { onProject:
         <StatCard value={allProjects.length} label="Projets" accent={c.mv} />
         <StatCard value={prog} label="En cours" accent={c.og} />
         <StatCard value={pub} label="Publiés" accent={c.ok} />
-        <StatCard value={`${allProjects.length + 27}/100`} label="ISBN attribués" accent={c.or} />
+        <StatCard value={`${allProjects.length}/100`} label="ISBN attribués" accent={c.or} />
         <StatCard value={corr} label="Corrections" accent={c.er} />
       </div>
 
@@ -435,7 +435,7 @@ const ISBNView = ({ projects }: { projects: Project[] }) => (
       <div><h2 className="text-2xl" style={{ color: c.mv }}>Registre ISBN</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Préfixe éditeur : 978-2-488647 · Stock : 100</p></div>
       <Btn>{icons.plus} Attribuer ISBN</Btn>
     </div>
-    <div className="flex gap-3.5 mb-6"><StatCard value="37" label="Attribués" accent={c.or} /><StatCard value="63" label="Disponibles" accent={c.ok} /><StatCard value="#34" label="Prochain libre" accent={c.vm} /></div>
+    <div className="flex gap-3.5 mb-6"><StatCard value={projects.length} label="Attribués" accent={c.or} /><StatCard value={100 - projects.length} label="Disponibles" accent={c.ok} /><StatCard value={`#${projects.length + 1}`} label="Prochain libre" accent={c.vm} /></div>
     <Card hover={false}>
       <div className="grid grid-cols-[190px_1fr_90px_90px] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style={{ background: c.ft, color: c.mv, borderBottom: `2px solid ${c.or}` }}>
         <div>ISBN</div><div>Titre</div><div>Genre</div><div>Statut</div>
@@ -631,7 +631,7 @@ const NewProjectModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () 
           <div className="rounded-lg p-3.5 mb-5" style={{ background: c.ft }}>
             <div className="text-[11px] uppercase tracking-wider mb-1" style={{ color: c.gr }}>ISBN auto-attribué</div>
             <div className="font-semibold text-[15px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.mv }}>{nextIsbn}</div>
-            <div className="text-[11px] mt-0.5" style={{ color: c.gr }}>Prochain ISBN disponible dans le stock (38/100)</div>
+            <div className="text-[11px] mt-0.5" style={{ color: c.gr }}>Prochain ISBN disponible dans le stock</div>
           </div>
           <div className="flex gap-3 justify-end">
             <Btn variant="secondary" onClick={onClose}>Annuler</Btn>
@@ -854,9 +854,9 @@ const NotifPanel = ({ open, onClose, projects }: { open: boolean; onClose: () =>
         <div className="px-4 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-2 h-2 rounded-full" style={{ background: c.ok }} />
-            <span className="text-[12px] font-semibold" style={{ color: c.ok }}>ISBN : {projects.length + 27}/100 attribués</span>
+            <span className="text-[12px] font-semibold" style={{ color: c.ok }}>ISBN : {projects.length}/100 attribués</span>
           </div>
-          <div className="text-[11px]" style={{ color: c.gr }}>{100 - projects.length - 27} ISBN disponibles</div>
+          <div className="text-[11px]" style={{ color: c.gr }}>{100 - projects.length} ISBN disponibles</div>
         </div>
         <div className="px-4 py-3">
           <div className="flex items-center gap-2 mb-1">
