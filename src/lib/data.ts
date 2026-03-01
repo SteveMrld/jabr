@@ -23,6 +23,25 @@ export const EDITION_STATUS_LABELS: Record<string, { label: string; bg: string; 
   'published': { label: 'Publié', bg: '#D4F0E0', color: '#1A6B42' },
 };
 
+export type ManuscriptStatus = 'none' | 'uploaded' | 'analyzed' | 'validated' | 'isbn-injected';
+
+export const MANUSCRIPT_STATUS_LABELS: Record<ManuscriptStatus, { label: string; bg: string; color: string; icon: string }> = {
+  'none': { label: 'Non fourni', bg: '#E8E4DF', color: '#6B6560', icon: '○' },
+  'uploaded': { label: 'Uploadé', bg: '#FDE8D0', color: '#B05A1A', icon: '↑' },
+  'analyzed': { label: 'Analysé', bg: '#E8E0F0', color: '#3E2768', icon: '◉' },
+  'validated': { label: 'Validé', bg: '#D4F0E0', color: '#1A6B42', icon: '✓' },
+  'isbn-injected': { label: 'ISBN injecté', bg: '#D4F0E0', color: '#1A6B42', icon: '★' },
+};
+
+export interface AnalysisResult {
+  iaScore: number; // 0-100, lower = less AI
+  redundancies: number;
+  avgSentenceLength: number;
+  flaggedPatterns: { pattern: string; count: number; severity: 'critical' | 'moderate' | 'minor' }[];
+  wordCount: number;
+  timestamp: string;
+}
+
 export interface Project {
   id: number;
   title: string;
@@ -39,6 +58,9 @@ export interface Project {
   cover: string;
   diag: Record<string, boolean>;
   corrections: string[];
+  manuscriptStatus?: ManuscriptStatus;
+  manuscriptFile?: string;
+  analysis?: AnalysisResult;
 }
 
 export const PROJECTS: Project[] = [
@@ -180,3 +202,40 @@ export const DISTRIBUTION_CHANNELS = [
 export const countISBN = (projects: Project[]) => projects.reduce((s, p) => s + p.editions.length, 0);
 export const primaryISBN = (p: Project) => p.editions[0]?.isbn || '—';
 export const primaryPrice = (p: Project) => p.editions.find(e => e.price)?.price;
+
+// Manuscript data (applied to PROJECTS)
+const MANUSCRIPT_DATA: Record<number, { status: ManuscriptStatus; file?: string; analysis?: AnalysisResult }> = {
+  1: { status: 'validated', file: 'anti-stress-final.docx' },
+  2: { status: 'isbn-injected', file: 'niagara-v-finale.docx', analysis: { iaScore: 12, redundancies: 3, avgSentenceLength: 18, wordCount: 68400, timestamp: '2026-02-20', flaggedPatterns: [
+    { pattern: '"pour la première fois"', count: 4, severity: 'minor' },
+    { pattern: '"quelque chose se déposa"', count: 1, severity: 'minor' },
+  ] } },
+  3: { status: 'analyzed', file: 'du-chaos-v3.docx', analysis: { iaScore: 8, redundancies: 2, avgSentenceLength: 16, wordCount: 52800, timestamp: '2026-02-18', flaggedPatterns: [
+    { pattern: '"il sentit que"', count: 2, severity: 'minor' },
+  ] } },
+  4: { status: 'analyzed', file: 'failles-du-siecle-v4.docx', analysis: { iaScore: 38, redundancies: 14, avgSentenceLength: 22, wordCount: 74200, timestamp: '2026-02-15', flaggedPatterns: [
+    { pattern: '"ne X pas Y : elle/il Z"', count: 12, severity: 'critical' },
+    { pattern: '"cette mutation/transformation"', count: 36, severity: 'critical' },
+    { pattern: '"Dans les failles du siècle,"', count: 8, severity: 'critical' },
+    { pattern: '"car" en début de phrase', count: 16, severity: 'moderate' },
+    { pattern: '"face à"', count: 14, severity: 'moderate' },
+    { pattern: '"il existe"', count: 5, severity: 'moderate' },
+    { pattern: '"silencieusement"', count: 4, severity: 'minor' },
+  ] } },
+  5: { status: 'uploaded', file: 'aurora-manuscrit.docx' },
+  6: { status: 'uploaded', file: 'trone-de-cendre-t1.docx' },
+  7: { status: 'uploaded', file: 'oliviers-v-finale.docx' },
+  8: { status: 'validated', file: 'memoires-reliees-v3.docx', analysis: { iaScore: 6, redundancies: 1, avgSentenceLength: 17, wordCount: 79200, timestamp: '2026-02-22', flaggedPatterns: [] } },
+  9: { status: 'uploaded', file: 'etincelles-scenar-v11.docx' },
+  10: { status: 'none' },
+};
+
+// Apply manuscript data
+PROJECTS.forEach(p => {
+  const md = MANUSCRIPT_DATA[p.id];
+  if (md) {
+    p.manuscriptStatus = md.status;
+    p.manuscriptFile = md.file;
+    p.analysis = md.analysis;
+  }
+});

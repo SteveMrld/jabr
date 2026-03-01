@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { PROJECTS, PIPELINE_STEPS, COLLECTIONS, DIAG_LABELS, DISTRIBUTION_CHANNELS, FORMAT_LABELS, EDITION_STATUS_LABELS, countISBN, primaryISBN, primaryPrice, type Project, type Edition, type EditionFormat } from '@/lib/data';
+import { PROJECTS, PIPELINE_STEPS, COLLECTIONS, DIAG_LABELS, DISTRIBUTION_CHANNELS, FORMAT_LABELS, EDITION_STATUS_LABELS, MANUSCRIPT_STATUS_LABELS, countISBN, primaryISBN, primaryPrice, type Project, type Edition, type EditionFormat, type ManuscriptStatus, type AnalysisResult } from '@/lib/data';
 import { useProjects } from '@/lib/useProjects';
 
 // ═══════════════════════════════════
@@ -45,6 +45,9 @@ const icons: Record<string, React.ReactNode> = {
   edit: sv(<><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></>, 16),
   trash: sv(<><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></>),
   download: sv(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></>),
+  manuscrits: sv(<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></>),
+  analyse: sv(<><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></>),
+  upload: sv(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>),
 };
 
 // ═══════════════════════════════════
@@ -145,6 +148,8 @@ const JabrLogo = () => (
 const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['dashboard', 'Dashboard', 'dashboard'],
   ['projets', 'Projets', 'projets'],
+  ['manuscrits', 'Manuscrits', 'manuscrits'],
+  ['analyse', 'Analyse', 'analyse'],
   ['calibrage', 'Calibrage', 'calibrage'],
   ['couvertures', 'Couvertures', 'couvertures'],
   ['audiobooks', 'Audiobooks', 'audiobooks'],
@@ -160,7 +165,8 @@ const Sidebar = ({ active, onNav, projects, persisted }: { active: string; onNav
   const corrCount = projects.reduce((s, p) => s + p.corrections.length, 0);
   const draftCount = projects.filter(p => p.status === 'draft').length;
   const audioCount = projects.filter(p => p.editions.some(e => e.format === 'audiobook')).length;
-  const badges: Record<string, number> = { couvertures: corrCount, projets: projects.length, isbn: countISBN(projects), audiobooks: audioCount };
+  const withManuscript = projects.filter(p => p.manuscriptStatus && p.manuscriptStatus !== 'none').length;
+  const badges: Record<string, number> = { couvertures: corrCount, projets: projects.length, isbn: countISBN(projects), audiobooks: audioCount, manuscrits: withManuscript };
 
   return (
   <div className="w-[220px] min-h-screen flex flex-col py-5 shrink-0" style={{ background: `linear-gradient(180deg, ${c.mv}, #1A0F2E)` }}>
@@ -539,6 +545,60 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
             </div>
           ))}
         </div>
+      </Card>
+
+      {/* Manuscrit */}
+      <Card hover={false} className="p-6 mt-5">
+        <div className="flex justify-between items-center mb-4">
+          <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Manuscrit</div>
+          <Badge bg={MANUSCRIPT_STATUS_LABELS[p.manuscriptStatus || 'none'].bg} color={MANUSCRIPT_STATUS_LABELS[p.manuscriptStatus || 'none'].color}>
+            {MANUSCRIPT_STATUS_LABELS[p.manuscriptStatus || 'none'].icon} {MANUSCRIPT_STATUS_LABELS[p.manuscriptStatus || 'none'].label}
+          </Badge>
+        </div>
+        {p.manuscriptFile ? (
+          <div className="flex items-center gap-4 p-3 rounded-lg" style={{ background: c.ft }}>
+            <span className="text-2xl">📄</span>
+            <div className="flex-1">
+              <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{p.manuscriptFile}</div>
+              <div className="text-[11px]" style={{ color: c.gr }}>{p.pages} pages · {(p.pages * 240).toLocaleString()} mots estimés</div>
+            </div>
+            {p.analysis && (
+              <div className="text-right">
+                <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Score IA</div>
+                <div className="text-lg font-bold" style={{ fontFamily: "'Playfair Display', serif", color: p.analysis.iaScore > 30 ? c.er : p.analysis.iaScore > 15 ? c.og : c.ok }}>
+                  {p.analysis.iaScore}%
+                </div>
+              </div>
+            )}
+            {!p.analysis && <Btn variant="secondary">{icons.analyse} Analyser</Btn>}
+          </div>
+        ) : (
+          <div className="p-6 text-center rounded-lg border-2 border-dashed cursor-pointer transition-colors hover:bg-[rgba(200,149,46,0.02)]"
+            style={{ borderColor: 'rgba(200,149,46,0.15)' }}>
+            <div className="text-2xl mb-2 opacity-40">📄</div>
+            <div className="text-[12px] font-semibold" style={{ color: c.mv }}>Importer le manuscrit (.docx)</div>
+            <div className="text-[11px] mt-0.5" style={{ color: c.gr }}>Glissez ou cliquez pour associer un fichier à ce projet</div>
+          </div>
+        )}
+        {p.analysis && p.analysis.flaggedPatterns.length > 0 && (
+          <div className="mt-3 p-3 rounded-lg" style={{ background: '#FFF8F0' }}>
+            <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.og }}>
+              {p.analysis.flaggedPatterns.length} pattern{p.analysis.flaggedPatterns.length > 1 ? 's' : ''} détecté{p.analysis.flaggedPatterns.length > 1 ? 's' : ''}
+            </div>
+            {p.analysis.flaggedPatterns.slice(0, 3).map((fp, i) => (
+              <div key={i} className="flex items-center gap-2 text-[11px] py-0.5">
+                <span style={{ color: fp.severity === 'critical' ? c.er : fp.severity === 'moderate' ? c.og : c.gr }}>
+                  {fp.severity === 'critical' ? '●' : fp.severity === 'moderate' ? '◐' : '○'}
+                </span>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: c.mv }}>{fp.pattern}</span>
+                <span className="ml-auto font-semibold" style={{ color: c.gr }}>×{fp.count}</span>
+              </div>
+            ))}
+            {p.analysis.flaggedPatterns.length > 3 && (
+              <div className="text-[10px] mt-1" style={{ color: c.gr }}>+ {p.analysis.flaggedPatterns.length - 3} autres patterns</div>
+            )}
+          </div>
+        )}
       </Card>
     </div>
   );
@@ -977,6 +1037,218 @@ const CalibrageView = ({ projects }: { projects: Project[] }) => {
 };
 
 // --- SETTINGS VIEW ---
+// ═══════════════════════════════════
+// MANUSCRITS VIEW
+// ═══════════════════════════════════
+const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[]; onProject: (p: Project) => void; onToast: (msg: string) => void }) => {
+  const withMs = projects.filter(p => p.manuscriptStatus && p.manuscriptStatus !== 'none');
+  const withoutMs = projects.filter(p => !p.manuscriptStatus || p.manuscriptStatus === 'none');
+  const analyzed = projects.filter(p => p.analysis);
+  const injected = projects.filter(p => p.manuscriptStatus === 'isbn-injected');
+
+  const statusSteps: { key: ManuscriptStatus; label: string; icon: string }[] = [
+    { key: 'uploaded', label: 'Upload', icon: '↑' },
+    { key: 'analyzed', label: 'Analyse', icon: '◉' },
+    { key: 'validated', label: 'Validé', icon: '✓' },
+    { key: 'isbn-injected', label: 'ISBN injecté', icon: '★' },
+  ];
+  const statusOrder: ManuscriptStatus[] = ['none', 'uploaded', 'analyzed', 'validated', 'isbn-injected'];
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Manuscrits</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Import, analyse et injection ISBN dans vos fichiers .docx</p>
+        </div>
+        <Btn>{icons.upload} Importer un manuscrit</Btn>
+      </div>
+
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={withMs.length} label="Manuscrits fournis" accent={c.ok} />
+        <StatCard value={analyzed.length} label="Analysés" accent={c.vm} />
+        <StatCard value={injected.length} label="ISBN injectés" accent={c.or} />
+        <StatCard value={withoutMs.length} label="En attente" accent={c.er} />
+      </div>
+
+      {/* Pipeline manuscrit */}
+      <Card hover={false} className="p-6 mb-6">
+        <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Pipeline manuscrit</div>
+        <div className="flex items-center gap-2 justify-between max-w-2xl">
+          {statusSteps.map((s, i) => (
+            <div key={s.key} className="flex items-center gap-2 flex-1">
+              <div className="flex flex-col items-center flex-1">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold" style={{ background: 'rgba(200,149,46,0.1)', color: c.or }}>{s.icon}</div>
+                <div className="text-[11px] mt-1.5 font-semibold text-center" style={{ color: c.mv }}>{s.label}</div>
+                <div className="text-[10px]" style={{ color: c.gr }}>{projects.filter(p => p.manuscriptStatus === s.key).length} titres</div>
+              </div>
+              {i < statusSteps.length - 1 && <div className="w-8 h-px mt-[-16px]" style={{ background: c.gc }} />}
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Upload zone */}
+      <Card hover={false} className="mb-6">
+        <div className="p-8 text-center rounded-xl border-2 border-dashed cursor-pointer transition-colors hover:bg-[rgba(200,149,46,0.02)]"
+          style={{ borderColor: 'rgba(200,149,46,0.2)' }}>
+          <div className="text-4xl mb-3 opacity-40">📄</div>
+          <div className="text-sm font-semibold mb-1" style={{ color: c.mv }}>Glissez un fichier .docx ici</div>
+          <div className="text-[12px]" style={{ color: c.gr }}>ou cliquez pour parcourir — Le manuscrit sera associé au projet correspondant</div>
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <Badge bg={c.ft} color={c.gr}>.docx</Badge>
+            <Badge bg={c.ft} color={c.gr}>.doc</Badge>
+            <Badge bg={c.ft} color={c.gr}>.odt</Badge>
+          </div>
+        </div>
+      </Card>
+
+      {/* Table par projet */}
+      <Card hover={false}>
+        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>État des manuscrits par titre</span>
+        </div>
+        {projects.map(p => {
+          const ms = p.manuscriptStatus || 'none';
+          const msLabel = MANUSCRIPT_STATUS_LABELS[ms];
+          const stepIdx = statusOrder.indexOf(ms);
+          return (
+            <div key={p.id} onClick={() => onProject(p)}
+              className="flex items-center gap-4 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#FAF7F2]"
+              style={{ borderBottom: `1px solid ${c.ft}` }}>
+              <CoverThumb emoji={p.cover} />
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold truncate" style={{ color: c.nr }}>{p.title}</div>
+                <div className="text-[11px] mt-0.5" style={{ color: c.gr }}>
+                  {p.manuscriptFile ? p.manuscriptFile : 'Aucun fichier'}
+                  {p.analysis && <span className="ml-2" style={{ color: c.vm }}>· Score IA : {p.analysis.iaScore}%</span>}
+                </div>
+              </div>
+              {/* Mini progress */}
+              <div className="flex gap-1">
+                {statusSteps.map((s, i) => (
+                  <div key={s.key} className="w-5 h-1.5 rounded-full" style={{ background: i < stepIdx ? c.ok : i === stepIdx && ms !== 'none' ? c.or : c.gc }} />
+                ))}
+              </div>
+              <Badge bg={msLabel.bg} color={msLabel.color}>{msLabel.icon} {msLabel.label}</Badge>
+              <div style={{ color: c.gr }}>{icons.chevR}</div>
+            </div>
+          );
+        })}
+      </Card>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
+// ANALYSE VIEW (Scanner IA + Qualité)
+// ═══════════════════════════════════
+const AnalyseView = ({ projects, onProject }: { projects: Project[]; onProject: (p: Project) => void }) => {
+  const analyzed = projects.filter(p => p.analysis);
+  const avgIa = analyzed.length > 0 ? Math.round(analyzed.reduce((s, p) => s + (p.analysis?.iaScore || 0), 0) / analyzed.length) : 0;
+  const totalFlags = analyzed.reduce((s, p) => s + (p.analysis?.flaggedPatterns.length || 0), 0);
+  const criticals = analyzed.reduce((s, p) => s + (p.analysis?.flaggedPatterns.filter(f => f.severity === 'critical').length || 0), 0);
+
+  const sevColors = { critical: c.er, moderate: c.og, minor: c.gr };
+  const sevLabels = { critical: 'Critique', moderate: 'Modéré', minor: 'Mineur' };
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Analyse</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Détection patterns IA, redondances, rythme — Scanner intégré</p>
+        </div>
+        <Btn>{icons.analyse} Lancer une analyse</Btn>
+      </div>
+
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={analyzed.length} label="Manuscrits analysés" accent={c.vm} />
+        <StatCard value={`${avgIa}%`} label="Score IA moyen" accent={avgIa > 25 ? c.er : c.ok} />
+        <StatCard value={totalFlags} label="Patterns détectés" accent={c.og} />
+        <StatCard value={criticals} label="Critiques" accent={c.er} />
+      </div>
+
+      {/* Scanner explanation */}
+      <Card hover={false} className="p-6 mb-6">
+        <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 12, color: c.gr }}>Critères du scanner</div>
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { icon: '🔴', title: 'Marqueurs IA', desc: 'Structures binaires « ne X pas Y : elle Z », accumulations abstraites, ouvertures impersonnelles' },
+            { icon: '🟡', title: 'Redondances', desc: 'Formules répétitives, béquilles stylistiques, adverbes creux, transitions mécaniques' },
+            { icon: '🟢', title: 'Rythme & Voix', desc: 'Longueur des phrases, variation syntaxique, densité lexicale, authenticité du ton' },
+          ].map(c2 => (
+            <div key={c2.title} className="p-4 rounded-xl" style={{ background: c.ft }}>
+              <span className="text-xl">{c2.icon}</span>
+              <div className="font-semibold text-[13px] mt-2" style={{ color: c.mv }}>{c2.title}</div>
+              <div className="text-[11px] mt-1 leading-relaxed" style={{ color: c.gr }}>{c2.desc}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Results per manuscript */}
+      {analyzed.length === 0 ? (
+        <Card hover={false} className="p-8 text-center">
+          <div className="text-4xl mb-3">🔍</div>
+          <h3 className="text-lg font-semibold mb-2" style={{ color: c.mv }}>Aucune analyse disponible</h3>
+          <p className="text-sm" style={{ color: c.gr }}>Importez un manuscrit puis lancez le scanner pour détecter les patterns IA et les redondances.</p>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {analyzed.map(p => {
+            const a = p.analysis!;
+            const iaColor = a.iaScore > 30 ? c.er : a.iaScore > 15 ? c.og : c.ok;
+            return (
+              <Card key={p.id} hover={false} className="p-0 overflow-hidden">
+                <div className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#FAF7F2]" onClick={() => onProject(p)}
+                  style={{ borderBottom: `1px solid ${c.ft}` }}>
+                  <CoverThumb emoji={p.cover} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-semibold" style={{ color: c.nr }}>{p.title}</div>
+                    <div className="text-[11px] mt-0.5" style={{ color: c.gr }}>
+                      {a.wordCount.toLocaleString()} mots · {Math.round(a.avgSentenceLength)} mots/phrase · Analysé le {a.timestamp}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Score IA</div>
+                    <div className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', serif", color: iaColor }}>{a.iaScore}%</div>
+                  </div>
+                </div>
+                {a.flaggedPatterns.length > 0 && (
+                  <div className="px-5 py-3" style={{ background: c.ft }}>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Patterns détectés</div>
+                    <div className="space-y-1.5">
+                      {a.flaggedPatterns.map((fp, i) => (
+                        <div key={i} className="flex items-center gap-2 text-[12px]">
+                          <Badge bg={fp.severity === 'critical' ? '#FDE0E3' : fp.severity === 'moderate' ? '#FDE8D0' : c.gc}
+                            color={sevColors[fp.severity]}>
+                            {sevLabels[fp.severity]}
+                          </Badge>
+                          <span style={{ color: c.mv, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>{fp.pattern}</span>
+                          <span className="ml-auto font-semibold" style={{ color: sevColors[fp.severity] }}>×{fp.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {a.flaggedPatterns.length === 0 && (
+                  <div className="px-5 py-2.5 text-center text-[12px] font-semibold" style={{ background: '#D4F0E0', color: c.ok }}>
+                    ✓ Aucun pattern IA détecté — manuscrit authentique
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════
 const SettingsView = () => {
   const [editeur, setEditeur] = useState('Jabrilia Éditions');
   const [auteur, setAuteur] = useState('Steve Moradel');
@@ -1239,6 +1511,8 @@ export default function JabrApp() {
       case 'analytics': return <AnalyticsView projects={projects} />;
       case 'distribution': return <DistributionView projects={projects} />;
       case 'calibrage': return <CalibrageView projects={projects} />;
+      case 'manuscrits': return <ManuscritsView projects={projects} onProject={openProject} onToast={showToast} />;
+      case 'analyse': return <AnalyseView projects={projects} onProject={openProject} />;
       case 'audiobooks': return <AudiobooksView projects={projects} />;
       case 'settings': return <SettingsView />;
       default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} />;
