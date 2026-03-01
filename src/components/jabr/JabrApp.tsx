@@ -42,6 +42,7 @@ const icons: Record<string, React.ReactNode> = {
   clock: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="7" /><path d="M12 8v4l2 2" /></svg>,
   search: sv(<><circle cx="11" cy="11" r="6" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>),
   edit: sv(<><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></>, 16),
+  trash: sv(<><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></>),
   download: sv(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></>),
 };
 
@@ -154,7 +155,13 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['settings', 'Paramètres', 'settings'],
 ];
 
-const Sidebar = ({ active, onNav }: { active: string; onNav: (id: string) => void }) => (
+const Sidebar = ({ active, onNav, projects }: { active: string; onNav: (id: string) => void; projects: Project[] }) => {
+  const corrCount = projects.reduce((s, p) => s + p.corrections.length, 0);
+  const draftCount = projects.filter(p => p.status === 'draft').length;
+  const audioCount = projects.filter(p => p.editions.some(e => e.format === 'audiobook')).length;
+  const badges: Record<string, number> = { couvertures: corrCount, projets: projects.length, isbn: countISBN(projects), audiobooks: audioCount };
+
+  return (
   <div className="w-[220px] min-h-screen flex flex-col py-5 shrink-0" style={{ background: `linear-gradient(180deg, ${c.mv}, #1A0F2E)` }}>
     <div className="px-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
       <JabrLogo />
@@ -166,6 +173,7 @@ const Sidebar = ({ active, onNav }: { active: string; onNav: (id: string) => voi
         if (!item) return <div key={i} className="mx-2.5 my-2" style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />;
         const [id, label, iconKey] = item;
         const isActive = active === id;
+        const badge = badges[id];
         return (
           <button key={id} onClick={() => onNav(id)}
             className="flex items-center gap-2.5 px-3.5 py-2 rounded-lg cursor-pointer transition-all relative text-left"
@@ -174,7 +182,13 @@ const Sidebar = ({ active, onNav }: { active: string; onNav: (id: string) => voi
             onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; } }}>
             {isActive && <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r" style={{ background: c.or }} />}
             <span className="flex" style={{ color: isActive ? c.or : 'inherit' }}>{icons[iconKey]}</span>
-            {label}
+            <span className="flex-1">{label}</span>
+            {badge !== undefined && badge > 0 && (
+              <span className="min-w-[20px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold px-1"
+                style={{ background: id === 'couvertures' && corrCount > 0 ? 'rgba(217,68,82,0.8)' : 'rgba(255,255,255,0.12)', color: id === 'couvertures' && corrCount > 0 ? 'white' : 'rgba(255,255,255,0.5)' }}>
+                {badge}
+              </span>
+            )}
           </button>
         );
       })}
@@ -188,7 +202,8 @@ const Sidebar = ({ active, onNav }: { active: string; onNav: (id: string) => voi
       </div>
     </div>
   </div>
-);
+  );
+};
 
 // ═══════════════════════════════════
 // VIEWS
@@ -302,15 +317,26 @@ const STEP_DETAILS: Record<string, { desc: string; action: string; tools: string
   'Distribution': { desc: 'Export vers les canaux de distribution configurés.', action: 'Lancer la distribution', tools: 'KDP · IngramSpark · Pollen' },
 };
 
-const DetailView = ({ project: p, onBack, onUpdate, onToast }: { project: Project; onBack: () => void; onUpdate: (p: Project) => void; onToast: (msg: string) => void }) => {
+const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { project: Project; onBack: () => void; onUpdate: (p: Project) => void; onToast: (msg: string) => void; onDelete: (id: number) => void }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(p.title);
+  const [editPages, setEditPages] = useState(String(p.pages));
   const stepStatuses = PIPELINE_STEPS.map((_, i) => {
     if (p.status === 'published') return 'done';
     if (p.status === 'in-progress') return i <= 1 ? 'done' : i === 2 ? 'active' : 'todo';
     return i === 0 ? 'active' : 'todo';
   });
   const detail = STEP_DETAILS[PIPELINE_STEPS[activeStep]];
+
+  // Keyboard: Escape to go back
+  useState(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') { if (showDeleteConfirm) setShowDeleteConfirm(false); else if (editing) setEditing(false); else onBack(); } };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  });
 
   const changeStatus = (newStatus: 'published' | 'in-progress' | 'draft') => {
     onUpdate({ ...p, status: newStatus });
@@ -319,11 +345,67 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast }: { project: Projec
     onToast(`${p.title} → ${labels[newStatus]}`);
   };
 
+  const saveEdit = () => {
+    if (editTitle.trim()) {
+      onUpdate({ ...p, title: editTitle.trim(), pages: parseInt(editPages) || p.pages });
+      setEditing(false);
+      onToast('Modifications enregistrées');
+    }
+  };
+
+  const handleDelete = () => {
+    onDelete(p.id);
+    onToast(`${p.title} supprimé`);
+    onBack();
+  };
+
   return (
     <div>
-      <button onClick={onBack} className="flex items-center gap-1 mb-5 text-[13px] cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>
-        {icons.chevL} Projets
-      </button>
+      <div className="flex items-center justify-between mb-5">
+        <button onClick={onBack} className="flex items-center gap-1 text-[13px] cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>
+          {icons.chevL} Projets
+        </button>
+        <div className="flex gap-2">
+          {!editing && <Btn variant="secondary" onClick={() => { setEditTitle(p.title); setEditPages(String(p.pages)); setEditing(true); }}>{icons.edit} Modifier</Btn>}
+          <button onClick={() => setShowDeleteConfirm(true)} className="px-3 py-2 rounded-lg cursor-pointer border transition-colors hover:bg-red-50"
+            style={{ borderColor: '#E8C0C0', color: c.er, background: 'white', fontSize: 13 }}>
+            {icons.trash}
+          </button>
+        </div>
+      </div>
+
+      {/* Delete confirmation */}
+      {showDeleteConfirm && (
+        <div className="rounded-xl p-4 mb-5 flex items-center gap-3" style={{ background: '#FFF0F0', border: '1px solid #E8A0A0' }}>
+          <span style={{ color: c.er }}>{icons.warn}</span>
+          <div className="flex-1">
+            <span className="text-[13px] font-semibold" style={{ color: c.er }}>Supprimer « {p.title} » ?</span>
+            <span className="text-[12px] ml-2" style={{ color: c.gr }}>Cette action est irréversible. {p.editions.length} ISBN seront libérés.</span>
+          </div>
+          <Btn variant="secondary" onClick={() => setShowDeleteConfirm(false)}>Annuler</Btn>
+          <button onClick={handleDelete} className="px-4 py-2 rounded-lg cursor-pointer border-none text-white text-[13px] font-semibold" style={{ background: c.er }}>Supprimer</button>
+        </div>
+      )}
+
+      {/* Edit mode */}
+      {editing && (
+        <Card hover={false} className="p-5 mb-5">
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Titre</label>
+              <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
+            </div>
+            <div className="w-24">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Pages</label>
+              <input type="number" value={editPages} onChange={e => setEditPages(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
+            </div>
+            <Btn onClick={saveEdit}>Enregistrer</Btn>
+            <Btn variant="secondary" onClick={() => setEditing(false)}>Annuler</Btn>
+          </div>
+        </Card>
+      )}
 
       <div className="flex gap-6 mb-7">
         <CoverThumb emoji={p.cover} size="lg" />
@@ -726,19 +808,6 @@ const DistributionView = ({ projects }: { projects: Project[] }) => {
   );
 };
 
-// --- PLACEHOLDER ---
-const PlaceholderView = ({ icon, title, desc, btn }: { icon: string; title: string; desc: string; btn?: string }) => (
-  <div>
-    <h2 className="text-2xl mb-5" style={{ color: c.mv }}>{title}</h2>
-    <Card hover={false} className="p-8 text-center">
-      <div className="text-5xl mb-4">{icon}</div>
-      <h3 className="text-xl mb-2" style={{ color: c.mv }}>{title}</h3>
-      <p className="text-sm max-w-md mx-auto mb-5" style={{ color: c.gr }}>{desc}</p>
-      {btn && <Btn>{icons.plus} {btn}</Btn>}
-    </Card>
-  </div>
-);
-
 // --- NEW PROJECT MODAL ---
 const NewProjectModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () => void; onAdd: (p: Project) => void }) => {
   const [title, setTitle] = useState('');
@@ -972,6 +1041,8 @@ const SettingsView = () => {
 
 // --- AUDIOBOOKS VIEW ---
 const AudiobooksView = ({ projects }: { projects: Project[] }) => {
+  const withAudio = projects.filter(p => p.editions.some(e => e.format === 'audiobook'));
+  const withoutAudio = projects.filter(p => p.genre !== 'BD' && !p.editions.some(e => e.format === 'audiobook'));
   const pipeline = [
     { icon: '📝', title: 'Import texte', desc: 'Chapitres découpés' },
     { icon: '🎙️', title: 'Voix IA', desc: 'ElevenLabs TTS' },
@@ -984,6 +1055,11 @@ const AudiobooksView = ({ projects }: { projects: Project[] }) => {
         <div><h2 className="text-2xl" style={{ color: c.mv }}>Audiobooks</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Production vocale IA — ElevenLabs TTS</p></div>
         <Btn>{icons.plus} Lancer une production</Btn>
       </div>
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={withAudio.length} label="Avec audiobook" accent={c.ok} />
+        <StatCard value={withoutAudio.length} label="Éligibles" accent={c.og} />
+        <StatCard value={`~${projects.filter(p => p.genre !== 'BD').reduce((s, p) => s + Math.round(p.pages * 1.5), 0)} min`} label="Durée totale est." accent={c.vm} />
+      </div>
       <div className="grid grid-cols-4 gap-3.5 mb-6">
         {pipeline.map(s => (
           <Card key={s.title} hover={false} className="p-5 text-center">
@@ -993,19 +1069,46 @@ const AudiobooksView = ({ projects }: { projects: Project[] }) => {
           </Card>
         ))}
       </div>
-      <Card hover={false}>
-        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
-          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Titres éligibles audiobook</span>
-        </div>
-        {projects.filter(p => p.genre !== 'BD').map(p => (
-          <div key={p.id} className="flex items-center gap-4 px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
-            <span className="text-lg">{p.cover}</span>
-            <div className="flex-1"><div className="text-[13px] font-semibold">{p.title}</div><div style={{ fontSize: 11, color: c.gr }}>{p.pages} pages · ~{Math.round(p.pages * 1.5)} min</div></div>
-            <GenreBadge genre={p.genre} />
-            <Badge bg={c.gc} color={c.gr}>Non démarré</Badge>
+
+      {withAudio.length > 0 && (
+        <Card hover={false} className="mb-5">
+          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.ok}` }}>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Éditions audiobook planifiées</span>
           </div>
-        ))}
-      </Card>
+          {withAudio.map(p => {
+            const audioEd = p.editions.find(e => e.format === 'audiobook')!;
+            return (
+              <div key={p.id} className="flex items-center gap-4 px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                <span className="text-lg">{p.cover}</span>
+                <div className="flex-1">
+                  <div className="text-[13px] font-semibold">{p.title}</div>
+                  <div style={{ fontSize: 11, color: c.gr }}>{p.pages} pages · ~{Math.round(p.pages * 1.5)} min</div>
+                </div>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: c.gr }}>{audioEd.isbn}</div>
+                <Badge bg={EDITION_STATUS_LABELS[audioEd.status]?.bg || c.gc} color={EDITION_STATUS_LABELS[audioEd.status]?.color || c.gr}>
+                  {EDITION_STATUS_LABELS[audioEd.status]?.label}
+                </Badge>
+              </div>
+            );
+          })}
+        </Card>
+      )}
+
+      {withoutAudio.length > 0 && (
+        <Card hover={false}>
+          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.og}` }}>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Titres éligibles sans édition audiobook</span>
+          </div>
+          {withoutAudio.map(p => (
+            <div key={p.id} className="flex items-center gap-4 px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+              <span className="text-lg">{p.cover}</span>
+              <div className="flex-1"><div className="text-[13px] font-semibold">{p.title}</div><div style={{ fontSize: 11, color: c.gr }}>{p.pages} pages · ~{Math.round(p.pages * 1.5)} min</div></div>
+              <GenreBadge genre={p.genre} />
+              <Badge bg={c.gc} color={c.gr}>Pas d&apos;ISBN audio</Badge>
+            </div>
+          ))}
+        </Card>
+      )}
     </div>
   );
 };
@@ -1096,6 +1199,11 @@ export default function JabrApp() {
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
     setProject(updated);
   };
+  const deleteProject = (id: number) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
+    setProject(null);
+    setPage('dashboard');
+  };
 
   const filtered = search
     ? projects.filter(p => p.title.toLowerCase().includes(search.toLowerCase()) || p.genre.toLowerCase().includes(search.toLowerCase()) || p.author.toLowerCase().includes(search.toLowerCase()))
@@ -1104,7 +1212,15 @@ export default function JabrApp() {
   const notifCount = projects.filter(p => p.corrections.length > 0).reduce((s, p) => s + p.corrections.length, 0);
 
   const renderContent = () => {
-    if (project) return <DetailView project={project} onBack={() => navigate('dashboard')} onUpdate={updateProject} onToast={showToast} />;
+    if (project) return <DetailView project={project} onBack={() => navigate('dashboard')} onUpdate={updateProject} onToast={showToast} onDelete={deleteProject} />;
+    if (search && filtered.length === 0) return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="text-5xl mb-4">🔍</div>
+        <h3 className="text-xl mb-2" style={{ color: c.mv }}>Aucun résultat pour « {search} »</h3>
+        <p className="text-sm mb-4" style={{ color: c.gr }}>Essayez un autre titre, genre ou auteur</p>
+        <Btn variant="secondary" onClick={() => setSearch('')}>Effacer la recherche</Btn>
+      </div>
+    );
     switch (page) {
       case 'projets': return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} />;
       case 'couvertures': return <CouverturesView onProject={openProject} projects={filtered} />;
@@ -1121,7 +1237,7 @@ export default function JabrApp() {
 
   return (
     <div className="flex min-h-screen" style={{ fontFamily: "'Inter', sans-serif", background: c.bc }}>
-      <Sidebar active={project ? 'projets' : page} onNav={navigate} />
+      <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} />
       <div className="flex-1 flex flex-col min-w-0">
         {/* TOP BAR */}
         <div className="flex justify-between items-center px-8 py-2.5 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>
