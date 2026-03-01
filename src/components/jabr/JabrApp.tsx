@@ -249,13 +249,33 @@ const DashboardView = ({ onProject, onNew, projects, allProjects }: { onProject:
 };
 
 // --- PROJECT DETAIL ---
-const DetailView = ({ project: p, onBack }: { project: Project; onBack: () => void }) => {
+const STEP_DETAILS: Record<string, { desc: string; action: string; tools: string }> = {
+  'Calibrage': { desc: 'Calcul du nombre de pages, format, police, marges et épaisseur du dos.', action: 'Lancer le calibrage', tools: 'Format 15,2×22,9 · Garamond 11pt' },
+  'Couverture': { desc: 'Création et validation de la couverture : 1re, 4e, dos, rabats.', action: 'Uploader la couverture', tools: 'EAN-13 · ISBN · Prix TTC · Logo' },
+  'Diagnostic': { desc: 'Vérification automatique des 7 critères de conformité.', action: 'Lancer le diagnostic', tools: 'Score qualité · Corrections auto' },
+  'BAT': { desc: 'Bon à Tirer — validation finale avant impression.', action: 'Générer le BAT', tools: 'PDF haute résolution · CMJN' },
+  'ePub': { desc: 'Conversion au format ePub pour distribution numérique.', action: 'Générer l\'ePub', tools: 'ePub 3.0 · Validation W3C' },
+  'Audio': { desc: 'Production audiobook : TTS, clonage voix, mastering.', action: 'Lancer la production', tools: 'ElevenLabs · MP3 320kbps' },
+  'Marketing': { desc: 'Fiche produit, visuels réseaux sociaux, communiqué de presse.', action: 'Créer les assets', tools: 'Fiche · Visuels · CP' },
+  'Distribution': { desc: 'Export vers les canaux de distribution configurés.', action: 'Lancer la distribution', tools: 'KDP · IngramSpark · Pollen' },
+};
+
+const DetailView = ({ project: p, onBack, onUpdate, onToast }: { project: Project; onBack: () => void; onUpdate: (p: Project) => void; onToast: (msg: string) => void }) => {
   const [activeStep, setActiveStep] = useState(0);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
   const stepStatuses = PIPELINE_STEPS.map((_, i) => {
     if (p.status === 'published') return 'done';
     if (p.status === 'in-progress') return i <= 1 ? 'done' : i === 2 ? 'active' : 'todo';
     return i === 0 ? 'active' : 'todo';
   });
+  const detail = STEP_DETAILS[PIPELINE_STEPS[activeStep]];
+
+  const changeStatus = (newStatus: 'published' | 'in-progress' | 'draft') => {
+    onUpdate({ ...p, status: newStatus });
+    setShowStatusMenu(false);
+    const labels = { published: 'Publié', 'in-progress': 'En cours', draft: 'Brouillon' };
+    onToast(`${p.title} → ${labels[newStatus]}`);
+  };
 
   return (
     <div>
@@ -269,10 +289,27 @@ const DetailView = ({ project: p, onBack }: { project: Project; onBack: () => vo
           <h2 className="text-2xl" style={{ color: c.mv }}>{p.title}</h2>
           {p.subtitle && <div className="text-[13px] italic mt-0.5" style={{ color: c.vm }}>{p.subtitle}</div>}
           <div className="text-[13px] mt-1.5" style={{ color: c.gr }}>{p.author}{p.illustrator && ` · Illustré par ${p.illustrator}`}</div>
-          <div className="flex gap-1.5 mt-2.5 flex-wrap">
+          <div className="flex gap-1.5 mt-2.5 flex-wrap items-center">
             <GenreBadge genre={p.genre} />
             {p.collection && <CollBadge collection={p.collection} />}
-            <StatusBadge status={p.status} />
+            {/* Editable status */}
+            <div className="relative">
+              <button onClick={() => setShowStatusMenu(!showStatusMenu)} className="cursor-pointer bg-transparent border-none flex items-center gap-1 hover:opacity-80">
+                <StatusBadge status={p.status} />
+                <span style={{ color: c.gr, fontSize: 10 }}>▼</span>
+              </button>
+              {showStatusMenu && (
+                <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border py-1 z-20" style={{ borderColor: c.gc, minWidth: 150 }}>
+                  {(['draft', 'in-progress', 'published'] as const).map(s => (
+                    <button key={s} onClick={() => changeStatus(s)}
+                      className="w-full text-left px-3 py-2 text-[12px] cursor-pointer bg-transparent border-none transition-colors hover:bg-[#FAF7F2] flex items-center gap-2"
+                      style={{ color: p.status === s ? c.or : c.nr, fontWeight: p.status === s ? 600 : 400 }}>
+                      <StatusBadge status={s} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="mt-3.5 text-[13px]">
             <span style={{ color: c.gr }}>ISBN </span>
@@ -311,6 +348,17 @@ const DetailView = ({ project: p, onBack }: { project: Project; onBack: () => vo
             );
           })}
         </div>
+        {/* Step detail panel */}
+        {detail && (
+          <div className="mt-5 pt-5 flex items-start gap-4" style={{ borderTop: `1px solid ${c.gc}` }}>
+            <div className="flex-1">
+              <div className="font-semibold text-[14px] mb-1" style={{ color: c.mv }}>{PIPELINE_STEPS[activeStep]}</div>
+              <div className="text-[12px] mb-2" style={{ color: c.gr }}>{detail.desc}</div>
+              <div className="text-[11px]" style={{ color: c.vm }}>{detail.tools}</div>
+            </div>
+            <Btn onClick={() => onToast(`${detail.action} — ${p.title}`)}>{detail.action}</Btn>
+          </div>
+        )}
       </Card>
 
       {/* Diagnostic */}
@@ -757,6 +805,72 @@ const AudiobooksView = ({ projects }: { projects: Project[] }) => {
 };
 
 // ═══════════════════════════════════
+// TOAST
+// ═══════════════════════════════════
+const Toast = ({ message, onClose }: { message: string; onClose: () => void }) => {
+  const [visible, setVisible] = useState(false);
+  useState(() => { setTimeout(() => setVisible(true), 10); setTimeout(() => { setVisible(false); setTimeout(onClose, 300); }, 3000); });
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg transition-all duration-300"
+      style={{ background: c.mv, color: 'white', opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(10px)' }}>
+      <span className="flex" style={{ color: c.oc }}>{icons.check}</span>
+      <span className="text-[13px]">{message}</span>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
+// NOTIFICATION PANEL
+// ═══════════════════════════════════
+const NotifPanel = ({ open, onClose, projects }: { open: boolean; onClose: () => void; projects: Project[] }) => {
+  if (!open) return null;
+  const corr = projects.filter(p => p.corrections.length > 0);
+  const drafts = projects.filter(p => p.status === 'draft');
+  return (
+    <div className="absolute top-full right-0 mt-2 w-[340px] bg-white rounded-xl shadow-xl border z-50" style={{ borderColor: c.gc }}>
+      <div className="flex justify-between items-center px-4 py-3" style={{ borderBottom: `1px solid ${c.gc}` }}>
+        <span className="font-semibold text-[13px]" style={{ color: c.mv }}>Notifications</span>
+        <button onClick={onClose} className="cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>{icons.close}</button>
+      </div>
+      <div className="max-h-[320px] overflow-y-auto">
+        {corr.length > 0 && (
+          <div className="px-4 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full" style={{ background: c.er }} />
+              <span className="text-[12px] font-semibold" style={{ color: c.er }}>{corr.reduce((s, p) => s + p.corrections.length, 0)} corrections bloquantes</span>
+            </div>
+            <div className="text-[11px]" style={{ color: c.gr }}>{corr.length} couverture{corr.length > 1 ? 's' : ''} à corriger</div>
+          </div>
+        )}
+        {drafts.length > 0 && (
+          <div className="px-4 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full" style={{ background: c.og }} />
+              <span className="text-[12px] font-semibold" style={{ color: c.og }}>{drafts.length} brouillon{drafts.length > 1 ? 's' : ''} en attente</span>
+            </div>
+            <div className="text-[11px]" style={{ color: c.gr }}>Manuscrits à faire avancer dans le pipeline</div>
+          </div>
+        )}
+        <div className="px-4 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 rounded-full" style={{ background: c.ok }} />
+            <span className="text-[12px] font-semibold" style={{ color: c.ok }}>ISBN : {projects.length + 27}/100 attribués</span>
+          </div>
+          <div className="text-[11px]" style={{ color: c.gr }}>{100 - projects.length - 27} ISBN disponibles</div>
+        </div>
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 rounded-full" style={{ background: c.vm }} />
+            <span className="text-[12px] font-semibold" style={{ color: c.vm }}>Distribution</span>
+          </div>
+          <div className="text-[11px]" style={{ color: c.gr }}>Amazon KDP prêt · 2 canaux en attente</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════
 export default function JabrApp() {
@@ -765,17 +879,26 @@ export default function JabrApp() {
   const [modalOpen, setModalOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>(PROJECTS);
   const [search, setSearch] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const navigate = (id: string) => { setPage(id); setProject(null); };
   const openProject = (p: Project) => { setProject(p); setPage('detail'); };
-  const addProject = (p: Project) => setProjects(prev => [...prev, p]);
+  const addProject = (p: Project) => { setProjects(prev => [...prev, p]); showToast(`Projet créé : ${p.title}`); };
+  const showToast = (msg: string) => setToast(msg);
+  const updateProject = (updated: Project) => {
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
+    setProject(updated);
+  };
 
   const filtered = search
     ? projects.filter(p => p.title.toLowerCase().includes(search.toLowerCase()) || p.genre.toLowerCase().includes(search.toLowerCase()) || p.author.toLowerCase().includes(search.toLowerCase()))
     : projects;
 
+  const notifCount = projects.filter(p => p.corrections.length > 0).reduce((s, p) => s + p.corrections.length, 0);
+
   const renderContent = () => {
-    if (project) return <DetailView project={project} onBack={() => navigate('dashboard')} />;
+    if (project) return <DetailView project={project} onBack={() => navigate('dashboard')} onUpdate={updateProject} onToast={showToast} />;
     switch (page) {
       case 'projets': return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} />;
       case 'couvertures': return <CouverturesView onProject={openProject} projects={filtered} />;
@@ -802,16 +925,24 @@ export default function JabrApp() {
               className="bg-transparent outline-none text-sm flex-1" style={{ color: c.nr }} />
             {search && <button onClick={() => setSearch('')} className="cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>{icons.close}</button>}
           </div>
-          <div className="relative cursor-pointer" style={{ color: c.gr }}
-            onMouseEnter={e => (e.currentTarget.style.color = c.or)}
-            onMouseLeave={e => (e.currentTarget.style.color = c.gr)}>
-            {icons.bell}
-            <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-white" style={{ background: c.og }} />
+          <div className="relative">
+            <button onClick={() => setNotifOpen(!notifOpen)} className="relative cursor-pointer bg-transparent border-none" style={{ color: c.gr }}
+              onMouseEnter={e => (e.currentTarget.style.color = c.or)}
+              onMouseLeave={e => { if (!notifOpen) e.currentTarget.style.color = c.gr; }}>
+              {icons.bell}
+              {notifCount > 0 && (
+                <div className="absolute -top-1 -right-2 min-w-[16px] h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white px-1" style={{ background: c.og }}>
+                  {notifCount}
+                </div>
+              )}
+            </button>
+            <NotifPanel open={notifOpen} onClose={() => setNotifOpen(false)} projects={projects} />
           </div>
         </div>
-        <div className="flex-1 p-7 overflow-y-auto">{renderContent()}</div>
+        <div className="flex-1 p-7 overflow-y-auto" onClick={() => notifOpen && setNotifOpen(false)}>{renderContent()}</div>
       </div>
       <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={addProject} />
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>
   );
 }
