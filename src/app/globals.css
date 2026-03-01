@@ -1,0 +1,31 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --or: #C8952E;
+  --or-clair: #E8B84B;
+  --or-doux: #F5DCA0;
+  --mauve: #2D1B4E;
+  --violet: #3E2768;
+  --violet-m: #5B3E8A;
+  --blanc-casse: #FAF7F2;
+  --gris: #9E9689;
+  --gris-clair: #E8E4DF;
+  --fond-table: #F5F3EF;
+  --orange: #E07A2F;
+  --succes: #2EAE6D;
+  --erreur: #D94452;
+  --warning: #E8A33D;
+  --info: #4A8FD4;
+  --noir: #2D2A26;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--blanc-casse); color: var(--noir); }
+h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--gris-clair); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gris); }
