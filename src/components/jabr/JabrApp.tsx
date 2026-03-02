@@ -587,7 +587,7 @@ const STEP_DETAILS: Record<string, { desc: string; action: string; tools: string
   'Distribution': { desc: 'Export vers les canaux de distribution configurés.', action: 'Lancer la distribution', tools: 'KDP · IngramSpark · Pollen' },
 };
 
-const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { project: Project; onBack: () => void; onUpdate: (p: Project) => void; onToast: (msg: string) => void; onDelete: (id: number) => void }) => {
+const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjects }: { project: Project; onBack: () => void; onUpdate: (p: Project) => void; onToast: (msg: string) => void; onDelete: (id: number) => void; allProjects: Project[] }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -919,6 +919,51 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
           </div>
         )}
       </Card>
+
+      {/* Série / Connexions */}
+      {(p.series || p.collection) && (() => {
+        const seriesBooks = p.series ? allProjects.filter(b => b.series === p.series && b.id !== p.id).sort((a, b) => (a.seriesOrder || 0) - (b.seriesOrder || 0)) : [];
+        const collectionBooks = p.collection ? allProjects.filter(b => b.collection === p.collection && b.id !== p.id) : [];
+        const linked = [...seriesBooks, ...collectionBooks.filter(b => !seriesBooks.find(s => s.id === b.id))];
+        if (linked.length === 0) return null;
+        return (
+          <Card hover={false} className="p-6 mt-5">
+            <div className="flex justify-between items-center mb-4">
+              <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>
+                {p.series ? `Série : ${p.series}` : `Collection : ${p.collection}`}
+              </div>
+              <span className="text-[12px]" style={{ color: c.vm }}>{linked.length + 1} titre{linked.length > 0 ? 's' : ''}</span>
+            </div>
+            <div className="space-y-2">
+              {/* Current book highlighted */}
+              <div className="flex items-center gap-3 p-3 rounded-lg" style={{ background: 'rgba(200,149,46,0.06)', border: `1px solid ${c.or}` }}>
+                <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                <div className="flex-1">
+                  <div className="text-[12px] font-semibold" style={{ color: c.or }}>
+                    {p.seriesOrder ? `Tome ${p.seriesOrder} — ` : ''}{p.title}
+                  </div>
+                  <div className="text-[10px]" style={{ color: c.gr }}>{p.pages}p · {p.editions.length} éditions · Actuel</div>
+                </div>
+              </div>
+              {/* Linked books */}
+              {linked.map(b => (
+                <div key={b.id} className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-[#FAF7F2] transition-colors" style={{ background: c.ft }}>
+                  <CoverThumb emoji={b.cover} coverImage={b.coverImage} size="sm" />
+                  <div className="flex-1">
+                    <div className="text-[12px] font-semibold" style={{ color: c.mv }}>
+                      {b.seriesOrder ? `Tome ${b.seriesOrder} — ` : ''}{b.title}
+                    </div>
+                    <div className="text-[10px]" style={{ color: c.gr }}>{b.pages}p · {b.editions.length} éditions</div>
+                  </div>
+                  <Badge bg={b.status === 'published' ? '#D4F0E0' : b.status === 'in-progress' ? '#FDE8D0' : '#F0EDE8'} color={b.status === 'published' ? c.ok : b.status === 'in-progress' ? c.og : c.gr}>
+                    {b.status === 'published' ? 'Publié' : b.status === 'in-progress' ? 'En cours' : 'Brouillon'}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Gabarit Couverture */}
       <CoverSpecPanel pages={p.pages} genre={p.genre} title={p.title} />
@@ -3738,7 +3783,7 @@ export default function JabrApp() {
         <p className="text-sm" style={{ color: c.gr }}>Chargement du catalogue…</p>
       </div>
     );
-    if (project) return <DetailView project={project} onBack={() => navigate('dashboard')} onUpdate={handleUpdate} onToast={showToast} onDelete={handleDelete} />;
+    if (project) return <DetailView project={project} onBack={() => navigate('dashboard')} onUpdate={handleUpdate} onToast={showToast} onDelete={handleDelete} allProjects={projects} />;
     if ((search || hasFilters) && filtered.length === 0) return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="text-5xl mb-4">🔍</div>
