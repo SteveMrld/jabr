@@ -100,9 +100,9 @@ const ScoreCircle = ({ score, max }: { score: number; max: number }) => {
 };
 
 const StatCard = ({ value, label, accent }: { value: string | number; label: string; accent?: string }) => (
-  <div className="bg-white rounded-xl border p-5 flex-1 min-w-[120px] transition-colors hover:border-[#C8952E]" style={{ borderColor: c.gc }}>
-    <div style={{ fontSize: 28, fontWeight: 700, color: accent || c.mv, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{value}</div>
-    <div className="mt-2 uppercase tracking-wider" style={{ fontSize: 10, color: c.gr, fontWeight: 600 }}>{label}</div>
+  <div className="bg-white rounded-xl border p-4 text-center transition-colors hover:border-[#C8952E]" style={{ borderColor: c.gc }}>
+    <div style={{ fontSize: 24, fontWeight: 700, color: accent || c.mv, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{value}</div>
+    <div className="mt-1.5 uppercase tracking-wider" style={{ fontSize: 9, color: c.gr, fontWeight: 600 }}>{label}</div>
   </div>
 );
 
@@ -318,7 +318,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav }: { onP
       </div>
 
       {/* KPIs row 1 */}
-      <div className="flex gap-3.5 mb-3 flex-wrap">
+      <div className="grid grid-cols-6 gap-3 mb-3">
         <StatCard value={allProjects.length} label="Titres" accent={c.mv} />
         <StatCard value={pub} label="Publiés" accent={c.ok} />
         <StatCard value={prog} label="En cours" accent={c.og} />
@@ -328,12 +328,12 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav }: { onP
       </div>
 
       {/* KPIs row 2 — production */}
-      <div className="flex gap-3.5 mb-6 flex-wrap">
+      <div className="grid grid-cols-6 gap-3 mb-6">
         <StatCard value={`${withCoverArt}/${allProjects.length}`} label="Artwork" accent={withCoverArt === allProjects.length ? c.ok : c.og} />
         <StatCard value={`${withBackCover}/${allProjects.length}`} label="4e couverture" accent={withBackCover === allProjects.length ? c.ok : c.og} />
         <StatCard value={`${analyzed.length}/${allProjects.length}`} label="Analysés" accent={analyzed.length === allProjects.length ? c.ok : c.og} />
         <StatCard value={withAudio} label="Audiobooks" accent={c.vm} />
-        {avgIa !== null && <StatCard value={`${avgIa}%`} label="Score IA moy." accent={avgIa > 25 ? c.er : c.ok} />}
+        <StatCard value={avgIa !== null ? `${avgIa}%` : '—'} label="Score IA moy." accent={avgIa !== null && avgIa > 25 ? c.er : c.ok} />
         <StatCard value={corr} label="Corrections" accent={corr > 0 ? c.er : c.ok} />
       </div>
 
@@ -578,6 +578,9 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(p.title);
   const [editPages, setEditPages] = useState(String(p.pages));
+  const [editSubtitle, setEditSubtitle] = useState(p.subtitle || '');
+  const [editBackCover, setEditBackCover] = useState(p.backCover || '');
+  const [editNotes, setEditNotes] = useState(p.notes || '');
   const stepStatuses = PIPELINE_STEPS.map((_, i) => {
     if (p.status === 'published') return 'done';
     if (p.status === 'in-progress') return i <= 1 ? 'done' : i === 2 ? 'active' : 'todo';
@@ -601,7 +604,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
 
   const saveEdit = () => {
     if (editTitle.trim()) {
-      onUpdate({ ...p, title: editTitle.trim(), pages: parseInt(editPages) || p.pages });
+      onUpdate({ ...p, title: editTitle.trim(), pages: parseInt(editPages) || p.pages, subtitle: editSubtitle.trim() || undefined, backCover: editBackCover.trim() || undefined, notes: editNotes.trim() || undefined });
       setEditing(false);
       onToast('Modifications enregistrées');
     }
@@ -667,7 +670,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
           {icons.chevL} Projets
         </button>
         <div className="flex gap-2">
-          {!editing && <Btn variant="secondary" onClick={() => { setEditTitle(p.title); setEditPages(String(p.pages)); setEditing(true); }}>{icons.edit} Modifier</Btn>}
+          {!editing && <Btn variant="secondary" onClick={() => { setEditTitle(p.title); setEditPages(String(p.pages)); setEditSubtitle(p.subtitle || ''); setEditBackCover(p.backCover || ''); setEditNotes(p.notes || ''); setEditing(true); }}>{icons.edit} Modifier</Btn>}
           <button onClick={() => setShowDeleteConfirm(true)} className="px-3 py-2 rounded-lg cursor-pointer border transition-colors hover:bg-red-50"
             style={{ borderColor: '#E8C0C0', color: c.er, background: 'white', fontSize: 13 }}>
             {icons.trash}
@@ -691,19 +694,36 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
       {/* Edit mode */}
       {editing && (
         <Card hover={false} className="p-5 mb-5">
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Titre</label>
+          <div className="grid grid-cols-[1fr_1fr_80px] gap-3 mb-3">
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Titre</label>
               <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
+                className="w-full px-3 py-2 rounded-lg border text-[13px] outline-none focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
             </div>
-            <div className="w-24">
-              <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Pages</label>
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Sous-titre</label>
+              <input value={editSubtitle} onChange={e => setEditSubtitle(e.target.value)} placeholder="Optionnel"
+                className="w-full px-3 py-2 rounded-lg border text-[13px] outline-none focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Pages</label>
               <input type="number" value={editPages} onChange={e => setEditPages(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
+                className="w-full px-3 py-2 rounded-lg border text-[13px] outline-none focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
             </div>
-            <Btn onClick={saveEdit}>Enregistrer</Btn>
+          </div>
+          <div className="mb-3">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>4e de couverture</label>
+            <textarea value={editBackCover} onChange={e => setEditBackCover(e.target.value)} rows={4} placeholder="Texte de 4e de couverture..."
+              className="w-full px-3 py-2 rounded-lg border text-[12px] outline-none focus:border-[#C8952E] resize-y leading-relaxed" style={{ borderColor: c.gc }} />
+          </div>
+          <div className="mb-3">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Notes éditoriales</label>
+            <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2} placeholder="Notes internes, rappels, idées..."
+              className="w-full px-3 py-2 rounded-lg border text-[12px] outline-none focus:border-[#C8952E] resize-y leading-relaxed" style={{ borderColor: c.gc }} />
+          </div>
+          <div className="flex justify-end gap-2">
             <Btn variant="secondary" onClick={() => setEditing(false)}>Annuler</Btn>
+            <Btn onClick={saveEdit}>Enregistrer</Btn>
           </div>
         </Card>
       )}
@@ -815,15 +835,64 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
         )}
       </Card>
 
-      {/* 4e de couverture */}
-      {p.backCover && (
-        <Card hover={false} className="p-6 mt-5">
-          <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Texte 4e de couverture</div>
+      {/* 4e de couverture — éditable */}
+      <Card hover={false} className="p-6 mt-5">
+        <div className="flex justify-between items-center mb-3">
+          <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Texte 4e de couverture</div>
+          {!editing && (
+            <button className="text-[11px] px-3 py-1 rounded-lg cursor-pointer border-none transition-colors font-semibold"
+              style={{ background: c.ft, color: c.vm }}
+              onClick={() => { setEditBackCover(p.backCover || ''); setEditing(true); }}>
+              {icons.edit} Modifier
+            </button>
+          )}
+        </div>
+        {p.backCover ? (
           <div className="rounded-lg p-4" style={{ background: c.ft, border: `1px solid ${c.gc}` }}>
             <div className="text-[13px] leading-relaxed whitespace-pre-line" style={{ color: c.nr }}>{p.backCover}</div>
           </div>
-        </Card>
-      )}
+        ) : (
+          <div className="rounded-lg p-4 text-center cursor-pointer hover:bg-[#FAF7F2] transition-colors"
+            style={{ background: c.ft, border: `1px dashed ${c.gc}` }}
+            onClick={() => { setEditBackCover(''); setEditing(true); }}>
+            <div className="text-[12px]" style={{ color: c.gr }}>Aucun texte de 4e renseigné</div>
+            <div className="text-[11px] mt-1" style={{ color: c.vm }}>Cliquer pour ajouter</div>
+          </div>
+        )}
+        {p.backCover && (
+          <div className="mt-2 flex gap-4 text-[10px]" style={{ color: c.gr }}>
+            <span>{p.backCover.length} caractères</span>
+            <span>{p.backCover.split(/\s+/).length} mots</span>
+            <span>{p.backCover.length > 800 ? '⚠️ Long — idéal < 800 car.' : '✓ Longueur OK'}</span>
+          </div>
+        )}
+      </Card>
+
+      {/* Notes éditoriales */}
+      <Card hover={false} className="p-6 mt-5">
+        <div className="flex justify-between items-center mb-3">
+          <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Notes éditoriales</div>
+          {!editing && (
+            <button className="text-[11px] px-3 py-1 rounded-lg cursor-pointer border-none transition-colors font-semibold"
+              style={{ background: c.ft, color: c.vm }}
+              onClick={() => { setEditNotes(p.notes || ''); setEditing(true); }}>
+              {icons.edit} Modifier
+            </button>
+          )}
+        </div>
+        {p.notes ? (
+          <div className="rounded-lg p-4" style={{ background: '#FDFCFA', border: `1px solid ${c.ft}` }}>
+            <div className="text-[12px] leading-relaxed whitespace-pre-line" style={{ color: c.nr }}>{p.notes}</div>
+          </div>
+        ) : (
+          <div className="rounded-lg p-4 text-center cursor-pointer hover:bg-[#FAF7F2] transition-colors"
+            style={{ background: c.ft, border: `1px dashed ${c.gc}` }}
+            onClick={() => { setEditNotes(''); setEditing(true); }}>
+            <div className="text-[12px]" style={{ color: c.gr }}>Aucune note</div>
+            <div className="text-[11px] mt-1" style={{ color: c.vm }}>Cliquer pour ajouter</div>
+          </div>
+        )}
+      </Card>
 
       {/* Gabarit Couverture */}
       <CoverSpecPanel pages={p.pages} genre={p.genre} title={p.title} />

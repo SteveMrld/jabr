@@ -63,6 +63,7 @@ export interface Project {
   manuscriptStatus?: ManuscriptStatus;
   manuscriptFile?: string;
   analysis?: AnalysisResult;
+  notes?: string;
 }
 
 export const PROJECTS: Project[] = [
