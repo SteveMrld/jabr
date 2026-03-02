@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { PROJECTS, PIPELINE_STEPS, COLLECTIONS, DIAG_LABELS, DISTRIBUTION_CHANNELS, FORMAT_LABELS, EDITION_STATUS_LABELS, MANUSCRIPT_STATUS_LABELS, countISBN, primaryISBN, primaryPrice, KDP_TRIM_SIZES, KDP_PAPER_TYPES, KDP_CONSTANTS, FR_PRINT_CONSTANTS, FR_TRIM_SIZES, calcKDPCover, calcFRCover, type Project, type Edition, type EditionFormat, type ManuscriptStatus, type AnalysisResult, type TrimSizeKey, type PaperType, type FrTrimKey, type CoverSpecs } from '@/lib/data';
 import { useProjects, useDistributionChecks, useCalendarResults } from '@/lib/useProjects';
+import { t, type Lang } from '@/lib/i18n';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
@@ -42,6 +43,7 @@ const icons: Record<string, React.ReactNode> = {
   analytics: sv(<><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></>),
   isbn: sv(<><rect x="5" y="5" width="14" height="14" rx="2" /><line x1="8" y1="8" x2="8" y2="16" /><line x1="11" y1="8" x2="11" y2="16" /><line x1="14" y1="8" x2="14" y2="16" /></>),
   collections: sv(<><rect x="4" y="6" width="5" height="12" rx="1" /><rect x="10" y="6" width="5" height="12" rx="1" /><rect x="16" y="6" width="4" height="12" rx="1" /></>),
+  droits: sv(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></>),
   settings: sv(<><circle cx="12" cy="12" r="3" /><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></>),
   bell: sv(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></>),
   plus: sv(<><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>, 18),
@@ -200,10 +202,11 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   null, // separator
   ['isbn', 'ISBN', 'isbn'],
   ['collections', 'Collections', 'collections'],
+  ['droits', 'Droits', 'droits'],
   ['settings', 'Paramètres', 'settings'],
 ];
 
-const Sidebar = ({ active, onNav, projects, persisted, open, onToggle }: { active: string; onNav: (id: string) => void; projects: Project[]; persisted: boolean; open: boolean; onToggle: () => void }) => {
+const Sidebar = ({ active, onNav, projects, persisted, open, onToggle, lang, onToggleLang }: { active: string; onNav: (id: string) => void; projects: Project[]; persisted: boolean; open: boolean; onToggle: () => void; lang: Lang; onToggleLang: () => void }) => {
   const corrCount = projects.reduce((s, p) => s + p.corrections.length, 0);
   const draftCount = projects.filter(p => p.status === 'draft').length;
   const audioCount = projects.filter(p => p.editions.some(e => e.format === 'audiobook')).length;
@@ -255,6 +258,12 @@ const Sidebar = ({ active, onNav, projects, persisted, open, onToggle }: { activ
           {persisted ? 'Sync Supabase' : 'Mode local'}
         </div>
       </div>
+      <button onClick={onToggleLang} className="ml-auto cursor-pointer bg-transparent border-none px-2 py-1 rounded-lg transition-colors hover:bg-[rgba(255,255,255,0.08)]"
+        title={lang === 'fr' ? 'Switch to English' : 'Passer en français'}>
+        <span className="text-[11px] font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          {lang === 'fr' ? '🇬🇧 EN' : '🇫🇷 FR'}
+        </span>
+      </button>
     </div>
   </div>
   </>
@@ -264,6 +273,59 @@ const Sidebar = ({ active, onNav, projects, persisted, open, onToggle }: { activ
 // ═══════════════════════════════════
 // VIEWS
 // ═══════════════════════════════════
+
+// --- ANIMATED NUMBER ---
+const AnimatedNumber = ({ value, duration = 800 }: { value: number; duration?: number }) => {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const steps = 30;
+    const inc = value / steps;
+    const timer = setInterval(() => {
+      start += inc;
+      if (start >= value) { setDisplay(value); clearInterval(timer); }
+      else setDisplay(Math.floor(start));
+    }, duration / steps);
+    return () => clearInterval(timer);
+  }, [value, duration]);
+  return <>{display}</>;
+};
+
+// --- MINI DONUT SVG ---
+const MiniDonut = ({ segments, size = 80 }: { segments: { value: number; color: string; label: string }[]; size?: number }) => {
+  const total = segments.reduce((s, seg) => s + seg.value, 0);
+  if (total === 0) return null;
+  const r = 30;
+  const circ = 2 * Math.PI * r;
+  let offset = 0;
+
+  return (
+    <div className="flex items-center gap-3">
+      <svg width={size} height={size} viewBox="0 0 80 80">
+        {segments.map((seg, i) => {
+          const pct = seg.value / total;
+          const dash = circ * pct;
+          const o = offset;
+          offset += dash;
+          return (
+            <circle key={i} cx="40" cy="40" r={r} fill="none" stroke={seg.color} strokeWidth="10"
+              strokeDasharray={`${dash} ${circ - dash}`} strokeDashoffset={-o}
+              transform="rotate(-90 40 40)" style={{ transition: 'stroke-dasharray 0.8s ease' }} />
+          );
+        })}
+        <text x="40" y="43" textAnchor="middle" fill={c.mv} fontSize="14" fontWeight="700" fontFamily="'Playfair Display', serif">{total}</text>
+      </svg>
+      <div className="space-y-1">
+        {segments.filter(s => s.value > 0).map((seg, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full" style={{ background: seg.color }} />
+            <span className="text-[10px]" style={{ color: c.gr }}>{seg.label} ({seg.value})</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 // --- DASHBOARD ---
 const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdateProject }: { onProject: (p: Project) => void; onNew: () => void; projects: Project[]; allProjects: Project[]; onNav?: (id: string) => void; onUpdateProject?: (p: Project) => void }) => {
@@ -369,6 +431,70 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
         <StatCard value={withAudio} label="Audiobooks" accent={c.vm} />
         <StatCard value={avgIa !== null ? `${avgIa}%` : '—'} label="Score IA moy." accent={avgIa !== null && avgIa > 25 ? c.er : c.ok} />
         <StatCard value={corr} label="Corrections" accent={corr > 0 ? c.er : c.ok} />
+      </div>
+
+      {/* Real-time dashboard */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+        {/* Status donut */}
+        <Card hover={false} className="p-5">
+          <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>Répartition statut</div>
+          <MiniDonut segments={[
+            { value: pub, color: c.ok, label: 'Publiés' },
+            { value: prog, color: c.og, label: 'En cours' },
+            { value: allProjects.filter(p => p.status === 'draft').length, color: c.gr, label: 'Brouillons' },
+          ]} />
+        </Card>
+
+        {/* Pipeline progress */}
+        <Card hover={false} className="p-5">
+          <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>Pipeline production</div>
+          <div className="space-y-2.5">
+            {[
+              { label: 'ISBN attribués', current: countISBN(allProjects), max: 100, color: c.or },
+              { label: 'Artwork prêt', current: withCoverArt, max: allProjects.length, color: c.vm },
+              { label: '4e couverture', current: withBackCover, max: allProjects.length, color: c.og },
+              { label: 'Analysés IA', current: analyzed.length, max: allProjects.length, color: c.ok },
+            ].map((bar, i) => {
+              const pct = bar.max > 0 ? Math.round((bar.current / bar.max) * 100) : 0;
+              return (
+                <div key={i}>
+                  <div className="flex justify-between text-[10px] mb-0.5">
+                    <span style={{ color: c.vm }}>{bar.label}</span>
+                    <span style={{ color: bar.color, fontWeight: 700 }}>{pct}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: bar.color, transition: 'width 1s ease-out' }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Revenue gauge */}
+        <Card hover={false} className="p-5">
+          <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>Revenus estimés/an</div>
+          <div className="flex items-center justify-center">
+            <svg width="120" height="80" viewBox="0 0 120 80">
+              {/* Background arc */}
+              <path d="M 10 70 A 50 50 0 0 1 110 70" fill="none" stroke={c.gc} strokeWidth="8" strokeLinecap="round" />
+              {/* Value arc */}
+              {(() => {
+                const maxRev = 10000;
+                const pct = Math.min(1, totalRev / maxRev);
+                const angle = pct * Math.PI;
+                const x = 60 - 50 * Math.cos(angle);
+                const y = 70 - 50 * Math.sin(angle);
+                const large = pct > 0.5 ? 1 : 0;
+                return <path d={`M 10 70 A 50 50 0 ${large} 1 ${x} ${y}`} fill="none" stroke={c.or} strokeWidth="8" strokeLinecap="round" style={{ transition: 'all 1s ease-out' }} />;
+              })()}
+              <text x="60" y="65" textAnchor="middle" fill={c.mv} fontSize="16" fontWeight="700" fontFamily="'Playfair Display', serif">
+                {totalRev.toLocaleString()}€
+              </text>
+              <text x="60" y="78" textAnchor="middle" fill={c.gr} fontSize="8">/ 10 000€ objectif</text>
+            </svg>
+          </div>
+        </Card>
       </div>
 
       {/* Priorities */}
@@ -1070,6 +1196,25 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
           </Card>
         );
       })()}
+
+      {/* Historique des modifications */}
+      {p.changelog && p.changelog.length > 0 && (
+        <Card hover={false} className="p-5 mt-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>📋 Historique</div>
+            <Badge bg={c.ft} color={c.gr}>{p.changelog.length}</Badge>
+          </div>
+          <div className="relative pl-6" style={{ borderLeft: `2px solid ${c.gc}` }}>
+            {[...p.changelog].reverse().slice(0, 10).map((entry, i) => (
+              <div key={i} className="relative mb-4 last:mb-0">
+                <div className="absolute -left-[25px] w-3 h-3 rounded-full border-2" style={{ background: i === 0 ? c.or : 'white', borderColor: i === 0 ? c.or : c.gc, top: 2 }} />
+                <div className="text-[10px] font-bold" style={{ color: i === 0 ? c.or : c.gr }}>{entry.date}</div>
+                <div className="text-[12px] mt-0.5" style={{ color: c.vm }}>{entry.action}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Gabarit Couverture */}
       <CoverSpecPanel pages={p.pages} genre={p.genre} title={p.title} />
@@ -3333,6 +3478,169 @@ Ce communiqué a été généré par JABR Pipeline Éditorial.`;
 };
 
 // ═══════════════════════════════════
+// DROITS & CONTRATS
+// ═══════════════════════════════════
+
+const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+  const rightsTypes = [
+    { id: 'print', label: '📖 Droits d\'impression', desc: 'Impression et diffusion papier', territories: 'France, Belgique, Suisse, Luxembourg, Canada', status: 'actif', color: c.ok },
+    { id: 'digital', label: '📱 Droits numériques', desc: 'ePub, PDF, plateformes digitales', territories: 'Mondial', status: 'actif', color: c.ok },
+    { id: 'audio', label: '🎧 Droits audio', desc: 'Audiobooks, podcasts, lectures publiques', territories: 'Francophonie', status: 'actif', color: c.ok },
+    { id: 'translation', label: '🌍 Droits de traduction', desc: 'Cessions de droits pour éditions étrangères', territories: '—', status: 'disponible', color: c.og },
+    { id: 'adaptation', label: '🎬 Droits d\'adaptation', desc: 'Cinéma, série TV, théâtre, BD', territories: '—', status: 'disponible', color: c.og },
+    { id: 'merchandise', label: '🎁 Produits dérivés', desc: 'Goodies, illustrations, licences', territories: '—', status: 'disponible', color: c.og },
+  ];
+
+  const contracts = [
+    { title: 'Contrat d\'édition', author: 'Steve Moradel', type: 'Cession de droits', start: '01/01/2025', end: '31/12/2030', titles: projects.filter(p => p.author === 'Steve Moradel').length, status: 'actif' },
+    { title: 'Distribution KDP', author: 'Jabrilia → Amazon', type: 'Distribution', start: '15/02/2025', end: 'Renouvelable', titles: projects.filter(p => p.editions.some(e => e.format === 'broché' || e.format === 'epub')).length, status: 'actif' },
+    { title: 'Illustratrice Anti-Stress', author: 'Allison Moradel', type: 'Commande illustration', start: '01/01/2025', end: '30/06/2025', titles: 1, status: 'terminé' },
+  ];
+
+  const territories = [
+    { zone: '🇫🇷 France', rights: 'Tous droits', titles: projects.length, active: true },
+    { zone: '🇧🇪 Belgique', rights: 'Print + Digital', titles: projects.filter(p => p.status === 'published').length, active: true },
+    { zone: '🇨🇭 Suisse', rights: 'Print + Digital', titles: projects.filter(p => p.status === 'published').length, active: true },
+    { zone: '🇱🇺 Luxembourg', rights: 'Print + Digital', titles: projects.filter(p => p.status === 'published').length, active: true },
+    { zone: '🇨🇦 Canada', rights: 'Print + Digital', titles: projects.filter(p => p.status === 'published').length, active: true },
+    { zone: '🌍 Reste du monde', rights: 'Digital only', titles: projects.filter(p => p.editions.some(e => e.format === 'epub')).length, active: true },
+    { zone: '🇬🇧 UK / 🇺🇸 US', rights: 'Non cédés', titles: 0, active: false },
+    { zone: '🇩🇪 Allemagne', rights: 'Non cédés', titles: 0, active: false },
+  ];
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Droits & Contrats</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Gestion des droits dérivés, adaptations et territoires</p>
+        </div>
+        <Btn variant="secondary" onClick={() => onToast('Export des droits en préparation')}>{icons.download} Export récapitulatif</Btn>
+      </div>
+
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={rightsTypes.filter(r => r.status === 'actif').length} label="Droits actifs" accent={c.ok} />
+        <StatCard value={rightsTypes.filter(r => r.status === 'disponible').length} label="Disponibles" accent={c.og} />
+        <StatCard value={contracts.length} label="Contrats" accent={c.mv} />
+        <StatCard value={territories.filter(t => t.active).length} label="Territoires" accent={c.or} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Types de droits */}
+        <Card hover={false} className="overflow-hidden">
+          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Types de droits</span>
+          </div>
+          <div className="p-4 space-y-3">
+            {rightsTypes.map(r => (
+              <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl transition-colors hover:bg-[rgba(200,149,46,0.03)]" style={{ border: `1px solid ${c.gc}` }}>
+                <span className="text-lg shrink-0">{r.label.split(' ')[0]}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{r.label.split(' ').slice(1).join(' ')}</div>
+                  <div className="text-[10px]" style={{ color: c.gr }}>{r.desc}</div>
+                  <div className="text-[10px] mt-0.5" style={{ color: c.vm }}>🌍 {r.territories}</div>
+                </div>
+                <Badge bg={r.status === 'actif' ? '#D4F0E0' : '#FFF3E0'} color={r.color}>
+                  {r.status === 'actif' ? '✓ Actif' : '◎ Disponible'}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Territoires */}
+        <Card hover={false} className="overflow-hidden">
+          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Couverture territoriale</span>
+          </div>
+          <div className="p-4">
+            {territories.map((t, i) => (
+              <div key={i} className="flex items-center gap-3 py-2.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                <span className="text-base w-[120px] text-[12px] font-semibold" style={{ color: t.active ? c.mv : c.gr }}>{t.zone}</span>
+                <div className="flex-1 text-[11px]" style={{ color: c.gr }}>{t.rights}</div>
+                <span className="text-[11px] font-bold" style={{ color: t.active ? c.ok : c.gr }}>
+                  {t.titles > 0 ? `${t.titles} titre${t.titles > 1 ? 's' : ''}` : '—'}
+                </span>
+                <div className="w-2 h-2 rounded-full" style={{ background: t.active ? c.ok : c.gc }} />
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Contrats */}
+      <Card hover={false} className="mt-5 overflow-hidden">
+        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Contrats actifs</span>
+          <span className="text-[11px] ml-3" style={{ color: c.gr }}>{contracts.length} contrats</span>
+        </div>
+        <div className="divide-y" style={{ borderColor: c.ft }}>
+          {contracts.map((ct, i) => (
+            <div key={i} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[rgba(200,149,46,0.02)]">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: ct.status === 'actif' ? '#D4F0E0' : c.ft }}>
+                <span className="text-base">{ct.type === 'Distribution' ? '🚚' : ct.type === 'Commande illustration' ? '🎨' : '📜'}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{ct.title}</div>
+                <div className="text-[11px]" style={{ color: c.gr }}>{ct.author} · {ct.type}</div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-[11px]" style={{ color: c.vm }}>{ct.start} → {ct.end}</div>
+                <div className="text-[10px]" style={{ color: c.gr }}>{ct.titles} titre{ct.titles > 1 ? 's' : ''}</div>
+              </div>
+              <Badge bg={ct.status === 'actif' ? '#D4F0E0' : c.ft} color={ct.status === 'actif' ? c.ok : c.gr}>
+                {ct.status === 'actif' ? '✓ Actif' : '○ Terminé'}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Matrice droits × titres */}
+      <Card hover={false} className="mt-5 overflow-hidden">
+        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Matrice Droits × Titres</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr style={{ background: c.ft }}>
+                <th className="text-left px-4 py-2.5 font-semibold" style={{ color: c.mv }}>Titre</th>
+                {['Print', 'Digital', 'Audio', 'Trad.', 'Adapt.', 'Dérivés'].map(h => (
+                  <th key={h} className="text-center px-2 py-2.5 font-semibold" style={{ color: c.gr }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {projects.map(p => (
+                <tr key={p.id} style={{ borderBottom: `1px solid ${c.ft}` }}>
+                  <td className="px-4 py-2.5 font-semibold" style={{ color: c.mv }}>{p.title}</td>
+                  {[
+                    p.editions.some(e => ['broché', 'poche', 'relié'].includes(e.format)),
+                    p.editions.some(e => ['epub', 'pdf'].includes(e.format)),
+                    p.editions.some(e => e.format === 'audiobook'),
+                    false,
+                    false,
+                    false,
+                  ].map((active, j) => (
+                    <td key={j} className="text-center px-2 py-2.5">
+                      <div className="w-5 h-5 rounded-full mx-auto flex items-center justify-center"
+                        style={{ background: active ? '#D4F0E0' : c.ft }}>
+                        <span style={{ fontSize: 9, color: active ? c.ok : c.gr }}>{active ? '✓' : '—'}</span>
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════
 
@@ -3714,7 +4022,7 @@ Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (r
   );
 };
 
-const SettingsView = ({ onToast, dark, toggleDark, onImport }: { onToast: (msg: string) => void; dark: boolean; toggleDark: () => void; onImport?: (projects: Project[]) => void }) => {
+const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang }: { onToast: (msg: string) => void; dark: boolean; toggleDark: () => void; onImport?: (projects: Project[]) => void; lang: Lang; toggleLang: () => void }) => {
   const loadSettings = () => {
     try { const s = localStorage.getItem('jabr-settings'); return s ? JSON.parse(s) : null; } catch { return null; }
   };
@@ -3817,6 +4125,26 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport }: { onToast: (msg: 
             <div className="flex items-center gap-2 mt-3 p-2.5 rounded-lg" style={{ background: c.ft }}>
               <span className="text-lg">{dark ? '🌙' : '☀️'}</span>
               <span className="text-[11px] font-semibold" style={{ color: c.gr }}>{dark ? 'Thème sombre activé' : 'Thème clair (défaut)'}</span>
+            </div>
+          </Card>
+
+          {/* Language */}
+          <Card hover={false} className="p-6">
+            <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>
+              {t('settings.language', lang)}
+            </h3>
+            <p className="text-[12px] mb-4" style={{ color: c.gr }}>
+              {lang === 'fr' ? 'Interface en français ou en anglais' : 'Switch interface language'}
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => { if (lang !== 'fr') toggleLang(); }} className="flex-1 py-3 px-4 rounded-xl cursor-pointer text-[13px] font-semibold transition-all"
+                style={{ background: lang === 'fr' ? c.or : c.ft, color: lang === 'fr' ? 'white' : c.gr, border: `2px solid ${lang === 'fr' ? c.or : c.gc}` }}>
+                🇫🇷 Français
+              </button>
+              <button onClick={() => { if (lang !== 'en') toggleLang(); }} className="flex-1 py-3 px-4 rounded-xl cursor-pointer text-[13px] font-semibold transition-all"
+                style={{ background: lang === 'en' ? c.or : c.ft, color: lang === 'en' ? 'white' : c.gr, border: `2px solid ${lang === 'en' ? c.or : c.gc}` }}>
+                🇬🇧 English
+              </button>
             </div>
           </Card>
 
@@ -4474,6 +4802,7 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
       ['analytics', 'Analytics', 'Readiness, revenus, finances, ROI'],
       ['isbn', 'ISBN', 'Attribution, export CSV, ONIX 3.0'],
       ['collections', 'Collections', 'Regroupement par série ou thématique'],
+      ['droits', 'Droits & Contrats', 'Droits dérivés, adaptations, traductions, territoires, contrats'],
       ['settings', 'Paramètres', 'Éditeur, import CSV, thème sombre'],
     ];
     modules.forEach(([id, label, desc]) => {
@@ -4775,6 +5104,16 @@ export default function JabrApp() {
   const [dark, setDark] = useState(() => {
     try { return localStorage.getItem('jabr-dark') === 'true'; } catch { return false; }
   });
+  const [lang, setLang] = useState<Lang>(() => {
+    try { return (localStorage.getItem('jabr-lang') as Lang) || 'fr'; } catch { return 'fr'; }
+  });
+  const toggleLang = useCallback(() => {
+    setLang(prev => {
+      const next: Lang = prev === 'fr' ? 'en' : 'fr';
+      try { localStorage.setItem('jabr-lang', next); } catch {}
+      return next;
+    });
+  }, []);
 
   // Update mutable theme reference before render
   c = dark ? darkColors : lightColors;
@@ -4793,8 +5132,23 @@ export default function JabrApp() {
   const handleAdd = (p: Project) => { addProject(p); showToast(`Projet créé : ${p.title}`); };
   const showToast = (msg: string) => setToast(msg);
   const handleUpdate = (updated: Project) => {
-    updateProject(updated);
-    setProject(updated);
+    const now = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+    const old = projects.find(p => p.id === updated.id);
+    const log: string[] = [];
+    if (old) {
+      if (old.status !== updated.status) log.push(`Statut → ${updated.status === 'published' ? 'Publié' : updated.status === 'in-progress' ? 'En cours' : 'Brouillon'}`);
+      if (old.title !== updated.title) log.push(`Titre modifié → ${updated.title}`);
+      if (old.editions.length !== updated.editions.length) log.push(`Éditions : ${old.editions.length} → ${updated.editions.length}`);
+      if ((old.backCover || '') !== (updated.backCover || '')) log.push('4e de couverture mise à jour');
+      if ((old.notes || '') !== (updated.notes || '')) log.push('Notes éditoriales modifiées');
+      if (old.corrections.length !== updated.corrections.length) log.push(`Corrections : ${old.corrections.length} → ${updated.corrections.length}`);
+      if (JSON.stringify(old.diag) !== JSON.stringify(updated.diag)) log.push('Diagnostic couverture mis à jour');
+    }
+    if (log.length === 0) log.push('Fiche modifiée');
+    const changelog = [...(updated.changelog || []), ...log.map(action => ({ date: now, action }))];
+    const withLog = { ...updated, changelog };
+    updateProject(withLog);
+    setProject(withLog);
   };
   const handleDelete = (id: number) => {
     deleteProject(id);
@@ -4864,6 +5218,7 @@ export default function JabrApp() {
       case 'couvertures': return <CouverturesView onProject={openProject} projects={filtered} />;
       case 'isbn': return <ISBNView projects={filtered} onToast={showToast} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
+      case 'droits': return <DroitsView projects={projects} onToast={showToast} />;
       case 'marketing': return <MarketingView projects={projects} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
       case 'distribution': return <DistributionView projects={projects} onToast={showToast} distChecks={distChecks} />;
@@ -4873,14 +5228,14 @@ export default function JabrApp() {
       case 'audiobooks': return <AudiobooksView projects={projects} onToast={showToast} />;
       case 'presse': return <PresseView projects={projects} onProject={openProject} onToast={showToast} />;
       case 'calendrier': return <CalendrierView projects={projects} onToast={showToast} calStore={calStore} />;
-      case 'settings': return <SettingsView onToast={showToast} dark={dark} toggleDark={toggleDark} onImport={(imported) => imported.forEach(p => addProject(p))} />;
+      case 'settings': return <SettingsView onToast={showToast} dark={dark} toggleDark={toggleDark} onImport={(imported) => imported.forEach(p => addProject(p))} lang={lang} toggleLang={toggleLang} />;
       default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} onUpdateProject={handleUpdate} />;
     }
   };
 
   return (
     <div className="flex min-h-screen" style={{ fontFamily: "'Inter', sans-serif", background: c.bc }}>
-      <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} persisted={persisted} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} persisted={persisted} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} lang={lang} onToggleLang={toggleLang} />
       <div className="flex-1 flex flex-col min-w-0 lg:ml-0">
         {/* TOP BAR */}
         <div className="flex flex-wrap gap-2 justify-between items-center px-4 md:px-8 py-2.5 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>

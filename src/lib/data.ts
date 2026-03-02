@@ -68,6 +68,7 @@ export interface Project {
   seriesOrder?: number;
   printCost?: number;
   revenue?: number;
+  changelog?: { date: string; action: string }[];
 }
 
 export const PROJECTS: Project[] = [
@@ -79,7 +80,15 @@ export const PROJECTS: Project[] = [
       { format: 'epub', isbn: '978-2-488647-01-4', status: 'planned' },
       { format: 'pdf', isbn: '978-2-488647-02-1', status: 'planned' },
     ],
-    diag: { ean: true, prix: true, isbn_txt: true, texte4e: true, typo: true, dos: true, logo: true }, corrections: [], printCost: 4.85, revenue: 0
+    diag: { ean: true, prix: true, isbn_txt: true, texte4e: true, typo: true, dos: true, logo: true }, corrections: [], printCost: 4.85, revenue: 0,
+    changelog: [
+      { date: '15 jan. 2025', action: 'Projet créé' },
+      { date: '28 jan. 2025', action: 'Illustrations validées par Allison Moradel' },
+      { date: '10 fév. 2025', action: 'ISBN broché attribué — 978-2-488647-00-7' },
+      { date: '22 fév. 2025', action: 'Diagnostic couverture : 7/7 validé' },
+      { date: '05 mar. 2025', action: 'Statut → En cours' },
+      { date: '18 mar. 2025', action: 'Calibrage couverture finalisé (136p)' },
+    ]
   },
   {
     id: 2, title: "Sur les hauteurs des chutes du Niagara", author: "Steve Moradel",
