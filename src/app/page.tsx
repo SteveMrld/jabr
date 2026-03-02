@@ -117,6 +117,7 @@ export default function Home() {
             <a href="#features" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Fonctionnalités</a>
             <a href="#pipeline" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Pipeline</a>
             <a href="#stats" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Chiffres</a>
+            <a href="#testimonials" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Retours</a>
             <Link href="/demo"
               className="px-5 py-2.5 rounded-lg font-semibold text-sm text-white transition-all hover:scale-105"
               style={{ background: c.or }}>
@@ -209,7 +210,7 @@ export default function Home() {
                       <Logo size={20} />
                       <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 700, color: c.or, letterSpacing: 2 }}>JABR</span>
                     </div>
-                    {['Dashboard', 'Projets', 'Calibrage', 'Couvertures', 'Audiobooks', 'Distribution', 'Analytics', '', 'ISBN', 'Collections', 'Paramètres'].map((item, i) =>
+                    {['Dashboard', 'Projets', 'Manuscrits', 'Analyse', 'Calibrage', 'Couvertures', 'Audiobooks', 'Distribution', 'Marketing', 'Presse', 'Analytics', '', 'ISBN', 'Collections', 'Paramètres'].map((item, i) =>
                       item === '' ? <div key={i} className="my-1.5" style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} /> :
                       <div key={i} className="px-3 py-1.5 rounded-md text-[11px]"
                         style={{ background: i === 0 ? c.vi : 'transparent', color: i === 0 ? 'white' : 'rgba(255,255,255,0.35)', fontWeight: i === 0 ? 600 : 400 }}>
@@ -348,10 +349,10 @@ export default function Home() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { value: 10, suffix: '', label: 'Titres au catalogue', sub: 'Romans, essais, BD, jeunesse' },
+              { value: 10, suffix: '', label: 'Titres au catalogue', sub: 'Romans, essais, BD, jeunesse, poésie' },
               { value: 28, suffix: '', label: 'ISBN attribués', sub: '6 formats par titre max' },
+              { value: 15, suffix: '', label: 'Modules intégrés', sub: 'De l\'analyse au marketing' },
               { value: 6, suffix: '', label: 'Canaux de distribution', sub: 'KDP, Pollen, IngramSpark…' },
-              { value: 100, suffix: '', label: 'ISBN en stock', sub: 'Préfixe 978-2-488647' },
             ].map((stat, i) => (
               <FadeIn key={stat.label} delay={i * 0.1}>
                 <div className="text-center p-6 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(200,149,46,0.1)' }}>
@@ -364,6 +365,91 @@ export default function Home() {
               </FadeIn>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════ */}
+      {/* TESTIMONIALS */}
+      {/* ═══════════════════════════════════ */}
+      <section id="testimonials" style={{ background: c.cream }}>
+        <div className="max-w-6xl mx-auto px-8 py-28">
+          <FadeIn>
+            <div className="text-center mb-16">
+              <div className="uppercase tracking-[4px] text-sm font-semibold mb-4" style={{ color: c.or }}>Retours</div>
+              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: c.mv, lineHeight: 1.2 }}>
+                Pensé par un éditeur,<br />pour les éditeurs
+              </h2>
+            </div>
+          </FadeIn>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { quote: "En une session, j'ai attribué 28 ISBN, diagnostiqué mes 10 couvertures et identifié les corrections à faire. Avant, ça me prenait une semaine.", name: 'Steve Moradel', role: 'Fondateur, Jabrilia Éditions', avatar: '✍️' },
+              { quote: "Le Scanner 6D m'a révélé un score IA de 42% sur mon manuscrit. J'ai pu réécrire les passages problématiques avant impression. Un filet de sécurité indispensable.", name: 'Retour bêta', role: 'Auteur-éditeur indépendant', avatar: '📖' },
+              { quote: "La matrice Distribution × Canaux change tout. On voit instantanément quel titre est prêt pour quel canal, et ce qu'il manque pour y arriver.", name: 'Retour bêta', role: 'Éditeur indépendant', avatar: '🎯' },
+            ].map((t, i) => (
+              <FadeIn key={i} delay={i * 0.15}>
+                <div className="p-6 rounded-2xl h-full flex flex-col" style={{ background: 'white', border: '1px solid rgba(200,149,46,0.1)', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+                  <div className="text-2xl mb-4" style={{ color: c.or }}>&ldquo;</div>
+                  <p className="text-[14px] leading-relaxed flex-1" style={{ color: '#4A4542' }}>{t.quote}</p>
+                  <div className="flex items-center gap-3 mt-6 pt-4" style={{ borderTop: '1px solid rgba(200,149,46,0.1)' }}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg" style={{ background: 'rgba(200,149,46,0.08)' }}>{t.avatar}</div>
+                    <div>
+                      <div className="font-semibold text-[13px]" style={{ color: c.mv }}>{t.name}</div>
+                      <div style={{ fontSize: 11, color: '#9E9689' }}>{t.role}</div>
+                    </div>
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════ */}
+      {/* WHY JABR */}
+      {/* ═══════════════════════════════════ */}
+      <section className="relative overflow-hidden" style={{ background: `linear-gradient(160deg, ${c.mv}, #1A0F2E)` }}>
+        <div className="absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage: `linear-gradient(rgba(200,149,46,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(200,149,46,0.5) 1px, transparent 1px)`, backgroundSize: '40px 40px' }} />
+        <div className="relative max-w-6xl mx-auto px-8 py-28">
+          <FadeIn>
+            <div className="text-center mb-16">
+              <div className="uppercase tracking-[4px] text-sm font-semibold mb-4" style={{ color: c.or }}>Comparaison</div>
+              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: 'white', lineHeight: 1.2 }}>
+                Tableur vs. JABR
+              </h2>
+              <p className="mt-4 text-base max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                La plupart des éditeurs indépendants gèrent leur catalogue dans des tableurs. Voici ce que ça change.
+              </p>
+            </div>
+          </FadeIn>
+
+          <FadeIn delay={0.2}>
+            <div className="max-w-3xl mx-auto rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(200,149,46,0.15)' }}>
+              <div className="grid grid-cols-3 text-center py-4 text-[13px] font-semibold" style={{ background: 'rgba(200,149,46,0.08)' }}>
+                <div style={{ color: 'rgba(255,255,255,0.5)' }}>Fonctionnalité</div>
+                <div style={{ color: 'rgba(255,255,255,0.3)' }}>Tableur</div>
+                <div style={{ color: c.or }}>JABR</div>
+              </div>
+              {[
+                ['Registre ISBN', '❌ Manuel, erreurs', '✅ Auto-attribué, export CSV + ONIX'],
+                ['Diagnostic couverture', '❌ Vérification visuelle', '✅ 7 critères automatiques'],
+                ['Calibrage dos', '❌ Calcul à la main', '✅ Formule pages × épaisseur'],
+                ['Multi-format', '❌ 1 ligne par format', '✅ 6 formats liés par titre'],
+                ['Distribution', '❌ Fichier par canal', '✅ Matrice interactive + checklist'],
+                ['Analyse manuscrit', '❌ Impossible', '✅ Scanner 6D + score IA'],
+                ['Marketing', '❌ À part', '✅ Moteur 5 engines intégré'],
+                ['Pipeline visuel', '❌ Aucun', '✅ 8 étapes du manuscrit à la distribution'],
+              ].map(([feature, tableur, jabr], i) => (
+                <div key={i} className="grid grid-cols-3 text-[12px] py-3 px-4" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
+                  <div className="font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>{feature}</div>
+                  <div className="text-center" style={{ color: 'rgba(255,255,255,0.25)' }}>{tableur}</div>
+                  <div className="text-center" style={{ color: c.or }}>{jabr}</div>
+                </div>
+              ))}
+            </div>
+          </FadeIn>
         </div>
       </section>
 
@@ -455,9 +541,9 @@ export default function Home() {
               <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>par Jabrilia Éditions</span>
             </div>
             <div className="flex items-center gap-6" style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-              <span>Pipeline éditorial v1.6</span>
+              <span>Pipeline éditorial v1.9.2</span>
               <span>·</span>
-              <span>10 titres · 28 ISBN</span>
+              <span>10 titres · 28 ISBN · 15 modules</span>
               <span>·</span>
               <span>© 2026 Jabrilia Éditions</span>
             </div>
