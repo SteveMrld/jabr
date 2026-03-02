@@ -44,6 +44,7 @@ const icons: Record<string, React.ReactNode> = {
   isbn: sv(<><rect x="5" y="5" width="14" height="14" rx="2" /><line x1="8" y1="8" x2="8" y2="16" /><line x1="11" y1="8" x2="11" y2="16" /><line x1="14" y1="8" x2="14" y2="16" /></>),
   collections: sv(<><rect x="4" y="6" width="5" height="12" rx="1" /><rect x="10" y="6" width="5" height="12" rx="1" /><rect x="16" y="6" width="4" height="12" rx="1" /></>),
   droits: sv(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></>),
+  benchmark: sv(<><path d="M18 20V10M12 20V4M6 20v-6" /></>),
   settings: sv(<><circle cx="12" cy="12" r="3" /><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></>),
   bell: sv(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></>),
   plus: sv(<><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>, 18),
@@ -203,6 +204,7 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['isbn', 'ISBN', 'isbn'],
   ['collections', 'Collections', 'collections'],
   ['droits', 'Droits', 'droits'],
+  ['benchmark', 'Benchmark', 'benchmark'],
   ['settings', 'Paramètres', 'settings'],
 ];
 
@@ -341,7 +343,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
 
   const [sort, setSort] = useState<'title' | 'score' | 'status' | 'editions'>('title');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'kanban' | 'timeline'>('list');
   const [dragId, setDragId] = useState<number | null>(null);
 
   const toggleSort = (key: typeof sort) => {
@@ -410,7 +412,20 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
           <h2 className="text-2xl" style={{ color: c.mv }}>Dashboard</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Jabrilia Éditions — Cockpit éditorial</p>
         </div>
-        <Btn onClick={onNew}>{icons.plus} Nouveau projet</Btn>
+        <div className="flex gap-2">
+          <Btn variant="secondary" onClick={async () => {
+            try {
+              const res = await fetch('/api/export-catalogue', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projects: allProjects }),
+              });
+              const html = await res.text();
+              const w = window.open('', '_blank');
+              if (w) { w.document.write(html); w.document.close(); }
+            } catch {}
+          }}>{icons.download} Catalogue PDF</Btn>
+          <Btn onClick={onNew}>{icons.plus} Nouveau projet</Btn>
+        </div>
       </div>
 
       {/* KPIs row 1 */}
@@ -558,6 +573,10 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
                 style={{ background: viewMode === 'kanban' ? c.or : 'white', color: viewMode === 'kanban' ? 'white' : c.gr, borderLeft: `1px solid ${c.gc}` }}>
                 ▣ Kanban
               </button>
+              <button onClick={() => setViewMode('timeline')} className="px-2.5 py-1 cursor-pointer border-none text-[10px] font-semibold"
+                style={{ background: viewMode === 'timeline' ? c.or : 'white', color: viewMode === 'timeline' ? 'white' : c.gr, borderLeft: `1px solid ${c.gc}` }}>
+                ━ Timeline
+              </button>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -670,6 +689,81 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
             })}
           </div>
         )}
+
+        {/* TIMELINE VIEW */}
+        {viewMode === 'timeline' && (() => {
+          const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+          const statusColor = (s: string) => s === 'published' ? c.ok : s === 'in-progress' ? c.og : c.gr;
+          const statusStart = (s: string) => s === 'published' ? 0 : s === 'in-progress' ? 3 : 6;
+          const statusEnd = (s: string) => s === 'published' ? 8 : s === 'in-progress' ? 9 : 10;
+
+          return (
+            <div className="p-4 overflow-x-auto">
+              {/* Month headers */}
+              <div className="flex" style={{ minWidth: 800 }}>
+                <div className="w-[180px] shrink-0" />
+                <div className="flex-1 grid grid-cols-12 gap-0">
+                  {months.map((m, i) => (
+                    <div key={i} className="text-center text-[9px] font-bold py-2" style={{ color: c.gr, borderBottom: `1px solid ${c.gc}` }}>{m}</div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Project rows */}
+              {sorted.map(p => {
+                const start = statusStart(p.status);
+                const end = statusEnd(p.status);
+                const barLeft = `${(start / 12) * 100}%`;
+                const barWidth = `${((end - start) / 12) * 100}%`;
+                const score = p.maxScore > 0 ? Math.round((p.score / p.maxScore) * 100) : 0;
+
+                return (
+                  <div key={p.id} className="flex items-center cursor-pointer transition-colors hover:bg-[rgba(200,149,46,0.02)]"
+                    onClick={() => onProject(p)} style={{ minWidth: 800, borderBottom: `1px solid ${c.ft}` }}>
+                    {/* Project info */}
+                    <div className="w-[180px] shrink-0 flex items-center gap-2 py-2.5 px-2">
+                      <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                      <div className="min-w-0">
+                        <div className="text-[11px] font-semibold truncate" style={{ color: c.mv }}>{p.title}</div>
+                        <div className="text-[9px]" style={{ color: c.gr }}>{p.genre} · {p.pages}p</div>
+                      </div>
+                    </div>
+
+                    {/* Gantt bar */}
+                    <div className="flex-1 relative h-10 grid grid-cols-12 gap-0">
+                      {months.map((_, i) => (
+                        <div key={i} className="h-full" style={{ borderRight: `1px solid ${c.ft}`, borderLeft: i === 0 ? `1px solid ${c.ft}` : 'none' }} />
+                      ))}
+                      <div className="absolute top-2.5 h-5 rounded-full flex items-center px-2 transition-all" style={{
+                        left: barLeft, width: barWidth,
+                        background: `linear-gradient(90deg, ${statusColor(p.status)}30, ${statusColor(p.status)}60)`,
+                        border: `1.5px solid ${statusColor(p.status)}`,
+                      }}>
+                        <span className="text-[8px] font-bold whitespace-nowrap" style={{ color: statusColor(p.status) }}>
+                          {p.status === 'published' ? '✓ Publié' : p.status === 'in-progress' ? `${score}%` : 'Brouillon'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Legend */}
+              <div className="flex items-center gap-4 mt-3 pt-3" style={{ borderTop: `1px solid ${c.gc}`, minWidth: 800 }}>
+                {[
+                  { label: 'Publié', color: c.ok },
+                  { label: 'En cours', color: c.og },
+                  { label: 'Brouillon', color: c.gr },
+                ].map(l => (
+                  <div key={l.label} className="flex items-center gap-1.5">
+                    <div className="w-8 h-2.5 rounded-full" style={{ background: `${l.color}40`, border: `1.5px solid ${l.color}` }} />
+                    <span className="text-[9px] font-semibold" style={{ color: l.color }}>{l.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </Card>
     </div>
   );
@@ -3478,6 +3572,200 @@ Ce communiqué a été généré par JABR Pipeline Éditorial.`;
 };
 
 // ═══════════════════════════════════
+// BENCHMARK CONCURRENCE
+// ═══════════════════════════════════
+
+const BenchmarkView = ({ projects }: { projects: Project[] }) => {
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const genres = [...new Set(projects.map(p => p.genre))];
+  const activeGenre = selectedGenre || genres[0] || 'Roman';
+  const genreProjects = projects.filter(p => p.genre === activeGenre);
+
+  // Market data by genre (simulated realistic benchmarks)
+  const marketData: Record<string, { avgPrice: number; avgPages: number; topPrice: number; lowPrice: number; avgPrint: number; marketSize: string; trend: string; competitors: { name: string; price: string; pages: number; note: string }[] }> = {
+    'Roman': { avgPrice: 19.90, avgPages: 320, topPrice: 24.90, lowPrice: 7.90, avgPrint: 5.80, marketSize: '280M€', trend: '+2.1%', competitors: [
+      { name: 'Gallimard — Blanche', price: '21,00€', pages: 280, note: 'Référence littéraire' },
+      { name: 'Actes Sud', price: '20,50€', pages: 300, note: 'Littérature contemporaine' },
+      { name: 'Grasset', price: '19,00€', pages: 260, note: 'Prix littéraires fréquents' },
+      { name: 'Flammarion', price: '21,90€', pages: 340, note: 'Large catalogue' },
+    ]},
+    'Jeunesse': { avgPrice: 14.90, avgPages: 120, topPrice: 19.90, lowPrice: 5.90, avgPrint: 4.20, marketSize: '380M€', trend: '+4.3%', competitors: [
+      { name: 'Nathan — Jeunesse', price: '12,90€', pages: 96, note: 'Leader jeunesse' },
+      { name: 'Bayard', price: '13,50€', pages: 110, note: 'Presse + édition' },
+      { name: 'Milan', price: '11,90€', pages: 80, note: 'Documentaires jeunesse' },
+      { name: 'Gallimard Jeunesse', price: '15,90€', pages: 140, note: 'Classiques + nouveautés' },
+    ]},
+    'Fantasy': { avgPrice: 22.90, avgPages: 450, topPrice: 29.90, lowPrice: 8.90, avgPrint: 6.50, marketSize: '95M€', trend: '+8.7%', competitors: [
+      { name: 'Bragelonne', price: '22,90€', pages: 480, note: 'Leader fantasy FR' },
+      { name: 'L\'Atalante', price: '24,90€', pages: 520, note: 'SF & fantasy exigeante' },
+      { name: 'Pocket Imaginaire', price: '8,90€', pages: 400, note: 'Poche référence' },
+      { name: 'Mnémos', price: '21,00€', pages: 380, note: 'Indépendant reconnu' },
+    ]},
+    'Essai': { avgPrice: 21.50, avgPages: 280, topPrice: 25.00, lowPrice: 8.50, avgPrint: 5.40, marketSize: '190M€', trend: '+1.8%', competitors: [
+      { name: 'La Découverte', price: '22,00€', pages: 320, note: 'Sciences humaines' },
+      { name: 'Seuil', price: '20,00€', pages: 260, note: 'Essais grand public' },
+      { name: 'PUF', price: '18,00€', pages: 240, note: 'Universitaire' },
+      { name: 'Fayard', price: '23,50€', pages: 350, note: 'Politique & société' },
+    ]},
+    'BD': { avgPrice: 16.50, avgPages: 64, topPrice: 35.00, lowPrice: 10.95, avgPrint: 6.80, marketSize: '950M€', trend: '+5.2%', competitors: [
+      { name: 'Dargaud', price: '14,50€', pages: 56, note: 'Franco-belge classique' },
+      { name: 'Delcourt', price: '15,50€', pages: 48, note: 'Large catalogue' },
+      { name: 'Casterman', price: '16,00€', pages: 64, note: 'BD d\'auteur' },
+      { name: 'Ki-oon', price: '7,90€', pages: 192, note: 'Manga éditeur FR' },
+    ]},
+  };
+
+  const market = marketData[activeGenre] || marketData['Roman'];
+  const jabrAvgPrice = genreProjects.length > 0
+    ? genreProjects.reduce((s, p) => {
+        const price = primaryPrice(p);
+        return s + (price ? parseFloat(price.replace('€', '').replace(',', '.')) : 0);
+      }, 0) / genreProjects.length
+    : 0;
+  const jabrAvgPages = genreProjects.length > 0
+    ? Math.round(genreProjects.reduce((s, p) => s + p.pages, 0) / genreProjects.length)
+    : 0;
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Benchmark Concurrence</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Positionnement marché, prix, concurrents par genre</p>
+        </div>
+      </div>
+
+      {/* Genre tabs */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {genres.map(g => (
+          <button key={g} onClick={() => setSelectedGenre(g)}
+            className="px-4 py-2 rounded-lg cursor-pointer text-[12px] font-semibold transition-all border-none"
+            style={{ background: activeGenre === g ? c.or : c.ft, color: activeGenre === g ? 'white' : c.gr }}>
+            {g} ({projects.filter(p => p.genre === g).length})
+          </button>
+        ))}
+      </div>
+
+      {/* Market overview */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+        <StatCard value={market.marketSize} label={`Marché ${activeGenre}`} accent={c.mv} />
+        <StatCard value={market.trend} label="Tendance annuelle" accent={market.trend.startsWith('+') ? c.ok : c.er} />
+        <StatCard value={`${market.avgPrice.toFixed(1)}€`} label="Prix moyen marché" accent={c.or} />
+        <StatCard value={`${market.avgPages}p`} label="Pages moyen" accent={c.vm} />
+        <StatCard value={jabrAvgPrice > 0 ? `${jabrAvgPrice.toFixed(1)}€` : '—'} label="Prix Jabrilia" accent={c.or} />
+        <StatCard value={jabrAvgPages > 0 ? `${jabrAvgPages}p` : '—'} label="Pages Jabrilia" accent={c.vm} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Price positioning */}
+        <Card hover={false} className="overflow-hidden">
+          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Positionnement prix</span>
+          </div>
+          <div className="p-5">
+            {/* Price bar visualization */}
+            <div className="relative h-12 rounded-xl mb-6 overflow-hidden" style={{ background: c.ft }}>
+              <div className="absolute top-0 left-0 h-full rounded-l-xl" style={{ width: '100%', background: `linear-gradient(90deg, ${c.ok}15, ${c.og}15, ${c.er}15)` }} />
+              {/* Low marker */}
+              <div className="absolute top-0 h-full flex flex-col items-center justify-end pb-1" style={{ left: `${((market.lowPrice - 5) / 30) * 100}%` }}>
+                <div className="w-0.5 h-6" style={{ background: c.gr }} />
+                <span className="text-[8px] font-bold" style={{ color: c.gr }}>{market.lowPrice}€</span>
+              </div>
+              {/* Avg marker */}
+              <div className="absolute top-0 h-full flex flex-col items-center justify-end pb-1" style={{ left: `${((market.avgPrice - 5) / 30) * 100}%` }}>
+                <div className="w-0.5 h-8" style={{ background: c.og }} />
+                <span className="text-[8px] font-bold" style={{ color: c.og }}>Moy. {market.avgPrice}€</span>
+              </div>
+              {/* Top marker */}
+              <div className="absolute top-0 h-full flex flex-col items-center justify-end pb-1" style={{ left: `${Math.min(95, ((market.topPrice - 5) / 30) * 100)}%` }}>
+                <div className="w-0.5 h-6" style={{ background: c.er }} />
+                <span className="text-[8px] font-bold" style={{ color: c.er }}>{market.topPrice}€</span>
+              </div>
+              {/* Jabrilia marker */}
+              {jabrAvgPrice > 0 && (
+                <div className="absolute top-0 h-full flex flex-col items-center" style={{ left: `${((jabrAvgPrice - 5) / 30) * 100}%` }}>
+                  <div className="px-1.5 py-0.5 rounded text-[8px] font-bold text-white mt-0.5" style={{ background: c.or }}>JABR {jabrAvgPrice.toFixed(1)}€</div>
+                  <div className="w-0.5 flex-1" style={{ background: c.or }} />
+                </div>
+              )}
+            </div>
+
+            {/* Jabrilia titles in this genre */}
+            <div className="space-y-2">
+              {genreProjects.map(p => {
+                const price = primaryPrice(p);
+                const priceNum = price ? parseFloat(price.replace('€', '').replace(',', '.')) : 0;
+                const diff = priceNum > 0 ? ((priceNum - market.avgPrice) / market.avgPrice * 100).toFixed(0) : null;
+                return (
+                  <div key={p.id} className="flex items-center gap-3 p-2.5 rounded-lg" style={{ background: c.ft }}>
+                    <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-semibold truncate" style={{ color: c.mv }}>{p.title}</div>
+                      <div className="text-[10px]" style={{ color: c.gr }}>{p.pages}p · {price || 'Pas de prix'}</div>
+                    </div>
+                    {diff && (
+                      <Badge bg={parseFloat(diff) > 5 ? '#FFE0E3' : parseFloat(diff) < -5 ? '#D4F0E0' : '#FFF3E0'}
+                        color={parseFloat(diff) > 5 ? c.er : parseFloat(diff) < -5 ? c.ok : c.og}>
+                        {parseFloat(diff) > 0 ? '+' : ''}{diff}% vs marché
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+              {genreProjects.length === 0 && (
+                <div className="text-center py-4 text-[12px]" style={{ color: c.gr }}>Aucun titre Jabrilia en {activeGenre}</div>
+              )}
+            </div>
+          </div>
+        </Card>
+
+        {/* Competitors */}
+        <Card hover={false} className="overflow-hidden">
+          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Concurrents — {activeGenre}</span>
+          </div>
+          <div className="divide-y" style={{ borderColor: c.ft }}>
+            {market.competitors.map((comp, i) => (
+              <div key={i} className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[rgba(200,149,46,0.02)]">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[14px] font-bold" style={{ background: c.ft, color: c.mv }}>
+                  {i + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{comp.name}</div>
+                  <div className="text-[10px]" style={{ color: c.gr }}>{comp.note}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-[12px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{comp.price}</div>
+                  <div className="text-[9px]" style={{ color: c.gr }}>{comp.pages}p moy.</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Recommendations */}
+      <Card hover={false} className="mt-5 p-5">
+        <div className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: c.or }}>💡 Recommandations IA</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            { icon: '💰', title: 'Prix', text: jabrAvgPrice > market.avgPrice ? `Vos prix sont ${((jabrAvgPrice - market.avgPrice) / market.avgPrice * 100).toFixed(0)}% au-dessus du marché. Envisagez un format poche pour compétitivité.` : jabrAvgPrice > 0 ? `Bon positionnement prix, ${((market.avgPrice - jabrAvgPrice) / market.avgPrice * 100).toFixed(0)}% sous la moyenne. Marge d'augmentation possible.` : `Définissez vos prix pour comparer avec le marché ${activeGenre}.` },
+            { icon: '📖', title: 'Pages', text: jabrAvgPages > market.avgPages ? `Vos titres (${jabrAvgPages}p) sont plus longs que la moyenne (${market.avgPages}p). Atout qualité perçue.` : jabrAvgPages > 0 ? `Format compact (${jabrAvgPages}p vs ${market.avgPages}p). Cohérent si prix ajusté.` : `Pas de données de pagination pour ce genre.` },
+            { icon: '📈', title: 'Marché', text: `Le segment ${activeGenre} pèse ${market.marketSize} avec une tendance de ${market.trend}. ${market.trend.startsWith('+') && parseFloat(market.trend) > 3 ? 'Segment dynamique, bon positionnement.' : 'Marché stable, misez sur la différenciation.'}` },
+          ].map((rec, i) => (
+            <div key={i} className="p-3.5 rounded-xl" style={{ background: c.ft }}>
+              <div className="text-lg mb-1">{rec.icon}</div>
+              <div className="text-[12px] font-semibold mb-1" style={{ color: c.mv }}>{rec.title}</div>
+              <div className="text-[11px] leading-relaxed" style={{ color: c.gr }}>{rec.text}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
 // DROITS & CONTRATS
 // ═══════════════════════════════════
 
@@ -4022,7 +4310,7 @@ Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (r
   );
 };
 
-const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang }: { onToast: (msg: string) => void; dark: boolean; toggleDark: () => void; onImport?: (projects: Project[]) => void; lang: Lang; toggleLang: () => void }) => {
+const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, onRestartTour }: { onToast: (msg: string) => void; dark: boolean; toggleDark: () => void; onImport?: (projects: Project[]) => void; lang: Lang; toggleLang: () => void; onRestartTour?: () => void }) => {
   const loadSettings = () => {
     try { const s = localStorage.getItem('jabr-settings'); return s ? JSON.parse(s) : null; } catch { return null; }
   };
@@ -4146,6 +4434,19 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang }:
                 🇬🇧 English
               </button>
             </div>
+          </Card>
+
+          {/* Onboarding tour */}
+          <Card hover={false} className="p-6">
+            <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>
+              Tour guidé
+            </h3>
+            <p className="text-[12px] mb-4" style={{ color: c.gr }}>
+              {lang === 'fr' ? 'Relancez le tour d\'introduction pour découvrir les fonctionnalités' : 'Restart the intro tour to discover features'}
+            </p>
+            <Btn variant="secondary" onClick={() => { onRestartTour?.(); onToast(lang === 'fr' ? 'Tour relancé !' : 'Tour restarted!'); }}>
+              🚀 {lang === 'fr' ? 'Relancer le tour' : 'Restart tour'}
+            </Btn>
           </Card>
 
           {/* Import CSV */}
@@ -4803,6 +5104,7 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
       ['isbn', 'ISBN', 'Attribution, export CSV, ONIX 3.0'],
       ['collections', 'Collections', 'Regroupement par série ou thématique'],
       ['droits', 'Droits & Contrats', 'Droits dérivés, adaptations, traductions, territoires, contrats'],
+      ['benchmark', 'Benchmark Concurrence', 'Positionnement prix, concurrents par genre, tendances marché'],
       ['settings', 'Paramètres', 'Éditeur, import CSV, thème sombre'],
     ];
     modules.forEach(([id, label, desc]) => {
@@ -5076,6 +5378,57 @@ const NotifPanel = ({ open, onClose, projects }: { open: boolean; onClose: () =>
 // ═══════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════
+// ═══════════════════════════════════
+// ONBOARDING GUIDED TOUR
+// ═══════════════════════════════════
+const ONBOARD_STEPS = [
+  { title: 'Bienvenue sur JABR 👋', desc: 'Votre pipeline éditorial complet. Gérez vos titres, ISBN, couvertures, distribution et analyses IA — tout en un.', icon: '🚀', tip: 'Ce tour rapide vous montre les fonctions clés.' },
+  { title: 'Dashboard', desc: 'Vue d\'ensemble de votre catalogue : KPIs temps réel, priorités, readiness par titre, graphiques SVG.', icon: '📊', tip: 'Cliquez sur un titre pour ouvrir sa fiche détaillée.' },
+  { title: 'Ctrl+K — Recherche globale', desc: '7 sources : titres, contenu, corrections, ISBN, collections, modules, actions. Tapez n\'importe quoi.', icon: '🔍', tip: 'Fonctionne partout dans l\'application.' },
+  { title: '18 modules', desc: 'Manuscrits, Analyse IA, Calibrage, Couvertures, Distribution, Marketing, Presse, Calendrier, Analytics, ISBN, Droits, Benchmark…', icon: '⚙️', tip: 'Navigation dans la sidebar à gauche.' },
+  { title: 'Kanban & Vue Catalogue', desc: 'Basculez entre liste et Kanban drag & drop. Organisez vos titres par statut.', icon: '▣', tip: 'Toggle en haut de la page Catalogue.' },
+  { title: 'ONIX 3.0 & Exports', desc: 'Export ONIX complet pour Dilicom/Dilisco, PDF fiche projet, CSV catalogue, communiqué de presse IA.', icon: '📤', tip: 'Disponible dans ISBN et Presse.' },
+  { title: 'C\'est parti !', desc: 'Explorez votre pipeline. Ajoutez un titre, lancez une analyse, ou explorez les modules.', icon: '✨', tip: 'Vous pouvez relancer ce tour depuis les Paramètres.' },
+];
+
+const OnboardingOverlay = ({ step, onNext, onSkip }: { step: number; onNext: () => void; onSkip: () => void }) => {
+  const s = ONBOARD_STEPS[step];
+  const isLast = step === ONBOARD_STEPS.length - 1;
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center" style={{ background: 'rgba(45,27,78,0.7)', backdropFilter: 'blur(6px)' }}>
+      <div className="max-w-md w-full mx-4 rounded-2xl overflow-hidden" style={{ background: 'white', boxShadow: '0 24px 60px rgba(0,0,0,0.3)', animation: 'scaleIn 0.3s ease-out' }}>
+        {/* Progress bar */}
+        <div className="h-1" style={{ background: c.gc }}>
+          <div className="h-full transition-all duration-500" style={{ width: `${((step + 1) / ONBOARD_STEPS.length) * 100}%`, background: `linear-gradient(90deg, ${c.or}, ${c.og})` }} />
+        </div>
+        <div className="p-8 text-center">
+          <div className="text-[48px] mb-4">{s.icon}</div>
+          <h3 className="text-xl font-bold mb-2" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>{s.title}</h3>
+          <p className="text-[13px] leading-relaxed mb-4" style={{ color: c.gr }}>{s.desc}</p>
+          <div className="inline-block px-3 py-1.5 rounded-lg text-[11px]" style={{ background: c.ft, color: c.og }}>
+            💡 {s.tip}
+          </div>
+        </div>
+        <div className="flex items-center justify-between px-8 pb-6">
+          <button onClick={onSkip} className="text-[12px] cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>
+            {isLast ? '' : 'Passer le tour'}
+          </button>
+          <div className="flex items-center gap-1.5">
+            {ONBOARD_STEPS.map((_, i) => (
+              <div key={i} className="w-2 h-2 rounded-full transition-all" style={{ background: i === step ? c.or : i < step ? c.ok : c.gc }} />
+            ))}
+          </div>
+          <button onClick={onNext}
+            className="px-5 py-2.5 rounded-xl font-semibold text-[13px] text-white cursor-pointer border-none transition-all hover:scale-105"
+            style={{ background: `linear-gradient(135deg, ${c.or}, ${c.og})`, boxShadow: '0 4px 16px rgba(200,149,46,0.3)' }}>
+            {isLast ? '🚀 Commencer' : 'Suivant →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function JabrApp() {
   const [page, setPage] = useState('dashboard');
   const [project, setProject] = useState<Project | null>(null);
@@ -5092,6 +5445,13 @@ export default function JabrApp() {
   const [toast, setToast] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [onboardStep, setOnboardStep] = useState<number | null>(() => {
+    try { return localStorage.getItem('jabr-onboarded') === 'true' ? null : 0; } catch { return 0; }
+  });
+  const finishOnboard = useCallback(() => {
+    setOnboardStep(null);
+    try { localStorage.setItem('jabr-onboarded', 'true'); } catch {}
+  }, []);
 
   // Ctrl+K global shortcut
   useEffect(() => {
@@ -5219,6 +5579,7 @@ export default function JabrApp() {
       case 'isbn': return <ISBNView projects={filtered} onToast={showToast} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
       case 'droits': return <DroitsView projects={projects} onToast={showToast} />;
+      case 'benchmark': return <BenchmarkView projects={projects} />;
       case 'marketing': return <MarketingView projects={projects} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
       case 'distribution': return <DistributionView projects={projects} onToast={showToast} distChecks={distChecks} />;
@@ -5228,7 +5589,7 @@ export default function JabrApp() {
       case 'audiobooks': return <AudiobooksView projects={projects} onToast={showToast} />;
       case 'presse': return <PresseView projects={projects} onProject={openProject} onToast={showToast} />;
       case 'calendrier': return <CalendrierView projects={projects} onToast={showToast} calStore={calStore} />;
-      case 'settings': return <SettingsView onToast={showToast} dark={dark} toggleDark={toggleDark} onImport={(imported) => imported.forEach(p => addProject(p))} lang={lang} toggleLang={toggleLang} />;
+      case 'settings': return <SettingsView onToast={showToast} dark={dark} toggleDark={toggleDark} onImport={(imported) => imported.forEach(p => addProject(p))} lang={lang} toggleLang={toggleLang} onRestartTour={() => { setOnboardStep(0); try { localStorage.removeItem('jabr-onboarded'); } catch {} }} />;
       default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} onUpdateProject={handleUpdate} />;
     }
   };
@@ -5313,6 +5674,11 @@ export default function JabrApp() {
       </div>
       <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={handleAdd} />
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      {onboardStep !== null && (
+        <OnboardingOverlay step={onboardStep}
+          onNext={() => { if (onboardStep >= ONBOARD_STEPS.length - 1) finishOnboard(); else setOnboardStep(onboardStep + 1); }}
+          onSkip={finishOnboard} />
+      )}
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} projects={projects} onProject={openProject} onNav={navigate} />
     </div>
   );
