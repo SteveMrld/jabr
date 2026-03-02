@@ -28,6 +28,7 @@ const icons: Record<string, React.ReactNode> = {
   couvertures: sv(<><rect x="6" y="3" width="12" height="18" rx="2" /><line x1="9" y1="7" x2="15" y2="7" /><line x1="9" y1="11" x2="15" y2="11" /></>),
   audiobooks: sv(<><rect x="5" y="6" width="8" height="12" rx="2" /><path d="M15 9c1.5 1.5 1.5 4.5 0 6" /><path d="M17 7c3 3 3 7 0 10" /></>),
   distribution: sv(<><circle cx="12" cy="12" r="2" /><path d="M12 4v4M12 16v4M4 12h4M16 12h4" /></>),
+  marketing: sv(<><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></>),
   analytics: sv(<><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></>),
   isbn: sv(<><rect x="5" y="5" width="14" height="14" rx="2" /><line x1="8" y1="8" x2="8" y2="16" /><line x1="11" y1="8" x2="11" y2="16" /><line x1="14" y1="8" x2="14" y2="16" /></>),
   collections: sv(<><rect x="4" y="6" width="5" height="12" rx="1" /><rect x="10" y="6" width="5" height="12" rx="1" /><rect x="16" y="6" width="4" height="12" rx="1" /></>),
@@ -168,6 +169,7 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['presse', 'Dossier Presse', 'presse'],
   ['audiobooks', 'Audiobooks', 'audiobooks'],
   ['distribution', 'Distribution', 'distribution'],
+  ['marketing', 'Marketing', 'marketing'],
   ['analytics', 'Analytics', 'analytics'],
   null, // separator
   ['isbn', 'ISBN', 'isbn'],
@@ -2392,6 +2394,210 @@ const AudiobooksView = ({ projects }: { projects: Project[] }) => {
   );
 };
 
+// --- MARKETING VIEW ---
+const MarketingView = ({ projects }: { projects: Project[] }) => {
+  const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const [generatedKit, setGeneratedKit] = useState<Record<number, { brief: { tone: string; ambiance: string; targetAudience: string; themes: string[]; palette: { primary: string; secondary: string; accent: string }; oneLinePitch: string; backCoverHook: string; hashTags: string[]; marketingAngle: string; comparisons: string[]; visualKeywords: string[] }; marketing: { instagramCaption: string; linkedinPost: string; newsletterBlurb: string; pressRelease: string }; trailer: { duration: number; musicMood: string; scenes: { timestamp: number; visual: string; voiceOver: string; text: string }[] }; cover: { style: string; composition: string; typography: { titleFont: string; authorFont: string; placement: string }; genreConventions: string; thumbnailTest: string; promptMidjourney: string; promptDalle: string } }>>({});
+
+  // Lazy import engine
+  const generateKit = async (projectId: number) => {
+    const { runFullPipeline } = await import('@/lib/engine');
+    const p = projects.find(pr => pr.id === projectId);
+    if (!p) return;
+    const result = runFullPipeline({ title: p.title, genre: p.genre, pages: p.pages, backCover: p.backCover, collection: p.collection });
+    setGeneratedKit(prev => ({ ...prev, [projectId]: result }));
+    setSelectedProject(projectId);
+  };
+
+  const sel = selectedProject ? projects.find(p => p.id === selectedProject) : null;
+  const kit = selectedProject ? generatedKit[selectedProject] : null;
+
+  const engines = [
+    { icon: '📋', name: 'Brief créatif', desc: 'Analyse du contenu → ton, thèmes, palette, audience', auto: true },
+    { icon: '📱', name: 'Kit Marketing', desc: 'Instagram, LinkedIn, newsletter, communiqué de presse', auto: true },
+    { icon: '🎬', name: 'Script Trailer', desc: 'Scénario 45s : voix off + visuels + musique', auto: true },
+    { icon: '🎨', name: 'Brief Couverture', desc: 'Direction artistique + prompts Midjourney/DALL-E', auto: true },
+    { icon: '🎧', name: 'Plan Audiobook', desc: 'Découpe chapitres, voix, mastering, export', auto: true },
+  ];
+
+  const withBackCover = projects.filter(p => p.backCover && p.backCover.length > 50);
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Marketing</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Moteur IA orchestré — génération de kits promo par titre</p>
+        </div>
+      </div>
+
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={withBackCover.length} label="Titres avec 4e" accent={c.ok} />
+        <StatCard value={projects.length - withBackCover.length} label="Sans 4e (limité)" accent={c.og} />
+        <StatCard value="5" label="Engines" accent={c.vm} />
+      </div>
+
+      {/* Pipeline engines */}
+      <div className="grid grid-cols-5 gap-2.5 mb-6">
+        {engines.map((e, i) => (
+          <Card key={e.name} hover={false} className="p-4 text-center relative">
+            <div className="text-2xl mb-1.5">{e.icon}</div>
+            <div className="font-semibold text-[11px]" style={{ color: c.mv }}>{e.name}</div>
+            <div className="text-[9px] mt-1 leading-relaxed" style={{ color: c.gr }}>{e.desc}</div>
+            {i < engines.length - 1 && (
+              <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 text-[14px]" style={{ color: c.gc }}>→</div>
+            )}
+          </Card>
+        ))}
+      </div>
+
+      {/* Project selector */}
+      <Card hover={false} className="mb-6">
+        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>
+            Sélectionner un titre pour générer le kit
+          </span>
+        </div>
+        {projects.map(p => {
+          const hasBack = p.backCover && p.backCover.length > 50;
+          const isSelected = selectedProject === p.id;
+          const hasKit = generatedKit[p.id];
+          return (
+            <div key={p.id} className="flex items-center gap-4 px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
+              style={{ borderBottom: `1px solid ${c.ft}`, background: isSelected ? '#FAF7F2' : undefined }}
+              onClick={() => generateKit(p.id)}>
+              <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold" style={{ color: c.nr }}>{p.title}</div>
+                <div className="text-[10px]" style={{ color: c.gr }}>{p.genre} · {p.pages} p. · {hasBack ? '4e renseignée' : '4e manquante'}</div>
+              </div>
+              {hasKit && <Badge bg="#D4F0E0" color={c.ok}>Kit généré</Badge>}
+              {!hasKit && <Badge bg={hasBack ? '#FDE8D0' : c.gc} color={hasBack ? c.og : c.gr}>{hasBack ? 'Prêt' : 'Limité'}</Badge>}
+            </div>
+          );
+        })}
+      </Card>
+
+      {/* Generated kit display */}
+      {sel && kit && (
+        <div className="space-y-4">
+          {/* Brief */}
+          <Card hover={false} className="overflow-hidden">
+            <div className="px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+              <span className="text-[13px] font-semibold" style={{ color: c.mv }}>📋 Brief créatif — {sel.title}</span>
+            </div>
+            <div className="p-5 grid grid-cols-3 gap-4">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Ton & Ambiance</div>
+                <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{kit.brief.tone}</div>
+                <div className="text-[11px]" style={{ color: c.gr }}>Ambiance : {kit.brief.ambiance}</div>
+                <div className="text-[11px]" style={{ color: c.gr }}>Audience : {kit.brief.targetAudience}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Thèmes détectés</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {kit.brief.themes.map((t: string) => (
+                    <span key={t} className="text-[10px] px-2 py-0.5 rounded" style={{ background: c.ft, color: c.vm }}>{t}</span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Palette</div>
+                <div className="flex gap-2">
+                  {[kit.brief.palette.primary, kit.brief.palette.secondary, kit.brief.palette.accent].map((col, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded" style={{ background: col, border: `1px solid ${c.gc}` }} />
+                      <span className="text-[9px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.gr }}>{col}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Marketing Kit */}
+          <Card hover={false} className="overflow-hidden">
+            <div className="px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+              <span className="text-[13px] font-semibold" style={{ color: c.mv }}>📱 Kit Marketing</span>
+            </div>
+            <div className="p-5 grid grid-cols-2 gap-4">
+              {[
+                { label: 'Instagram', content: kit.marketing.instagramCaption },
+                { label: 'LinkedIn', content: kit.marketing.linkedinPost },
+                { label: 'Newsletter', content: kit.marketing.newsletterBlurb },
+                { label: 'Communiqué de presse', content: kit.marketing.pressRelease },
+              ].map(item => (
+                <div key={item.label} className="p-3 rounded-lg" style={{ background: '#FDFCFA', border: `1px solid ${c.ft}` }}>
+                  <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>{item.label}</div>
+                  <pre className="text-[10px] whitespace-pre-wrap leading-relaxed" style={{ color: c.nr, fontFamily: 'Inter, sans-serif' }}>{item.content}</pre>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Cover Brief */}
+          <Card hover={false} className="overflow-hidden">
+            <div className="px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+              <span className="text-[13px] font-semibold" style={{ color: c.mv }}>🎨 Brief Couverture</span>
+            </div>
+            <div className="p-5 grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Direction artistique</div>
+                {[
+                  ['Style', kit.cover.style],
+                  ['Composition', kit.cover.composition],
+                  ['Typo titre', kit.cover.typography.titleFont],
+                  ['Placement', kit.cover.typography.placement],
+                  ['Conventions', kit.cover.genreConventions],
+                  ['Test miniature', kit.cover.thumbnailTest],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex py-1" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                    <span className="text-[10px] font-semibold w-[90px] shrink-0" style={{ color: c.vm }}>{k}</span>
+                    <span className="text-[10px]" style={{ color: c.nr }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Prompts IA</div>
+                <div className="p-3 rounded-lg mb-3" style={{ background: '#FDFCFA', border: `1px solid ${c.ft}` }}>
+                  <div className="text-[10px] font-semibold mb-1" style={{ color: c.vm }}>Midjourney</div>
+                  <pre className="text-[9px] whitespace-pre-wrap" style={{ color: c.nr, fontFamily: "'JetBrains Mono', monospace" }}>{kit.cover.promptMidjourney}</pre>
+                </div>
+                <div className="p-3 rounded-lg" style={{ background: '#FDFCFA', border: `1px solid ${c.ft}` }}>
+                  <div className="text-[10px] font-semibold mb-1" style={{ color: c.vm }}>DALL-E</div>
+                  <pre className="text-[9px] whitespace-pre-wrap" style={{ color: c.nr, fontFamily: "'JetBrains Mono', monospace" }}>{kit.cover.promptDalle}</pre>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Trailer Script */}
+          <Card hover={false} className="overflow-hidden">
+            <div className="px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+              <span className="text-[13px] font-semibold" style={{ color: c.mv }}>🎬 Script Trailer — {kit.trailer.duration}s</span>
+            </div>
+            <div className="p-5">
+              <div className="text-[10px] mb-3" style={{ color: c.gr }}>Musique : {kit.trailer.musicMood}</div>
+              <div className="space-y-2">
+                {kit.trailer.scenes.map((scene: { timestamp: number; visual: string; voiceOver: string; text: string }, i: number) => (
+                  <div key={i} className="flex gap-3 p-2.5 rounded-lg" style={{ background: i % 2 === 0 ? '#FDFCFA' : 'white', border: `1px solid ${c.ft}` }}>
+                    <div className="text-[10px] font-bold shrink-0 w-[30px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{scene.timestamp}s</div>
+                    <div className="flex-1">
+                      <div className="text-[10px]" style={{ color: c.vm }}>🎥 {scene.visual}</div>
+                      {scene.voiceOver && <div className="text-[10px] mt-0.5" style={{ color: c.nr }}>🎤 « {scene.voiceOver} »</div>}
+                      {scene.text && <div className="text-[10px] mt-0.5 font-semibold" style={{ color: c.mv }}>📝 {scene.text}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ═══════════════════════════════════
 // TOAST
 // ═══════════════════════════════════
@@ -2511,6 +2717,7 @@ export default function JabrApp() {
       case 'couvertures': return <CouverturesView onProject={openProject} projects={filtered} />;
       case 'isbn': return <ISBNView projects={filtered} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
+      case 'marketing': return <MarketingView projects={projects} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
       case 'distribution': return <DistributionView projects={projects} />;
       case 'calibrage': return <CalibrageView projects={projects} />;
