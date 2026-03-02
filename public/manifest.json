@@ -1,0 +1,25 @@
+{
+  "name": "JABR — Pipeline Éditorial",
+  "short_name": "JABR",
+  "description": "De l'idée au livre, sans friction. Plateforme SaaS de Jabrilia Éditions.",
+  "start_url": "/demo",
+  "display": "standalone",
+  "background_color": "#FAF7F2",
+  "theme_color": "#2D1B4E",
+  "orientation": "any",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

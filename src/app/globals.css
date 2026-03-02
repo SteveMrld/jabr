@@ -30,6 +30,26 @@ h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; }
 ::-webkit-scrollbar-thumb { background: var(--gris-clair); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gris); }
 
+/* Animations */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-fadeUp { animation: fadeUp 0.4s ease-out both; }
+.animate-scaleIn { animation: scaleIn 0.3s ease-out both; }
+
 /* ═══ JABR UX POLISH ═══ */
 
 /* Page transition */

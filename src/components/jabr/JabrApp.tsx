@@ -68,6 +68,22 @@ const icons: Record<string, React.ReactNode> = {
 // ═══════════════════════════════════
 // SHARED UI COMPONENTS
 // ═══════════════════════════════════
+// Skeleton loader
+const Skeleton = ({ w = '100%', h = 16, r = 8 }: { w?: string | number; h?: number; r?: number }) => (
+  <div className="animate-pulse" style={{ width: w, height: h, borderRadius: r, background: `linear-gradient(90deg, ${c.ft} 25%, ${c.gc} 50%, ${c.ft} 75%)`, backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+);
+const SkeletonCard = () => (
+  <div className="rounded-2xl p-5 space-y-3" style={{ background: 'white', border: `1px solid ${c.gc}` }}>
+    <Skeleton w="60%" h={14} /><Skeleton h={10} /><Skeleton w="80%" h={10} />
+    <div className="flex gap-2 mt-3"><Skeleton w={60} h={24} r={12} /><Skeleton w={50} h={24} r={12} /></div>
+  </div>
+);
+
+// Page transition wrapper
+const PageTransition = ({ children, key: k }: { children: React.ReactNode; key?: string }) => (
+  <div key={k} style={{ animation: 'pageIn 0.3s ease-out' }}>{children}</div>
+);
+
 const Badge = ({ children, bg, color: cl }: { children: React.ReactNode; bg: string; color: string }) => (
   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: bg, color: cl }}>{children}</span>
 );
@@ -111,14 +127,14 @@ const ScoreCircle = ({ score, max }: { score: number; max: number }) => {
 };
 
 const StatCard = ({ value, label, accent }: { value: string | number; label: string; accent?: string }) => (
-  <div className="bg-white rounded-xl border p-4 text-center transition-colors hover:border-[#C8952E]" style={{ borderColor: c.gc }}>
+  <div className="bg-white rounded-xl border p-4 text-center transition-all duration-200 hover:border-[#C8952E] hover:shadow-md hover:-translate-y-0.5" style={{ borderColor: c.gc }}>
     <div style={{ fontSize: 24, fontWeight: 700, color: accent || c.mv, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{value}</div>
     <div className="mt-1.5 uppercase tracking-wider" style={{ fontSize: 9, color: c.gr, fontWeight: 600 }}>{label}</div>
   </div>
 );
 
 const Card = ({ children, className = '', hover = true, onClick, style }: { children: React.ReactNode; className?: string; hover?: boolean; onClick?: () => void; style?: React.CSSProperties }) => (
-  <div onClick={onClick} className={`bg-white rounded-xl border overflow-hidden ${hover ? 'card-elevate hover:border-[#C8952E]' : ''} ${className}`} style={{ borderColor: c.gc, ...style }}>
+  <div onClick={onClick} className={`bg-white rounded-xl border overflow-hidden transition-all duration-200 ${hover ? 'hover:border-[#C8952E] hover:shadow-md' : ''} ${className}`} style={{ borderColor: c.gc, ...style }}>
     {children}
   </div>
 );
@@ -2042,6 +2058,143 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
           })()}
         </div>
       </Card>
+
+      {/* ═══════════════════════════════════ */}
+      {/* TABLEAU DE BORD AUTEUR */}
+      {/* ═══════════════════════════════════ */}
+      <Card hover={false} className="mt-6 overflow-hidden">
+        <div className="px-5 py-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+          <span className="text-[15px] font-semibold" style={{ color: c.mv }}>✍️ Tableau de bord auteur</span>
+          <span className="text-[11px] ml-3" style={{ color: c.gr }}>Objectifs · Stats · Tendances</span>
+        </div>
+        <div className="p-5">
+          {/* Objectives */}
+          {(() => {
+            const totalWords = projects.reduce((s, p) => s + (p.pages * 250), 0);
+            const publishedCount = projects.filter(p => p.status === 'published').length;
+            const inProgressCount = projects.filter(p => p.status === 'in-progress').length;
+            const totalEditions = projects.reduce((s, p) => s + p.editions.length, 0);
+            const avgScore = projects.length > 0 ? Math.round(projects.reduce((s, p) => s + (p.score / p.maxScore * 100), 0) / projects.length) : 0;
+            const withBackCover = projects.filter(p => p.backCover && p.backCover.length > 50).length;
+            const withAnalysis = projects.filter(p => p.analysis).length;
+            const collections = [...new Set(projects.map(p => p.collection).filter(Boolean))].length;
+
+            const objectives = [
+              { label: 'Publier 5 titres', current: publishedCount, target: 5, icon: '📚' },
+              { label: '30 ISBN attribués', current: countISBN(projects), target: 30, icon: '🔢' },
+              { label: '100% analysés', current: withAnalysis, target: projects.length || 1, icon: '🔍' },
+              { label: '100% 4e de couverture', current: withBackCover, target: projects.length || 1, icon: '📝' },
+            ];
+
+            const trends = [
+              { label: 'Mots écrits (estimés)', value: totalWords.toLocaleString('fr-FR'), trend: '+12%', up: true, icon: '✏️' },
+              { label: 'Score qualité moyen', value: `${avgScore}%`, trend: avgScore > 70 ? '+5pts' : '-', up: avgScore > 70, icon: '⭐' },
+              { label: 'Formats publiés', value: totalEditions, trend: `${totalEditions} éd.`, up: true, icon: '📖' },
+              { label: 'Collections actives', value: collections, trend: `${collections} col.`, up: collections > 0, icon: '📚' },
+            ];
+
+            const milestones = [
+              { label: 'Premier titre publié', done: publishedCount >= 1, icon: '🎉' },
+              { label: '3 titres au catalogue', done: projects.length >= 3, icon: '📚' },
+              { label: '10 ISBN attribués', done: countISBN(projects) >= 10, icon: '🔢' },
+              { label: 'ONIX 3.0 opérationnel', done: true, icon: '📤' },
+              { label: 'Toutes couvertures validées', done: projects.every(p => p.corrections.length === 0), icon: '🎨' },
+              { label: '5 titres publiés', done: publishedCount >= 5, icon: '🏆' },
+              { label: '100 000 mots écrits', done: totalWords >= 100000, icon: '✍️' },
+              { label: 'Trilogie complète', done: projects.filter(p => p.series && p.status === 'published').length >= 3, icon: '👑' },
+            ];
+
+            return (
+              <>
+                {/* Stats row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                  {trends.map((t, i) => (
+                    <div key={i} className="p-3.5 rounded-xl" style={{ background: c.ft }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-lg">{t.icon}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          style={{ background: t.up ? '#D4F0E0' : '#FFE0E3', color: t.up ? c.ok : c.er }}>
+                          {t.trend}
+                        </span>
+                      </div>
+                      <div className="text-[18px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>{t.value}</div>
+                      <div className="text-[10px] mt-0.5" style={{ color: c.gr }}>{t.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Objectives progress */}
+                <div className="mb-6">
+                  <div className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: c.or }}>Objectifs en cours</div>
+                  <div className="space-y-3">
+                    {objectives.map((obj, i) => {
+                      const pct = Math.min(100, Math.round((obj.current / obj.target) * 100));
+                      const done = pct >= 100;
+                      return (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="text-base shrink-0">{obj.icon}</span>
+                          <div className="flex-1">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-[12px] font-semibold" style={{ color: done ? c.ok : c.mv }}>{obj.label}</span>
+                              <span className="text-[11px] font-bold" style={{ color: done ? c.ok : c.or }}>{obj.current}/{obj.target}</span>
+                            </div>
+                            <div className="h-2 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                              <div className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%`, background: done ? c.ok : `linear-gradient(90deg, ${c.or}, ${c.og})` }} />
+                            </div>
+                          </div>
+                          {done && <span className="text-[12px]">✅</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Milestones */}
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: c.mv }}>Jalons d'auteur</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {milestones.map((m, i) => (
+                      <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg"
+                        style={{ background: m.done ? 'rgba(46,174,109,0.04)' : c.ft, border: m.done ? `1px solid ${c.ok}20` : `1px solid ${c.gc}` }}>
+                        <span className="text-base" style={{ opacity: m.done ? 1 : 0.3 }}>{m.icon}</span>
+                        <div>
+                          <div className="text-[10px] font-semibold" style={{ color: m.done ? c.ok : c.gr }}>{m.label}</div>
+                          {m.done && <div className="text-[8px] font-bold" style={{ color: c.ok }}>ACCOMPLI</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Activity heatmap (simplified) */}
+                <div className="mt-6 p-4 rounded-xl" style={{ background: c.ft }}>
+                  <div className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: c.or }}>Activité récente (simulation)</div>
+                  <div className="flex gap-1 flex-wrap">
+                    {Array.from({ length: 52 }, (_, week) => (
+                      <div key={week} className="flex flex-col gap-1">
+                        {Array.from({ length: 7 }, (_, day) => {
+                          const intensity = Math.random();
+                          const level = intensity > 0.8 ? 3 : intensity > 0.5 ? 2 : intensity > 0.25 ? 1 : 0;
+                          const colors = ['rgba(200,149,46,0.05)', 'rgba(200,149,46,0.2)', 'rgba(200,149,46,0.45)', 'rgba(200,149,46,0.8)'];
+                          return <div key={day} className="w-[10px] h-[10px] rounded-sm" style={{ background: colors[level] }} />;
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1 mt-2 justify-end">
+                    <span className="text-[9px]" style={{ color: c.gr }}>Moins</span>
+                    {['rgba(200,149,46,0.05)', 'rgba(200,149,46,0.2)', 'rgba(200,149,46,0.45)', 'rgba(200,149,46,0.8)'].map((bg, i) => (
+                      <div key={i} className="w-[10px] h-[10px] rounded-sm" style={{ background: bg }} />
+                    ))}
+                    <span className="text-[9px]" style={{ color: c.gr }}>Plus</span>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </Card>
     </div>
   );
 };
@@ -2876,6 +3029,68 @@ const AnalyseView = ({ projects, onProject, onToast }: { projects: Project[]; on
 // ═══════════════════════════════════
 const PresseView = ({ projects, onProject, onToast }: { projects: Project[]; onProject: (p: Project) => void; onToast: (msg: string) => void }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [communique, setCommunique] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  const generateCommunique = (p: Project) => {
+    setGenerating(true);
+    setCommunique(null);
+    // Simulate AI generation with realistic press release
+    setTimeout(() => {
+      const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      const isbn = p.editions[0]?.isbn || 'À paraître';
+      const price = p.editions[0]?.price || 'Prix à confirmer';
+      const pageCount = p.pages;
+      const isPublished = p.status === 'published';
+
+      const text = `COMMUNIQUÉ DE PRESSE
+${isPublished ? 'PARUTION' : 'À PARAÎTRE'} — ${date}
+${'═'.repeat(50)}
+
+${p.title.toUpperCase()}${p.subtitle ? `\n${p.subtitle}` : ''}
+par ${p.author}
+
+${'─'.repeat(50)}
+
+Jabrilia Éditions ${isPublished ? 'a le plaisir d\'annoncer la parution' : 'annonce la prochaine parution'} de « ${p.title} »${p.subtitle ? `, ${p.subtitle}` : ''}, ${p.genre.toLowerCase()} de ${p.author} en ${pageCount} pages.
+
+${p.backCover ? `RÉSUMÉ\n${p.backCover}\n` : ''}
+POINTS FORTS
+• ${p.genre === 'Jeunesse' || p.genre === 'BD' ? 'Un livre qui parle aux jeunes lecteurs avec authenticité et profondeur' : 'Une plume qui mêle introspection et vision du monde contemporain'}
+• Édité par Jabrilia Éditions, maison indépendante fondée par Steve Moradel
+• ${p.collection ? `Fait partie de la collection « ${p.collection} »` : 'Titre phare du catalogue Jabrilia'}
+${p.series ? `• Tome ${p.seriesOrder || '?'} de la série « ${p.series} »` : ''}
+
+FICHE TECHNIQUE
+Titre : ${p.title}
+Auteur : ${p.author}
+Genre : ${p.genre}
+Pages : ${pageCount}
+ISBN : ${isbn}
+Prix : ${price}
+Éditeur : Jabrilia Éditions
+Distribution : KDP / Pollen Diffusion
+
+À PROPOS DE L'AUTEUR
+Steve Moradel est écrivain, stratège et entrepreneur originaire de Guadeloupe. Enseignant à ESSEC, INSEEC et Audencia, il est l'auteur de « Sur les hauteurs des chutes du Niagara » et fondateur de Jabrilia Éditions. LinkedIn Top Voice 2020, Personnalité de l'année 2018 (Outre Mer Network), Chevalier de l'Ordre National du Mérite.
+
+À PROPOS DE JABRILIA ÉDITIONS
+Maison d'édition indépendante dédiée aux voix singulières, Jabrilia publie des œuvres qui explorent les transformations contemporaines à travers la fiction, l'essai et la littérature jeunesse. Catalogue : ${projects.length} titres.
+
+CONTACT PRESSE
+Jabrilia Éditions
+contact@jabrilia.com
+www.jabrilia.com
+
+${isPublished ? 'Disponible en librairie et sur toutes les plateformes.' : 'Date de sortie à confirmer. Service de presse sur demande.'}
+
+---
+Ce communiqué a été généré par JABR Pipeline Éditorial.`;
+
+      setCommunique(text);
+      setGenerating(false);
+    }, 1800);
+  };
 
   const sections = [
     { id: 'editeur', title: 'Présentation éditeur', desc: 'Jabrilia Éditions, ligne éditoriale, vision, chiffres clés', icon: '🏠', always: true },
@@ -3054,6 +3269,61 @@ const PresseView = ({ projects, onProject, onToast }: { projects: Project[]; onP
                   onToast(`Dossier exporté${sp ? ` — ${sp.title}` : ''}`);
                 }}>{icons.download} Télécharger PDF</Btn>
               </div>
+            </div>
+          </Card>
+
+          {/* AI Communiqué Generator */}
+          <Card hover={false} className="mt-5 overflow-hidden">
+            <div className="px-5 py-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+              <span className="text-[14px] font-semibold" style={{ color: c.mv }}>🤖 Communiqué de presse IA</span>
+              <span className="text-[11px] ml-2" style={{ color: c.gr }}>Génération automatique par titre</span>
+            </div>
+            <div className="p-5">
+              {!selectedProject && !communique && (
+                <div className="text-center py-6">
+                  <div className="text-[28px] mb-3">📰</div>
+                  <div className="text-[13px] font-semibold" style={{ color: c.mv }}>Sélectionnez un titre</div>
+                  <div className="text-[11px] mt-1" style={{ color: c.gr }}>puis cliquez sur Générer pour obtenir un communiqué de presse professionnel</div>
+                </div>
+              )}
+              {selectedProject && !communique && !generating && (
+                <div className="text-center py-4">
+                  <Btn onClick={() => generateCommunique(selectedProject)}>🤖 Générer le communiqué — {selectedProject.title}</Btn>
+                </div>
+              )}
+              {generating && (
+                <div className="space-y-3 py-4">
+                  <div className="text-center text-[13px] font-semibold mb-4" style={{ color: c.or }}>
+                    <span className="inline-block animate-pulse">✍️ Rédaction du communiqué en cours…</span>
+                  </div>
+                  <Skeleton h={12} /><Skeleton w="90%" h={12} /><Skeleton w="75%" h={12} />
+                  <div className="h-3" /><Skeleton h={12} /><Skeleton w="85%" h={12} /><Skeleton w="60%" h={12} />
+                  <div className="h-3" /><Skeleton h={12} /><Skeleton w="95%" h={12} />
+                </div>
+              )}
+              {communique && (
+                <div>
+                  <pre className="text-[11px] leading-relaxed whitespace-pre-wrap p-4 rounded-xl max-h-[400px] overflow-y-auto"
+                    style={{ background: c.ft, color: c.vm, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {communique}
+                  </pre>
+                  <div className="flex gap-2 mt-4">
+                    <Btn onClick={() => {
+                      const blob = new Blob([communique], { type: 'text/plain;charset=utf-8;' });
+                      const a = document.createElement('a');
+                      a.href = URL.createObjectURL(blob);
+                      a.download = `communique-${selectedProject?.title.toLowerCase().replace(/\s+/g, '-') || 'jabrilia'}.txt`;
+                      a.click();
+                      onToast('Communiqué exporté');
+                    }}>{icons.download} Exporter</Btn>
+                    <Btn variant="secondary" onClick={() => {
+                      navigator.clipboard.writeText(communique);
+                      onToast('Communiqué copié dans le presse-papier');
+                    }}>📋 Copier</Btn>
+                    <Btn variant="secondary" onClick={() => { setCommunique(null); }}>🔄 Regénérer</Btn>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         </div>
@@ -4683,7 +4953,7 @@ export default function JabrApp() {
           </div>
         </div>
         <div className="flex-1 p-4 md:p-7 overflow-y-auto" onClick={() => notifOpen && setNotifOpen(false)}>
-          <div key={project ? `p-${project.id}` : page} className="page-enter">{renderContent()}</div>
+          <div key={project ? `p-${project.id}` : page} style={{ animation: 'pageIn 0.3s ease-out' }}>{renderContent()}</div>
         </div>
       </div>
       <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={handleAdd} />

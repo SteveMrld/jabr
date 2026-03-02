@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="40" fill="#2D1B4E"/>
+  <g transform="translate(96,80)">
+    <polygon points="0,-35 8,-10 35,-10 14,5 22,30 0,15 -22,30 -14,5 -35,-10 -8,-10" fill="#C8952E"/>
+  </g>
+  <text x="96" y="155" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="36" fill="#C8952E" letter-spacing="6">JABR</text>
+</svg>
