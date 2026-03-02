@@ -236,10 +236,17 @@ const Sidebar = ({ active, onNav, projects, persisted }: { active: string; onNav
 // ═══════════════════════════════════
 
 // --- DASHBOARD ---
-const DashboardView = ({ onProject, onNew, projects, allProjects }: { onProject: (p: Project) => void; onNew: () => void; projects: Project[]; allProjects: Project[] }) => {
+const DashboardView = ({ onProject, onNew, projects, allProjects, onNav }: { onProject: (p: Project) => void; onNew: () => void; projects: Project[]; allProjects: Project[]; onNav?: (id: string) => void }) => {
   const pub = allProjects.filter(p => p.status === 'published').length;
   const prog = allProjects.filter(p => p.status === 'in-progress').length;
   const corr = allProjects.reduce((s, p) => s + p.corrections.length, 0);
+  const analyzed = allProjects.filter(p => p.analysis);
+  const avgIa = analyzed.length > 0 ? Math.round(analyzed.reduce((s, p) => s + (p.analysis?.iaScore || 0), 0) / analyzed.length) : null;
+  const withBackCover = allProjects.filter(p => p.backCover && p.backCover.length > 50).length;
+  const withCoverArt = allProjects.filter(p => p.coverImage).length;
+  const withAudio = allProjects.filter(p => p.editions.some(e => e.format === 'audiobook')).length;
+  const totalPages = allProjects.reduce((s, p) => s + p.pages, 0);
+
   const [sort, setSort] = useState<'title' | 'score' | 'status' | 'editions'>('title');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -264,35 +271,121 @@ const DashboardView = ({ onProject, onNew, projects, allProjects }: { onProject:
     </button>
   );
 
+  // Readiness quick checks
+  const readinessChecks = (p: typeof allProjects[0]) => {
+    const ch = [
+      p.manuscriptStatus === 'validated' || p.manuscriptStatus === 'isbn-injected',
+      p.editions.length > 0,
+      p.corrections.length === 0,
+      !!p.coverImage,
+      !!(p.backCover && p.backCover.length > 50),
+      !!p.analysis,
+      p.status === 'published',
+    ];
+    return ch.filter(Boolean).length;
+  };
+
+  // Revenue estimate
+  const estimateRevenue = (p: typeof allProjects[0]) => {
+    let rev = 0;
+    p.editions.forEach(ed => {
+      const price = parseFloat((ed.price || '0').replace('€', '').replace(',', '.'));
+      if (ed.format === 'broché') rev += price * 0.4 * 200;
+      else if (ed.format === 'epub') rev += price * 0.7 * 150;
+      else if (ed.format === 'audiobook') rev += price * 0.4 * 80;
+      else if (ed.format === 'poche') rev += price * 0.35 * 300;
+    });
+    return Math.round(rev);
+  };
+  const totalRev = allProjects.reduce((s, p) => s + estimateRevenue(p), 0);
+
+  // Next priorities
+  const priorities: { label: string; count: number; color: string; nav: string }[] = [];
+  const noCover = allProjects.filter(p => !p.coverImage).length;
+  const noBack = allProjects.filter(p => !p.backCover || p.backCover.length < 50).length;
+  const noAnalysis = allProjects.filter(p => !p.analysis).length;
+  if (corr > 0) priorities.push({ label: `${corr} corrections couverture`, count: corr, color: c.er, nav: 'couvertures' });
+  if (noAnalysis > 0) priorities.push({ label: `${noAnalysis} manuscrits non analysés`, count: noAnalysis, color: c.og, nav: 'analyse' });
+  if (noBack > 0) priorities.push({ label: `${noBack} titres sans 4e de couverture`, count: noBack, color: c.og, nav: 'projets' });
+  if (noCover > 0) priorities.push({ label: `${noCover} titres sans artwork`, count: noCover, color: c.og, nav: 'couvertures' });
+
   return (
     <div>
       <div className="flex justify-between items-end mb-5">
         <div>
           <h2 className="text-2xl" style={{ color: c.mv }}>Dashboard</h2>
-          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Jabrilia Éditions — Mars 2026</p>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Jabrilia Éditions — Cockpit éditorial</p>
         </div>
         <Btn onClick={onNew}>{icons.plus} Nouveau projet</Btn>
       </div>
 
-      <div className="flex gap-3.5 mb-7 flex-wrap">
-        <StatCard value={allProjects.length} label="Projets" accent={c.mv} />
-        <StatCard value={prog} label="En cours" accent={c.og} />
+      {/* KPIs row 1 */}
+      <div className="flex gap-3.5 mb-3 flex-wrap">
+        <StatCard value={allProjects.length} label="Titres" accent={c.mv} />
         <StatCard value={pub} label="Publiés" accent={c.ok} />
-        <StatCard value={`${countISBN(allProjects)}/100`} label="ISBN attribués" accent={c.or} />
-        <StatCard value={corr} label="Corrections" accent={c.er} />
+        <StatCard value={prog} label="En cours" accent={c.og} />
+        <StatCard value={`${countISBN(allProjects)}/100`} label="ISBN" accent={c.or} />
+        <StatCard value={totalPages.toLocaleString()} label="Pages" accent={c.vm} />
+        <StatCard value={`~${totalRev.toLocaleString()}€`} label="Rev. estimés/an" accent={c.or} />
       </div>
 
-      {/* Quick actions */}
-      {corr > 0 && (
-        <div className="rounded-xl p-4 mb-5 flex items-center gap-3" style={{ background: '#FFF8F0', border: '1px solid #F4A55A' }}>
-          <span style={{ color: c.og }}>{icons.warn}</span>
-          <div className="flex-1">
-            <span className="text-[13px] font-semibold" style={{ color: c.og }}>{corr} correction{corr > 1 ? 's' : ''} bloquante{corr > 1 ? 's' : ''}</span>
-            <span className="text-[12px] ml-2" style={{ color: c.gr }}>sur {allProjects.filter(p => p.corrections.length > 0).length} couverture{allProjects.filter(p => p.corrections.length > 0).length > 1 ? 's' : ''}</span>
+      {/* KPIs row 2 — production */}
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={`${withCoverArt}/${allProjects.length}`} label="Artwork" accent={withCoverArt === allProjects.length ? c.ok : c.og} />
+        <StatCard value={`${withBackCover}/${allProjects.length}`} label="4e couverture" accent={withBackCover === allProjects.length ? c.ok : c.og} />
+        <StatCard value={`${analyzed.length}/${allProjects.length}`} label="Analysés" accent={analyzed.length === allProjects.length ? c.ok : c.og} />
+        <StatCard value={withAudio} label="Audiobooks" accent={c.vm} />
+        {avgIa !== null && <StatCard value={`${avgIa}%`} label="Score IA moy." accent={avgIa > 25 ? c.er : c.ok} />}
+        <StatCard value={corr} label="Corrections" accent={corr > 0 ? c.er : c.ok} />
+      </div>
+
+      {/* Priorities */}
+      {priorities.length > 0 && (
+        <div className="rounded-xl p-4 mb-5" style={{ background: '#FFF8F0', border: '1px solid #F4A55A' }}>
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ color: c.og }}>{icons.warn}</span>
+            <span className="text-[13px] font-semibold" style={{ color: c.og }}>Actions prioritaires</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {priorities.map((pr, i) => (
+              <div key={i} className="flex items-center gap-2 py-1.5 px-3 rounded-lg cursor-pointer hover:bg-white/50 transition-colors"
+                onClick={() => onNav?.(pr.nav)}>
+                <div className="w-2 h-2 rounded-full" style={{ background: pr.color }} />
+                <span className="text-[12px]" style={{ color: c.nr }}>{pr.label}</span>
+                <span className="text-[10px] ml-auto" style={{ color: c.gr }}>→ {pr.nav}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
+      {/* Quick readiness per title */}
+      <Card hover={false} className="mb-5">
+        <div className="flex justify-between items-center px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Readiness</span>
+          <span className="text-[10px]" style={{ color: c.gr }}>Manuscrit · ISBN · Couverture · Artwork · 4e · Analyse · Publié</span>
+        </div>
+        <div className="grid grid-cols-5 gap-0">
+          {allProjects.map(p => {
+            const done = readinessChecks(p);
+            const pct = Math.round((done / 7) * 100);
+            return (
+              <div key={p.id} className="flex flex-col items-center p-3 cursor-pointer hover:bg-[#FAF7F2] transition-colors"
+                onClick={() => onProject(p)}
+                style={{ borderBottom: `1px solid ${c.ft}`, borderRight: `1px solid ${c.ft}` }}>
+                <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                <div className="text-[9px] font-semibold mt-1.5 text-center truncate w-full" style={{ color: c.nr }}>{p.title.length > 18 ? p.title.slice(0, 16) + '…' : p.title}</div>
+                <div className="w-full h-1.5 rounded-full mt-1.5 overflow-hidden" style={{ background: c.ft }}>
+                  <div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct === 100 ? c.ok : pct >= 70 ? c.og : c.er }} />
+                </div>
+                <div className="text-[9px] font-bold mt-0.5" style={{ color: pct === 100 ? c.ok : pct >= 70 ? c.og : c.er }}>{done}/7</div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Catalogue */}
       <Card hover={false}>
         <div className="flex justify-between items-center px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Catalogue</span>
@@ -323,6 +416,11 @@ const DashboardView = ({ onProject, onNew, projects, allProjects }: { onProject:
             <div className="w-[110px]"><ScoreBar score={p.score} max={p.maxScore} /></div>
             <StatusBadge status={p.status} />
             {p.corrections.length > 0 && <Badge bg="#FDE0E3" color="#A0303D">{p.corrections.length}</Badge>}
+            {p.analysis && (
+              <span className="text-[9px] font-bold" style={{ color: p.analysis.iaScore > 30 ? c.er : p.analysis.iaScore > 15 ? c.og : c.ok }}>
+                IA:{p.analysis.iaScore}%
+              </span>
+            )}
             <div style={{ color: c.gr }}>{icons.chevR}</div>
           </div>
         ))}
@@ -2962,7 +3060,7 @@ export default function JabrApp() {
       </div>
     );
     switch (page) {
-      case 'projets': return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} />;
+      case 'projets': return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} />;
       case 'couvertures': return <CouverturesView onProject={openProject} projects={filtered} />;
       case 'isbn': return <ISBNView projects={filtered} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
@@ -2976,7 +3074,7 @@ export default function JabrApp() {
       case 'marketing': return <MarketingView projects={projects} onProject={openProject} />;
       case 'presse': return <PresseView projects={projects} onProject={openProject} />;
       case 'settings': return <SettingsView />;
-      default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} />;
+      default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} />;
     }
   };
 
