@@ -1446,8 +1446,17 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
 };
 
 // --- DISTRIBUTION ---
-const DistributionView = ({ projects }: { projects: Project[] }) => {
+const DistributionView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+  const [manualChecks, setManualChecks] = useState<Record<string, boolean>>({});
+  const [expandedTitle, setExpandedTitle] = useState<number | null>(null);
+
+  const toggleCheck = (key: string) => setManualChecks(prev => ({ ...prev, [key]: !prev[key] }));
+  const checkKey = (channel: string, projectId: number, stepIdx: number) => `${channel}:${projectId}:${stepIdx}`;
+  const isChecked = (channel: string, projectId: number, stepIdx: number, autoFn: (p: Project) => boolean, project: Project) => {
+    const key = checkKey(channel, projectId, stepIdx);
+    return manualChecks[key] !== undefined ? manualChecks[key] : autoFn(project);
+  };
 
   const channelFormats: Record<string, EditionFormat[]> = {
     'Pollen / Kiosque': ['broché', 'poche', 'relié'],
@@ -1460,12 +1469,12 @@ const DistributionView = ({ projects }: { projects: Project[] }) => {
 
   type ChannelSpec = { trimSize: string; paper: string; bleed: string; spine: string; barcode: string; cover: string; file: string; margin: string; notes: string };
   const channelSpecs: Record<string, ChannelSpec> = {
-    'Amazon KDP': { trimSize: '15,2 × 22,9 cm (6" × 9")', paper: 'Blanc 75g ou Crème 80g', bleed: '3,2 mm (0.125")', spine: 'Auto-calculé · texte ≥ 79 pages', barcode: '50,8 × 30,5 mm — zone réservée dos', cover: 'PDF aplati 300 dpi, CMJN ou RVB', file: 'PDF intérieur + PDF couverture séparé', margin: '60% impression · 40% auteur sur prix HT', notes: 'Validation 24-72h. Distribution mondiale. Impression N&B ou couleur.' },
-    'Pollen / Kiosque': { trimSize: '15,2 × 22,9 cm', paper: 'Offset 80g', bleed: '2,5 mm fonds perdus', spine: 'Calculé : pages × 0,07 mm', barcode: 'EAN-13 + prix TTC obligatoire', cover: 'PDF 300 dpi CMJN, pelliculage mat ou brillant', file: 'PDF/X-1a intérieur + couverture complète', margin: 'Remise libraire 30-35% · Remise diffuseur 5-8%', notes: 'Accord Dilisco en principe. Délai mise en place 4-6 semaines.' },
-    'IngramSpark': { trimSize: '15,2 × 22,9 cm ou format US', paper: 'Blanc 70lb / Crème 70lb', bleed: '3,2 mm (0.125")', spine: 'Auto-calculé depuis gabarit en ligne', barcode: 'EAN-13 fourni par IngramSpark ou éditeur', cover: 'PDF aplati 300 dpi CMJN, ICC : GRACoL', file: 'PDF intérieur + PDF couverture', margin: '45% impression · 55% auteur — frais annuels par titre', notes: 'Réseau international : 40 000+ librairies et bibliothèques.' },
-    'Apple Books': { trimSize: 'ePub reflowable', paper: 'N/A', bleed: 'N/A', spine: 'N/A', barcode: 'ISBN ePub distinct requis', cover: 'JPEG ou PNG 1400×1873 px min, RVB', file: '.epub validé via EpubCheck', margin: '70% auteur sur prix HT', notes: 'Via Apple Books for Authors. DRM FairPlay optionnel.' },
-    'Kobo / Fnac': { trimSize: 'ePub reflowable', paper: 'N/A', bleed: 'N/A', spine: 'N/A', barcode: 'ISBN ePub requis', cover: 'JPEG 1600×2560 px recommandé', file: '.epub validé EpubCheck', margin: '70% auteur sur prix HT', notes: 'Kobo Writing Life. Diffusion France, Belgique, Suisse, Canada.' },
-    'Spotify / Audible': { trimSize: 'MP3 192kbps mono ou stéréo', paper: 'N/A', bleed: 'N/A', spine: 'N/A', barcode: 'ISBN audiobook distinct', cover: 'JPEG 2400×2400 px carré', file: 'MP3 par chapitre + fichier ouverture/fermeture', margin: 'ACX : 40% (exclusif) ou 25% (non-exclusif)', notes: 'Durée min. 60 min. Programme ACX ou distribution directe.' },
+    'Amazon KDP': { trimSize: '15,2 × 22,9 cm (6" × 9")', paper: 'Blanc 75g ou Crème 80g', bleed: '3,2 mm (0.125")', spine: 'Auto-calculé · texte ≥ 79 pages', barcode: '50,8 × 30,5 mm — zone réservée dos', cover: 'PDF aplati 300 dpi, CMJN ou RVB', file: 'PDF intérieur + PDF couverture séparé', margin: '60% impression · 40% auteur sur prix HT', notes: 'Validation 24-72h. Distribution mondiale.' },
+    'Pollen / Kiosque': { trimSize: '15,2 × 22,9 cm', paper: 'Offset 80g', bleed: '2,5 mm fonds perdus', spine: 'Calculé : pages × 0,07 mm', barcode: 'EAN-13 + prix TTC obligatoire', cover: 'PDF 300 dpi CMJN, pelliculage mat ou brillant', file: 'PDF/X-1a intérieur + couverture complète', margin: 'Remise libraire 30-35% · Remise diffuseur 5-8%', notes: 'Accord Dilisco. Délai 4-6 semaines.' },
+    'IngramSpark': { trimSize: '15,2 × 22,9 cm ou format US', paper: 'Blanc 70lb / Crème 70lb', bleed: '3,2 mm (0.125")', spine: 'Auto-calculé depuis gabarit en ligne', barcode: 'EAN-13 fourni par IngramSpark ou éditeur', cover: 'PDF aplati 300 dpi CMJN, ICC : GRACoL', file: 'PDF intérieur + PDF couverture', margin: '45% impression · 55% auteur — frais annuels', notes: 'Réseau international : 40 000+ librairies.' },
+    'Apple Books': { trimSize: 'ePub reflowable', paper: 'N/A', bleed: 'N/A', spine: 'N/A', barcode: 'ISBN ePub distinct requis', cover: 'JPEG ou PNG 1400×1873 px min, RVB', file: '.epub validé via EpubCheck', margin: '70% auteur sur prix HT', notes: 'Via Apple Books for Authors.' },
+    'Kobo / Fnac': { trimSize: 'ePub reflowable', paper: 'N/A', bleed: 'N/A', spine: 'N/A', barcode: 'ISBN ePub requis', cover: 'JPEG 1600×2560 px recommandé', file: '.epub validé EpubCheck', margin: '70% auteur sur prix HT', notes: 'Kobo Writing Life. Diffusion FR/BE/CH/CA.' },
+    'Spotify / Audible': { trimSize: 'MP3 192kbps mono', paper: 'N/A', bleed: 'N/A', spine: 'N/A', barcode: 'ISBN audiobook distinct', cover: 'JPEG 2400×2400 px carré', file: 'MP3 par chapitre + ouverture/fermeture', margin: 'ACX : 40% (exclusif) ou 25% (non-exclusif)', notes: 'Durée min. 60 min. Programme ACX.' },
   };
 
   type SubmissionStep = { label: string; done: (p: Project) => boolean };
@@ -1473,7 +1482,7 @@ const DistributionView = ({ projects }: { projects: Project[] }) => {
     'Amazon KDP': [
       { label: 'ISBN broché attribué', done: p => p.editions.some(e => e.format === 'broché' && e.isbn) },
       { label: 'PDF intérieur prêt', done: p => p.manuscriptStatus === 'isbn-injected' || p.manuscriptStatus === 'validated' },
-      { label: 'Couverture complète', done: p => p.diag.dos && p.diag.typo },
+      { label: 'Couverture complète (dos + typo)', done: p => p.diag.dos && p.diag.typo },
       { label: 'EAN-13 sur 4e de couverture', done: p => p.diag.ean },
       { label: 'Prix fixé', done: p => p.editions.some(e => e.price) },
       { label: 'Métadonnées renseignées', done: () => true },
@@ -1513,13 +1522,12 @@ const DistributionView = ({ projects }: { projects: Project[] }) => {
     ],
   };
 
-  // KDP margin calculator
   const kdpMargin = (pages: number, price: string | undefined) => {
     if (!price) return null;
     const priceParsed = parseFloat(price.replace(',', '.').replace('€', '').trim());
     if (isNaN(priceParsed) || priceParsed <= 0) return null;
-    const printCost = 1.72 + (pages * 0.012); // Estimation N&B blanc EUR
-    const royalty = (priceParsed * 0.6) - printCost; // 60% royalty rate
+    const printCost = 1.72 + (pages * 0.012);
+    const royalty = (priceParsed * 0.6) - printCost;
     return { price: priceParsed, printCost: Math.round(printCost * 100) / 100, royalty: Math.round(royalty * 100) / 100 };
   };
 
@@ -1529,11 +1537,33 @@ const DistributionView = ({ projects }: { projects: Project[] }) => {
   const selectedFormats = selectedChannel ? channelFormats[selectedChannel] || [] : [];
   const eligibleProjects = selectedChannel ? projects.filter(p => p.editions.some(e => selectedFormats.includes(e.format))) : [];
 
+  const exportChecklist = () => {
+    if (!selectedChannel) return;
+    const lines = [`CHECKLIST DISTRIBUTION — ${selectedChannel}`, `Date: ${new Date().toLocaleDateString('fr-FR')}`, ''];
+    eligibleProjects.forEach(p => {
+      const checks = selectedChecklist.map((step, i) => {
+        const done = isChecked(selectedChannel, p.id, i, step.done, p);
+        return `  ${done ? '☑' : '☐'} ${step.label}`;
+      });
+      const doneCount = selectedChecklist.filter((step, i) => isChecked(selectedChannel, p.id, i, step.done, p)).length;
+      lines.push(`${p.title} — ${doneCount}/${selectedChecklist.length}`, ...checks, '');
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `checklist-${selectedChannel.toLowerCase().replace(/[\s/]+/g, '-')}.txt`; a.click();
+    onToast(`Checklist ${selectedChannel} exportée`);
+  };
+
   return (
     <div>
-      <h2 className="text-2xl mb-1" style={{ color: c.mv }}>Distribution</h2>
-      <p className="mb-5" style={{ color: c.gr, fontSize: 13 }}>Canaux de distribution — cliquez un canal pour voir les specs et la checklist</p>
-      <div className="flex gap-3.5 mb-6 flex-wrap">
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Distribution</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Canaux de distribution — cliquez un canal puis un titre pour la checklist interactive</p>
+        </div>
+        {selectedChannel && <Btn variant="secondary" onClick={exportChecklist}>{icons.download} Exporter checklist</Btn>}
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 mb-6">
         <StatCard value={DISTRIBUTION_CHANNELS.filter(ch => ch.color === '#2EAE6D').length} label="Canaux prêts" accent={c.ok} />
         <StatCard value={countISBN(projects)} label="ISBN total" accent={c.or} />
         <StatCard value={projects.filter(p => p.editions.some(e => e.format === 'epub')).length} label="ePub prévus" accent={c.vm} />
@@ -1546,7 +1576,7 @@ const DistributionView = ({ projects }: { projects: Project[] }) => {
           const eligibleEditions = projects.reduce((s, p) => s + p.editions.filter(e => compat.includes(e.format)).length, 0);
           const isActive = selectedChannel === ch.name;
           return (
-            <Card key={ch.name} className="p-5 cursor-pointer" onClick={() => setSelectedChannel(isActive ? null : ch.name)}>
+            <Card key={ch.name} className="p-5 cursor-pointer" onClick={() => { setSelectedChannel(isActive ? null : ch.name); setExpandedTitle(null); }}>
               <div style={isActive ? { outline: `2px solid ${c.or}`, outlineOffset: -2, borderRadius: 12, margin: -20, padding: 20 } : {}}>
                 <div className="flex justify-between items-start mb-3">
                   <div><div className="font-semibold text-[15px]" style={{ color: c.mv }}>{ch.name}</div><div className="text-xs mt-0.5" style={{ color: c.gr }}>{ch.desc}</div></div>
@@ -1559,7 +1589,7 @@ const DistributionView = ({ projects }: { projects: Project[] }) => {
                 </div>
                 <div className="text-[11px] pt-2" style={{ borderTop: `1px solid ${c.ft}`, color: c.gr }}>
                   {eligibleEditions} édition{eligibleEditions > 1 ? 's' : ''} éligible{eligibleEditions > 1 ? 's' : ''}
-                  {isActive && <span style={{ color: c.or, marginLeft: 8 }}>▾ Détail ci-dessous</span>}
+                  {isActive && <span style={{ color: c.or, marginLeft: 8 }}>▾ Détail</span>}
                 </div>
               </div>
             </Card>
@@ -1568,7 +1598,7 @@ const DistributionView = ({ projects }: { projects: Project[] }) => {
       </div>
 
       {/* Channel detail panel */}
-      {selected && selectedSpec && (
+      {selected && selectedSpec && selectedChannel && (
         <Card hover={false} className="mb-6 overflow-hidden">
           <div className="px-6 py-4 flex items-center justify-between" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
             <div>
@@ -1583,14 +1613,9 @@ const DistributionView = ({ projects }: { projects: Project[] }) => {
             <div className="p-6" style={{ borderRight: `1px solid ${c.ft}` }}>
               <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 11, color: c.gr }}>Spécifications techniques</div>
               {[
-                ['Format', selectedSpec.trimSize],
-                ['Papier', selectedSpec.paper],
-                ['Fonds perdus', selectedSpec.bleed],
-                ['Dos', selectedSpec.spine],
-                ['Code-barres', selectedSpec.barcode],
-                ['Couverture', selectedSpec.cover],
-                ['Fichiers requis', selectedSpec.file],
-                ['Marge auteur', selectedSpec.margin],
+                ['Format', selectedSpec.trimSize], ['Papier', selectedSpec.paper], ['Fonds perdus', selectedSpec.bleed],
+                ['Dos', selectedSpec.spine], ['Code-barres', selectedSpec.barcode], ['Couverture', selectedSpec.cover],
+                ['Fichiers requis', selectedSpec.file], ['Marge auteur', selectedSpec.margin],
               ].map(([label, value]) => (
                 <div key={label} className="flex py-1.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
                   <span className="text-[11px] font-semibold w-[110px] shrink-0" style={{ color: c.vm }}>{label}</span>
@@ -1602,65 +1627,89 @@ const DistributionView = ({ projects }: { projects: Project[] }) => {
               </div>
             </div>
 
-            {/* Checklist + titles */}
+            {/* Interactive checklist per title */}
             <div className="p-6">
-              <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 11, color: c.gr }}>Checklist de soumission</div>
-              {selectedChecklist.length > 0 && (
-                <div className="mb-5">
-                  {selectedChecklist.map((step, i) => {
-                    const doneCount = eligibleProjects.filter(p => step.done(p)).length;
-                    const total = eligibleProjects.length || 1;
-                    const allDone = doneCount === eligibleProjects.length && eligibleProjects.length > 0;
+              <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 11, color: c.gr }}>
+                Checklist par titre ({eligibleProjects.length})
+              </div>
+
+              {eligibleProjects.length === 0 ? (
+                <div className="text-center py-6 text-[12px]" style={{ color: c.gr }}>Aucun titre éligible pour ce canal</div>
+              ) : (
+                <div className="space-y-0">
+                  {eligibleProjects.map(p => {
+                    const matchEd = p.editions.find(e => selectedFormats.includes(e.format));
+                    const margin = selectedChannel === 'Amazon KDP' ? kdpMargin(p.pages, matchEd?.price) : null;
+                    const doneCount = selectedChecklist.filter((step, i) => isChecked(selectedChannel, p.id, i, step.done, p)).length;
+                    const total = selectedChecklist.length;
+                    const pct = Math.round((doneCount / total) * 100);
+                    const isExpanded = expandedTitle === p.id;
+
                     return (
-                      <div key={i} className="flex items-center gap-2 py-1.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
-                        <span className="text-[13px]">{allDone ? '✅' : '⬜'}</span>
-                        <span className="text-[11px] flex-1" style={{ color: allDone ? c.ok : c.nr }}>{step.label}</span>
-                        <span className="text-[10px] font-semibold" style={{ color: c.gr }}>{doneCount}/{total}</span>
+                      <div key={p.id} style={{ borderBottom: `1px solid ${c.ft}` }}>
+                        {/* Title row */}
+                        <div className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-[#FAF7F2] px-2 rounded-lg transition-colors"
+                          onClick={() => setExpandedTitle(isExpanded ? null : p.id)}>
+                          <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[12px] font-semibold truncate" style={{ color: c.nr }}>{p.title}</div>
+                            <div className="text-[10px]" style={{ color: c.gr }}>
+                              {matchEd ? FORMAT_LABELS[matchEd.format]?.label : ''} · {p.pages}p
+                              {matchEd?.price && ` · ${matchEd.price}`}
+                            </div>
+                          </div>
+                          <div className="w-20">
+                            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: c.ft }}>
+                              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? c.ok : pct >= 60 ? c.og : c.er }} />
+                            </div>
+                            <div className="text-[9px] text-center mt-0.5 font-bold" style={{ color: pct === 100 ? c.ok : pct >= 60 ? c.og : c.er }}>
+                              {doneCount}/{total}
+                            </div>
+                          </div>
+                          {margin && (
+                            <div className="text-right w-16">
+                              <div className="text-[12px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: margin.royalty > 0 ? c.ok : c.er }}>
+                                {margin.royalty > 0 ? '+' : ''}{margin.royalty.toFixed(2)}€
+                              </div>
+                            </div>
+                          )}
+                          <span className="text-[10px]" style={{ color: c.gr }}>{isExpanded ? '▴' : '▾'}</span>
+                        </div>
+
+                        {/* Expanded checklist — clickable checkboxes */}
+                        {isExpanded && (
+                          <div className="pl-12 pr-2 pb-3 space-y-0">
+                            {selectedChecklist.map((step, i) => {
+                              const done = isChecked(selectedChannel, p.id, i, step.done, p);
+                              const key = checkKey(selectedChannel, p.id, i);
+                              const isManual = manualChecks[key] !== undefined;
+                              return (
+                                <div key={i} className="flex items-center gap-2.5 py-1.5 cursor-pointer hover:bg-[#FAF7F2] px-2 rounded transition-colors"
+                                  onClick={() => toggleCheck(key)}>
+                                  <div className="w-[18px] h-[18px] rounded border-2 flex items-center justify-center shrink-0 transition-colors"
+                                    style={{ borderColor: done ? c.ok : c.gc, background: done ? c.ok : 'white' }}>
+                                    {done && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+                                  </div>
+                                  <span className="text-[11px] flex-1" style={{ color: done ? c.ok : c.nr, textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.7 : 1 }}>
+                                    {step.label}
+                                  </span>
+                                  {isManual && <span className="text-[8px] px-1.5 py-0.5 rounded" style={{ background: c.ft, color: c.gr }}>manuel</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               )}
-
-              <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 11, color: c.gr }}>
-                Titres éligibles ({eligibleProjects.length})
-              </div>
-              {eligibleProjects.map(p => {
-                const matchEd = p.editions.find(e => selectedFormats.includes(e.format));
-                const margin = selectedChannel === 'Amazon KDP' ? kdpMargin(p.pages, matchEd?.price) : null;
-                return (
-                  <div key={p.id} className="flex items-center gap-3 py-2" style={{ borderBottom: `1px solid ${c.ft}` }}>
-                    <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[12px] font-semibold truncate" style={{ color: c.nr }}>{p.title}</div>
-                      <div className="text-[10px]" style={{ color: c.gr }}>
-                        {p.pages} p. · {matchEd ? `${FORMAT_LABELS[matchEd.format]?.label} — ${matchEd.isbn}` : ''}
-                        {matchEd?.price && ` · ${matchEd.price}`}
-                      </div>
-                    </div>
-                    {margin && (
-                      <div className="text-right">
-                        <div className="text-[10px]" style={{ color: c.gr }}>Marge</div>
-                        <div className="text-[13px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: margin.royalty > 0 ? c.ok : c.er }}>
-                          {margin.royalty > 0 ? '+' : ''}{margin.royalty.toFixed(2)}€
-                        </div>
-                        <div className="text-[9px]" style={{ color: c.gr }}>coût: {margin.printCost}€</div>
-                      </div>
-                    )}
-                    {matchEd && (
-                      <Badge bg={EDITION_STATUS_LABELS[matchEd.status]?.bg || c.gc} color={EDITION_STATUS_LABELS[matchEd.status]?.color || c.gr}>
-                        {EDITION_STATUS_LABELS[matchEd.status]?.label}
-                      </Badge>
-                    )}
-                  </div>
-                );
-              })}
             </div>
           </div>
         </Card>
       )}
 
-      {/* Matrix view */}
+      {/* Matrix view — enriched with progress */}
       <Card hover={false}>
         <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Matrice titre × canal</span>
@@ -1678,9 +1727,18 @@ const DistributionView = ({ projects }: { projects: Project[] }) => {
                 {DISTRIBUTION_CHANNELS.map(ch => {
                   const compat = channelFormats[ch.name] || [];
                   const has = compat.some(f => fmts.includes(f));
+                  const checklist = channelChecklist[ch.name] || [];
+                  const doneCount = has ? checklist.filter((step, i) => isChecked(ch.name, p.id, i, step.done, p)).length : 0;
+                  const total = checklist.length;
                   return (
-                    <div key={ch.name} className="text-center cursor-pointer" onClick={() => setSelectedChannel(ch.name)}>
-                      {has ? <span style={{ color: c.ok }}>●</span> : <span style={{ color: c.gc }}>○</span>}
+                    <div key={ch.name} className="text-center cursor-pointer" onClick={() => { setSelectedChannel(ch.name); setExpandedTitle(p.id); }}>
+                      {has ? (
+                        <span className="text-[11px] font-bold" style={{ color: doneCount === total ? c.ok : doneCount > 0 ? c.og : c.er }}>
+                          {doneCount === total ? '✓' : `${doneCount}/${total}`}
+                        </span>
+                      ) : (
+                        <span style={{ color: c.gc }}>○</span>
+                      )}
                     </div>
                   );
                 })}
@@ -3009,7 +3067,7 @@ export default function JabrApp() {
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
       case 'marketing': return <MarketingView projects={projects} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
-      case 'distribution': return <DistributionView projects={projects} />;
+      case 'distribution': return <DistributionView projects={projects} onToast={showToast} />;
       case 'calibrage': return <CalibrageView projects={projects} />;
       case 'manuscrits': return <ManuscritsView projects={projects} onProject={openProject} onToast={showToast} />;
       case 'analyse': return <AnalyseView projects={projects} onProject={openProject} onToast={showToast} />;
