@@ -50,6 +50,7 @@ const icons: Record<string, React.ReactNode> = {
   analyse: sv(<><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></>),
   upload: sv(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>),
   presse: sv(<><path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9c0-1.1.9-2 2-2h2" /><path d="M18 14h-8" /><path d="M15 18h-5" /><path d="M10 6h8v4h-8z" /></>),
+  calendrier: sv(<><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" /></>),
   image: sv(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>),
   share: sv(<><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></>),
 };
@@ -168,6 +169,7 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['distribution', 'Distribution', 'distribution'],
   ['marketing', 'Marketing', 'marketing'],
   ['presse', 'Dossier Presse', 'presse'],
+  ['calendrier', 'Calendrier', 'calendrier'],
   ['analytics', 'Analytics', 'analytics'],
   null, // separator
   ['isbn', 'ISBN', 'isbn'],
@@ -2536,6 +2538,384 @@ const PresseView = ({ projects, onProject, onToast }: { projects: Project[]; onP
 // ═══════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════
+
+// ═══════════════════════════════════
+// CALENDRIER ÉDITORIAL + PLAN MÉDIA IA
+// ═══════════════════════════════════
+
+type CalEvent = { month: number; label: string; type: 'salon' | 'saison' | 'commercial' | 'media'; genres?: string[] };
+
+const EVENTS_CALENDAR: CalEvent[] = [
+  // Salons & événements littéraires
+  { month: 1, label: 'Festival BD Angoulême', type: 'salon', genres: ['BD', 'Graphique'] },
+  { month: 3, label: 'Salon du Livre Paris', type: 'salon' },
+  { month: 3, label: 'Printemps des Poètes', type: 'salon', genres: ['Poésie', 'Essai'] },
+  { month: 4, label: 'Foire du Livre Bruxelles', type: 'salon' },
+  { month: 5, label: 'Salon du Livre Outre-Mer', type: 'salon' },
+  { month: 6, label: 'Prix littéraires été (sélections)', type: 'salon' },
+  { month: 9, label: 'Rentrée littéraire', type: 'salon' },
+  { month: 10, label: 'Salon du Livre Jeunesse Montreuil (prep)', type: 'salon', genres: ['Jeunesse'] },
+  { month: 10, label: 'Prix Goncourt / Renaudot / Femina', type: 'salon', genres: ['Roman'] },
+  { month: 11, label: 'Salon du Livre Jeunesse Montreuil', type: 'salon', genres: ['Jeunesse'] },
+  { month: 11, label: 'Black Friday / Cyber Monday', type: 'commercial' },
+  // Saisons commerciales
+  { month: 1, label: 'Bonnes résolutions (dev perso, santé)', type: 'saison', genres: ['Essai', 'Développement personnel'] },
+  { month: 2, label: 'Saint-Valentin (romance, cadeaux)', type: 'commercial', genres: ['Roman'] },
+  { month: 5, label: 'Fête des mères', type: 'commercial' },
+  { month: 6, label: 'Lectures été / vacances', type: 'saison' },
+  { month: 9, label: 'Rentrée scolaire', type: 'saison', genres: ['Jeunesse', 'Éducation'] },
+  { month: 10, label: 'Halloween (thriller, fantastique)', type: 'saison', genres: ['Thriller', 'Fantasy', 'Fantastique'] },
+  { month: 12, label: 'Noël — pic cadeaux livres', type: 'commercial' },
+  { month: 12, label: 'Coffrets, éditions spéciales', type: 'commercial' },
+  // Médias
+  { month: 1, label: 'La Grande Librairie — rentrée janvier', type: 'media' },
+  { month: 3, label: 'Émissions spéciales Salon du Livre', type: 'media' },
+  { month: 9, label: 'La Grande Librairie — rentrée sept.', type: 'media' },
+  { month: 9, label: 'Chroniques rentrée littéraire presse', type: 'media' },
+];
+
+const MONTH_NAMES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+const MONTH_FULL = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+const EVENT_COLORS: Record<CalEvent['type'], { bg: string; color: string; label: string }> = {
+  salon: { bg: '#E8E0F0', color: '#5B3E8A', label: 'Salon' },
+  saison: { bg: '#D4F0E0', color: '#2EAE6D', label: 'Saison' },
+  commercial: { bg: '#FDE8D0', color: '#E07A2F', label: 'Commercial' },
+  media: { bg: '#E0ECFF', color: '#3B6DC6', label: 'Média' },
+};
+
+type AiRecommendation = {
+  sortie: { mois: string; raison: string }[];
+  eviter: { mois: string; raison: string }[];
+  medias: { nom: string; type: string; raison: string; contact?: string }[];
+  evenements: { nom: string; date: string; action: string }[];
+  strategie: string;
+};
+
+const CalendrierView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const [aiResults, setAiResults] = useState<Record<number, AiRecommendation>>({});
+  const [loading, setLoading] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const currentMonth = new Date().getMonth() + 1;
+
+  const analyzeProject = async (p: Project) => {
+    if (aiResults[p.id]) { setSelectedProject(p.id); return; }
+    setLoading(p.id);
+    setError(null);
+    try {
+      const prompt = `Tu es un expert en stratégie éditoriale et plan média pour l'édition française. Analyse ce livre et recommande les meilleures périodes de sortie et un plan média.
+
+LIVRE:
+- Titre: ${p.title}
+- Genre: ${p.genre}
+- Collection: ${p.collection || 'Hors collection'}
+- Pages: ${p.pages}
+- Auteur: ${p.author}
+- Formats: ${p.editions.map(e => e.format).join(', ')}
+${p.backCover ? `- 4e de couverture: ${p.backCover.slice(0, 300)}` : ''}
+${p.subtitle ? `- Sous-titre: ${p.subtitle}` : ''}
+
+CONTEXTE: Jabrilia Éditions, éditeur indépendant basé en France. Auteur caribéen (Guadeloupe). Spécialités: littérature, essais, jeunesse, BD.
+
+Réponds UNIQUEMENT en JSON valide sans backticks ni markdown, avec cette structure exacte:
+{
+  "sortie": [{"mois": "Septembre", "raison": "Rentrée littéraire..."}],
+  "eviter": [{"mois": "Juillet", "raison": "Creux estival..."}],
+  "medias": [{"nom": "France Inter - La Bande Originale", "type": "Radio", "raison": "Audience large, chronique culture quotidienne", "contact": "producteur@radiofrance.com"}],
+  "evenements": [{"nom": "Salon du Livre Paris", "date": "Mars", "action": "Stand partagé, dédicace, pitch éditeur"}],
+  "strategie": "Résumé en 2-3 phrases de la stratégie recommandée"
+}
+
+Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (radio, TV, presse, podcasts, blogs, réseaux), 3-5 événements, et une stratégie globale.`;
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+      const data = await response.json();
+      const text = data.content?.map((b: { type: string; text?: string }) => b.type === 'text' ? b.text : '').join('') || '';
+      const cleaned = text.replace(/```json|```/g, '').trim();
+      const parsed: AiRecommendation = JSON.parse(cleaned);
+      setAiResults(prev => ({ ...prev, [p.id]: parsed }));
+      setSelectedProject(p.id);
+      onToast(`Analyse calendrier : ${p.title}`);
+    } catch (err) {
+      console.error(err);
+      setError('Erreur lors de l\'analyse IA. Réessayez.');
+      onToast('Erreur analyse calendrier');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const monthEvents = selectedMonth ? EVENTS_CALENDAR.filter(e => e.month === selectedMonth) : [];
+  const selectedP = selectedProject ? projects.find(p => p.id === selectedProject) : null;
+  const aiRec = selectedProject ? aiResults[selectedProject] : null;
+
+  const exportPlanMedia = (p: Project, rec: AiRecommendation) => {
+    const lines = [
+      `PLAN MÉDIA & CALENDRIER ÉDITORIAL`,
+      `${p.title} — ${p.genre} — ${p.author}`,
+      `Jabrilia Éditions · ${new Date().toLocaleDateString('fr-FR')}`,
+      ``,
+      `═══ STRATÉGIE ═══`,
+      rec.strategie,
+      ``,
+      `═══ FENÊTRES DE SORTIE RECOMMANDÉES ═══`,
+      ...rec.sortie.map(s => `  ✦ ${s.mois}: ${s.raison}`),
+      ``,
+      `═══ PÉRIODES À ÉVITER ═══`,
+      ...rec.eviter.map(e => `  ✗ ${e.mois}: ${e.raison}`),
+      ``,
+      `═══ MÉDIAS RECOMMANDÉS ═══`,
+      ...rec.medias.map(m => `  → ${m.nom} (${m.type})\n    ${m.raison}${m.contact ? `\n    Contact: ${m.contact}` : ''}`),
+      ``,
+      `═══ ÉVÉNEMENTS ═══`,
+      ...rec.evenements.map(e => `  📅 ${e.nom} — ${e.date}\n    Action: ${e.action}`),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `plan-media-${p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.txt`; a.click();
+    onToast(`Plan média exporté : ${p.title}`);
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Calendrier Éditorial</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Fenêtres de sortie optimales + plan média IA par titre</p>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <StatCard value={EVENTS_CALENDAR.filter(e => e.type === 'salon').length} label="Salons & prix" accent="#5B3E8A" />
+        <StatCard value={EVENTS_CALENDAR.filter(e => e.type === 'commercial').length} label="Temps forts" accent={c.og} />
+        <StatCard value={Object.keys(aiResults).length} label="Titres analysés" accent={c.ok} />
+        <StatCard value={currentMonth} label={`Mois actuel (${MONTH_NAMES[currentMonth - 1]})`} accent={c.or} />
+      </div>
+
+      {/* Timeline 12 mois */}
+      <Card hover={false} className="p-5 mb-6">
+        <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 11, color: c.gr }}>
+          Timeline annuelle — cliquez un mois pour voir les événements
+        </div>
+        <div className="grid grid-cols-12 gap-1">
+          {MONTH_NAMES.map((m, i) => {
+            const monthNum = i + 1;
+            const events = EVENTS_CALENDAR.filter(e => e.month === monthNum);
+            const isSelected = selectedMonth === monthNum;
+            const isCurrent = currentMonth === monthNum;
+            return (
+              <div key={m} className="cursor-pointer rounded-lg p-2 text-center transition-all hover:scale-105"
+                onClick={() => setSelectedMonth(isSelected ? null : monthNum)}
+                style={{
+                  background: isSelected ? c.or : isCurrent ? 'rgba(200,149,46,0.08)' : c.ft,
+                  border: isCurrent && !isSelected ? `2px solid ${c.or}` : '2px solid transparent',
+                }}>
+                <div className="text-[10px] font-bold" style={{ color: isSelected ? 'white' : c.mv }}>{m}</div>
+                <div className="flex justify-center gap-0.5 mt-1.5 flex-wrap">
+                  {events.slice(0, 3).map((e, j) => (
+                    <div key={j} className="w-1.5 h-1.5 rounded-full" style={{ background: EVENT_COLORS[e.type].color }} />
+                  ))}
+                  {events.length === 0 && <div className="w-1.5 h-1.5 rounded-full" style={{ background: c.gc }} />}
+                </div>
+                <div className="text-[8px] mt-0.5 font-semibold" style={{ color: isSelected ? 'rgba(255,255,255,0.7)' : c.gr }}>
+                  {events.length > 0 ? `${events.length}` : ''}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="flex gap-4 mt-3 justify-center">
+          {Object.entries(EVENT_COLORS).map(([type, { bg, color, label }]) => (
+            <div key={type} className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+              <span className="text-[9px] font-semibold" style={{ color: c.gr }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Month detail */}
+      {selectedMonth && (
+        <Card hover={false} className="p-5 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold" style={{ color: c.mv }}>{MONTH_FULL[selectedMonth - 1]}</h3>
+            <span className="text-[11px] font-semibold" style={{ color: c.gr }}>{monthEvents.length} événement{monthEvents.length > 1 ? 's' : ''}</span>
+          </div>
+          {monthEvents.length === 0 ? (
+            <div className="text-center py-4 text-[12px]" style={{ color: c.gr }}>Mois calme — fenêtre possible pour sorties hors-calendrier</div>
+          ) : (
+            <div className="space-y-2">
+              {monthEvents.map((e, i) => {
+                const ec = EVENT_COLORS[e.type];
+                return (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: ec.bg + '30' }}>
+                    <div className="w-2 h-8 rounded-full shrink-0" style={{ background: ec.color }} />
+                    <div className="flex-1">
+                      <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{e.label}</div>
+                      {e.genres && <div className="text-[10px] mt-0.5" style={{ color: c.gr }}>Genres : {e.genres.join(', ')}</div>}
+                    </div>
+                    <Badge bg={ec.bg} color={ec.color}>{ec.label}</Badge>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Projects — AI Analysis */}
+      <Card hover={false} className="overflow-hidden mb-6">
+        <div className="px-5 py-4 flex items-center justify-between" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+          <div>
+            <span className="text-[15px] font-semibold" style={{ color: c.mv }}>Moteur IA — Analyse par titre</span>
+            <span className="text-[11px] ml-3" style={{ color: c.gr }}>Cliquez un titre pour obtenir fenêtre de sortie + plan média</span>
+          </div>
+        </div>
+
+        <div className="p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {projects.map(p => {
+              const hasResult = !!aiResults[p.id];
+              const isLoading = loading === p.id;
+              const isSelected = selectedProject === p.id;
+              return (
+                <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:scale-[1.02]"
+                  style={{ background: isSelected ? 'rgba(200,149,46,0.08)' : 'white', border: `2px solid ${isSelected ? c.or : c.gc}` }}
+                  onClick={() => !isLoading && analyzeProject(p)}>
+                  <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold truncate" style={{ color: c.mv }}>{p.title}</div>
+                    <div className="text-[10px]" style={{ color: c.gr }}>{p.genre} · {p.pages}p</div>
+                  </div>
+                  {isLoading ? (
+                    <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: c.or, borderTopColor: 'transparent' }} />
+                  ) : hasResult ? (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: '#D4F0E0' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2EAE6D" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] px-2 py-1 rounded font-semibold" style={{ background: c.ft, color: c.vm }}>Analyser</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
+      {/* Error */}
+      {error && (
+        <div className="mb-4 p-3 rounded-lg text-[12px] font-semibold" style={{ background: '#FFF0F0', color: c.er }}>
+          {error}
+        </div>
+      )}
+
+      {/* AI Result panel */}
+      {selectedP && aiRec && (
+        <Card hover={false} className="overflow-hidden">
+          <div className="px-6 py-4 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${c.mv}, #3E2768)` }}>
+            <div className="flex items-center gap-3">
+              <CoverThumb emoji={selectedP.cover} coverImage={selectedP.coverImage} size="sm" />
+              <div>
+                <div className="text-white font-semibold">{selectedP.title}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{selectedP.genre} · {selectedP.author}</div>
+              </div>
+            </div>
+            <Btn variant="secondary" onClick={() => exportPlanMedia(selectedP, aiRec)}>{icons.download} Exporter plan</Btn>
+          </div>
+
+          {/* Stratégie globale */}
+          <div className="px-6 py-4" style={{ background: 'rgba(200,149,46,0.04)', borderBottom: `1px solid ${c.gc}` }}>
+            <div className="uppercase tracking-wider font-semibold mb-2" style={{ fontSize: 10, color: c.or }}>Stratégie recommandée</div>
+            <div className="text-[13px] leading-relaxed" style={{ color: c.nr }}>{aiRec.strategie}</div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+            {/* Fenêtres de sortie */}
+            <div className="p-6" style={{ borderRight: `1px solid ${c.ft}` }}>
+              <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 11, color: c.ok }}>
+                ✦ Fenêtres de sortie idéales
+              </div>
+              {aiRec.sortie.map((s, i) => (
+                <div key={i} className="flex gap-3 mb-3">
+                  <div className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ background: c.ok }} />
+                  <div>
+                    <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{s.mois}</div>
+                    <div className="text-[11px] leading-relaxed" style={{ color: c.gr }}>{s.raison}</div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="uppercase tracking-wider font-semibold mt-6 mb-4" style={{ fontSize: 11, color: c.er }}>
+                ✗ Périodes à éviter
+              </div>
+              {aiRec.eviter.map((e, i) => (
+                <div key={i} className="flex gap-3 mb-3">
+                  <div className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ background: c.er }} />
+                  <div>
+                    <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{e.mois}</div>
+                    <div className="text-[11px] leading-relaxed" style={{ color: c.gr }}>{e.raison}</div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="uppercase tracking-wider font-semibold mt-6 mb-4" style={{ fontSize: 11, color: '#5B3E8A' }}>
+                📅 Événements cibles
+              </div>
+              {aiRec.evenements.map((e, i) => (
+                <div key={i} className="flex gap-3 mb-3 p-2.5 rounded-lg" style={{ background: c.ft }}>
+                  <div>
+                    <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{e.nom}</div>
+                    <div className="text-[10px]" style={{ color: c.vm }}>{e.date}</div>
+                    <div className="text-[11px] mt-0.5" style={{ color: c.gr }}>{e.action}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Plan média */}
+            <div className="p-6">
+              <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 11, color: '#3B6DC6' }}>
+                📡 Plan média recommandé
+              </div>
+              <div className="space-y-2.5">
+                {aiRec.medias.map((m, i) => (
+                  <div key={i} className="p-3 rounded-xl" style={{ background: 'white', border: `1px solid ${c.gc}` }}>
+                    <div className="flex justify-between items-start">
+                      <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{m.nom}</div>
+                      <Badge bg="#E0ECFF" color="#3B6DC6">{m.type}</Badge>
+                    </div>
+                    <div className="text-[11px] mt-1.5 leading-relaxed" style={{ color: c.gr }}>{m.raison}</div>
+                    {m.contact && (
+                      <div className="text-[10px] mt-1.5 font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.vm }}>
+                        {m.contact}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+};
+
 const SettingsView = ({ onToast }: { onToast: (msg: string) => void }) => {
   const loadSettings = () => {
     try { const s = localStorage.getItem('jabr-settings'); return s ? JSON.parse(s) : null; } catch { return null; }
@@ -3170,6 +3550,7 @@ export default function JabrApp() {
       case 'analyse': return <AnalyseView projects={projects} onProject={openProject} onToast={showToast} />;
       case 'audiobooks': return <AudiobooksView projects={projects} onToast={showToast} />;
       case 'presse': return <PresseView projects={projects} onProject={openProject} onToast={showToast} />;
+      case 'calendrier': return <CalendrierView projects={projects} onToast={showToast} />;
       case 'settings': return <SettingsView onToast={showToast} />;
       default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} />;
     }

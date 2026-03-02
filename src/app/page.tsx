@@ -210,7 +210,7 @@ export default function Home() {
                       <Logo size={20} />
                       <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 700, color: c.or, letterSpacing: 2 }}>JABR</span>
                     </div>
-                    {['Dashboard', 'Projets', 'Manuscrits', 'Analyse', 'Calibrage', 'Couvertures', 'Audiobooks', 'Distribution', 'Marketing', 'Presse', 'Analytics', '', 'ISBN', 'Collections', 'Paramètres'].map((item, i) =>
+                    {['Dashboard', 'Projets', 'Manuscrits', 'Analyse', 'Calibrage', 'Couvertures', 'Audiobooks', 'Distribution', 'Marketing', 'Presse', 'Calendrier', 'Analytics', '', 'ISBN', 'Collections', 'Paramètres'].map((item, i) =>
                       item === '' ? <div key={i} className="my-1.5" style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} /> :
                       <div key={i} className="px-3 py-1.5 rounded-md text-[11px]"
                         style={{ background: i === 0 ? c.vi : 'transparent', color: i === 0 ? 'white' : 'rgba(255,255,255,0.35)', fontWeight: i === 0 ? 600 : 400 }}>
@@ -351,7 +351,7 @@ export default function Home() {
             {[
               { value: 10, suffix: '', label: 'Titres au catalogue', sub: 'Romans, essais, BD, jeunesse, poésie' },
               { value: 28, suffix: '', label: 'ISBN attribués', sub: '6 formats par titre max' },
-              { value: 15, suffix: '', label: 'Modules intégrés', sub: 'De l\'analyse au marketing' },
+              { value: 16, suffix: '', label: 'Modules intégrés', sub: 'De l\'analyse au marketing' },
               { value: 6, suffix: '', label: 'Canaux de distribution', sub: 'KDP, Pollen, IngramSpark…' },
             ].map((stat, i) => (
               <FadeIn key={stat.label} delay={i * 0.1}>
@@ -441,6 +441,7 @@ export default function Home() {
                 ['Analyse manuscrit', '❌ Impossible', '✅ Scanner 6D + score IA'],
                 ['Marketing', '❌ À part', '✅ Moteur 5 engines intégré'],
                 ['Pipeline visuel', '❌ Aucun', '✅ 8 étapes du manuscrit à la distribution'],
+                ['Calendrier éditorial', '❌ Intuition', '✅ IA : fenêtre de sortie + plan média'],
               ].map(([feature, tableur, jabr], i) => (
                 <div key={i} className="grid grid-cols-3 text-[12px] py-3 px-4" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
                   <div className="font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>{feature}</div>
@@ -541,9 +542,9 @@ export default function Home() {
               <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>par Jabrilia Éditions</span>
             </div>
             <div className="flex items-center gap-6" style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-              <span>Pipeline éditorial v1.9.2</span>
+              <span>Pipeline éditorial v2.0</span>
               <span>·</span>
-              <span>10 titres · 28 ISBN · 15 modules</span>
+              <span>10 titres · 28 ISBN · 16 modules</span>
               <span>·</span>
               <span>© 2026 Jabrilia Éditions</span>
             </div>
