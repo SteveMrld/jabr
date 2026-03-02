@@ -994,6 +994,72 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
             )}
           </div>
         )}
+
+        {/* Scanner 6D Results */}
+        {p.analysis && (() => {
+          const dims = [
+            { key: 'ia', label: 'Score IA', value: p.analysis!.iaScore, max: 100, unit: '%', invert: true, desc: 'Probabilité contenu généré' },
+            { key: 'red', label: 'Redondances', value: p.analysis!.redundancies, max: 50, unit: '', invert: true, desc: 'Passages répétitifs détectés' },
+            { key: 'sent', label: 'Longueur phrases', value: p.analysis!.avgSentenceLength, max: 40, unit: ' mots', invert: false, desc: 'Moyenne mots par phrase' },
+            { key: 'words', label: 'Volume', value: p.analysis!.wordCount, max: Math.max(p.analysis!.wordCount, p.pages * 300), unit: ' mots', invert: false, desc: 'Nombre total de mots' },
+            { key: 'patterns', label: 'Patterns IA', value: p.analysis!.flaggedPatterns.length, max: 20, unit: '', invert: true, desc: 'Expressions typiques IA' },
+            { key: 'density', label: 'Densité', value: Math.round(p.analysis!.wordCount / Math.max(p.pages, 1)), max: 400, unit: ' m/p', invert: false, desc: 'Mots par page estimés' },
+          ];
+
+          const getColor = (d: typeof dims[0]) => {
+            const pct = d.value / d.max;
+            if (d.invert) return pct > 0.5 ? c.er : pct > 0.2 ? c.og : c.ok;
+            return pct > 0.8 ? c.ok : pct > 0.4 ? c.og : c.er;
+          };
+
+          const globalScore = Math.round(
+            dims.reduce((s, d) => {
+              const pct = Math.min(d.value / d.max, 1);
+              return s + (d.invert ? (1 - pct) : pct);
+            }, 0) / dims.length * 100
+          );
+
+          return (
+            <div className="mt-4 p-4 rounded-xl" style={{ background: c.ft, border: `1px solid ${c.gc}` }}>
+              <div className="flex justify-between items-center mb-4">
+                <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 11, color: c.gr }}>
+                  Scanner 6D — Résultats détaillés
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px]" style={{ color: c.gr }}>Score global</span>
+                  <span className="text-[16px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: globalScore > 70 ? c.ok : globalScore > 40 ? c.og : c.er }}>
+                    {globalScore}/100
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {dims.map(d => {
+                  const pct = Math.min((d.value / d.max) * 100, 100);
+                  const color = getColor(d);
+                  return (
+                    <div key={d.key} className="p-3 rounded-lg bg-white">
+                      <div className="flex justify-between items-start mb-1.5">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>{d.label}</div>
+                        <div className="text-[13px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color }}>
+                          {d.value.toLocaleString()}{d.unit}
+                        </div>
+                      </div>
+                      <div className="w-full h-2 rounded-full overflow-hidden mb-1" style={{ background: c.ft }}>
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+                      </div>
+                      <div className="text-[9px]" style={{ color: c.gr }}>{d.desc}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-3 text-[10px] text-center" style={{ color: c.gr }}>
+                Analysé le {new Date(p.analysis!.timestamp).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          );
+        })()}
       </Card>
     </div>
   );
@@ -3021,6 +3087,11 @@ export default function JabrApp() {
   const [modalOpen, setModalOpen] = useState(false);
   const { projects, loading, persisted, addProject, updateProject, deleteProject } = useProjects();
   const [search, setSearch] = useState('');
+  const [filterGenre, setFilterGenre] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const [filterCollection, setFilterCollection] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'title' | 'pages' | 'score' | 'editions'>('title');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [toast, setToast] = useState<string | null>(null);
   const [notifOpen, setNotifOpen] = useState(false);
 
@@ -3038,9 +3109,28 @@ export default function JabrApp() {
     setPage('dashboard');
   };
 
-  const filtered = search
-    ? projects.filter(p => p.title.toLowerCase().includes(search.toLowerCase()) || p.genre.toLowerCase().includes(search.toLowerCase()) || p.author.toLowerCase().includes(search.toLowerCase()))
-    : projects;
+  const genres = [...new Set(projects.map(p => p.genre))];
+  const collections = [...new Set(projects.map(p => p.collection).filter(Boolean))] as string[];
+  const statuses = ['draft', 'in-progress', 'published'] as const;
+  const statusLabels: Record<string, string> = { draft: 'Brouillon', 'in-progress': 'En cours', published: 'Publié' };
+
+  const filtered = projects.filter(p => {
+    if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !p.genre.toLowerCase().includes(search.toLowerCase()) && !p.author.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterGenre && p.genre !== filterGenre) return false;
+    if (filterStatus && p.status !== filterStatus) return false;
+    if (filterCollection && p.collection !== filterCollection) return false;
+    return true;
+  }).sort((a, b) => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    if (sortBy === 'title') return a.title.localeCompare(b.title) * dir;
+    if (sortBy === 'pages') return (a.pages - b.pages) * dir;
+    if (sortBy === 'score') return (a.score - b.score) * dir;
+    if (sortBy === 'editions') return (a.editions.length - b.editions.length) * dir;
+    return 0;
+  });
+
+  const hasFilters = !!filterGenre || !!filterStatus || !!filterCollection;
+  const clearFilters = () => { setFilterGenre(null); setFilterStatus(null); setFilterCollection(null); setSearch(''); };
 
   const notifCount = projects.filter(p => p.corrections.length > 0).reduce((s, p) => s + p.corrections.length, 0);
 
@@ -3052,12 +3142,14 @@ export default function JabrApp() {
       </div>
     );
     if (project) return <DetailView project={project} onBack={() => navigate('dashboard')} onUpdate={handleUpdate} onToast={showToast} onDelete={handleDelete} />;
-    if (search && filtered.length === 0) return (
+    if ((search || hasFilters) && filtered.length === 0) return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="text-5xl mb-4">🔍</div>
-        <h3 className="text-xl mb-2" style={{ color: c.mv }}>Aucun résultat pour « {search} »</h3>
-        <p className="text-sm mb-4" style={{ color: c.gr }}>Essayez un autre titre, genre ou auteur</p>
-        <Btn variant="secondary" onClick={() => setSearch('')}>Effacer la recherche</Btn>
+        <h3 className="text-xl mb-2" style={{ color: c.mv }}>Aucun résultat{search ? ` pour « ${search} »` : ''}</h3>
+        <p className="text-sm mb-4" style={{ color: c.gr }}>
+          {hasFilters ? 'Essayez de modifier vos filtres' : 'Essayez un autre titre, genre ou auteur'}
+        </p>
+        <Btn variant="secondary" onClick={clearFilters}>Effacer les filtres</Btn>
       </div>
     );
     switch (page) {
@@ -3088,7 +3180,47 @@ export default function JabrApp() {
             <span style={{ color: c.gr }}>{icons.search}</span>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un titre, un genre, un auteur…"
               className="bg-transparent outline-none text-sm flex-1" style={{ color: c.nr }} />
-            {search && <button onClick={() => setSearch('')} className="cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>{icons.close}</button>}
+            {(search || hasFilters) && <button onClick={clearFilters} className="cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>{icons.close}</button>}
+          </div>
+
+          {/* Filters */}
+          <div className="flex items-center gap-2">
+            <select value={filterGenre || ''} onChange={e => setFilterGenre(e.target.value || null)}
+              className="text-[11px] px-2.5 py-1.5 rounded-lg border-none outline-none cursor-pointer font-medium"
+              style={{ background: filterGenre ? 'rgba(200,149,46,0.1)' : c.ft, color: filterGenre ? c.or : c.gr }}>
+              <option value="">Genre</option>
+              {genres.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <select value={filterStatus || ''} onChange={e => setFilterStatus(e.target.value || null)}
+              className="text-[11px] px-2.5 py-1.5 rounded-lg border-none outline-none cursor-pointer font-medium"
+              style={{ background: filterStatus ? 'rgba(200,149,46,0.1)' : c.ft, color: filterStatus ? c.or : c.gr }}>
+              <option value="">Statut</option>
+              {statuses.map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}
+            </select>
+            {collections.length > 0 && (
+              <select value={filterCollection || ''} onChange={e => setFilterCollection(e.target.value || null)}
+                className="text-[11px] px-2.5 py-1.5 rounded-lg border-none outline-none cursor-pointer font-medium"
+                style={{ background: filterCollection ? 'rgba(200,149,46,0.1)' : c.ft, color: filterCollection ? c.or : c.gr }}>
+                <option value="">Collection</option>
+                {collections.map(col => <option key={col} value={col}>{col}</option>)}
+              </select>
+            )}
+            <select value={`${sortBy}-${sortDir}`} onChange={e => { const [k, d] = e.target.value.split('-'); setSortBy(k as typeof sortBy); setSortDir(d as 'asc' | 'desc'); }}
+              className="text-[11px] px-2.5 py-1.5 rounded-lg border-none outline-none cursor-pointer font-medium"
+              style={{ background: c.ft, color: c.gr }}>
+              <option value="title-asc">A → Z</option>
+              <option value="title-desc">Z → A</option>
+              <option value="pages-desc">Pages ↓</option>
+              <option value="pages-asc">Pages ↑</option>
+              <option value="score-desc">Score ↓</option>
+              <option value="editions-desc">Éditions ↓</option>
+            </select>
+            {hasFilters && (
+              <button onClick={clearFilters} className="text-[10px] px-2 py-1 rounded cursor-pointer border-none font-semibold"
+                style={{ background: 'rgba(200,149,46,0.1)', color: c.or }}>
+                Effacer filtres
+              </button>
+            )}
           </div>
           <div className="relative">
             <button onClick={() => setNotifOpen(!notifOpen)} className="relative cursor-pointer bg-transparent border-none" style={{ color: c.gr }}
