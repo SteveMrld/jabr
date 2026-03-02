@@ -838,11 +838,21 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
 const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => void; projects: Project[] }) => {
   const bad = projects.filter(p => p.corrections.length > 0);
   const good = projects.filter(p => p.corrections.length === 0);
+  const [previewId, setPreviewId] = useState<number | null>(null);
+  const previewProject = previewId ? projects.find(p => p.id === previewId) : null;
+
   return (
     <div>
       <h2 className="text-2xl mb-1" style={{ color: c.mv }}>Couvertures</h2>
-      <p className="mb-5" style={{ color: c.gr, fontSize: 13 }}>Audit qualité des 10 couvertures du catalogue</p>
-      <div className="flex gap-3.5 mb-6"><StatCard value={good.length} label="Conformes" accent={c.ok} /><StatCard value={bad.length} label="À corriger" accent={c.er} /><StatCard value={projects.reduce((s, p) => s + p.corrections.length, 0)} label="Corrections" accent={c.og} /></div>
+      <p className="mb-5" style={{ color: c.gr, fontSize: 13 }}>Audit qualité + preview gabarit complet (1re + dos + 4e)</p>
+      <div className="flex gap-3.5 mb-6">
+        <StatCard value={good.length} label="Conformes" accent={c.ok} />
+        <StatCard value={bad.length} label="À corriger" accent={c.er} />
+        <StatCard value={projects.reduce((s, p) => s + p.corrections.length, 0)} label="Corrections" accent={c.og} />
+        <StatCard value={projects.filter(p => p.coverImage).length} label="Artwork intégré" accent={c.vm} />
+      </div>
+
+      {/* À corriger */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 mb-6">
         {bad.map(p => (
           <Card key={p.id} className="cursor-pointer" onClick={() => onProject(p)}>
@@ -857,15 +867,179 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
           </Card>
         ))}
       </div>
-      {good.map(p => (
-        <Card key={p.id} className="cursor-pointer mb-2 p-3 px-4" onClick={() => onProject(p)}>
-          <div className="flex items-center gap-3">
+
+      {/* Conformes avec bouton preview */}
+      <Card hover={false} className="mb-6">
+        <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
+          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Couvertures conformes</span>
+        </div>
+        {good.map(p => (
+          <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
             <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
-            <span className="flex-1 text-[13px] font-semibold">{p.title}</span>
+            <span className="flex-1 text-[13px] font-semibold cursor-pointer" onClick={() => onProject(p)}>{p.title}</span>
             <span className="text-xs font-semibold" style={{ color: c.ok }}>✓ 7/7</span>
+            <button className="text-[11px] px-3 py-1 rounded-lg font-semibold transition-colors"
+              style={{ background: previewId === p.id ? c.or : c.ft, color: previewId === p.id ? 'white' : c.mv }}
+              onClick={() => setPreviewId(previewId === p.id ? null : p.id)}>
+              {previewId === p.id ? 'Fermer' : 'Preview gabarit'}
+            </button>
           </div>
-        </Card>
-      ))}
+        ))}
+        {bad.map(p => (
+          <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
+            <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+            <span className="flex-1 text-[13px] font-semibold cursor-pointer" onClick={() => onProject(p)}>{p.title}</span>
+            <span className="text-xs font-semibold" style={{ color: c.er }}>{p.score}/{p.maxScore}</span>
+            <button className="text-[11px] px-3 py-1 rounded-lg font-semibold transition-colors"
+              style={{ background: previewId === p.id ? c.or : c.ft, color: previewId === p.id ? 'white' : c.mv }}
+              onClick={() => setPreviewId(previewId === p.id ? null : p.id)}>
+              {previewId === p.id ? 'Fermer' : 'Preview gabarit'}
+            </button>
+          </div>
+        ))}
+      </Card>
+
+      {/* Cover assembly preview */}
+      {previewProject && (() => {
+        const p = previewProject;
+        const thickness = (p.pages * 0.05).toFixed(1);
+        const thicknessMm = parseFloat(thickness);
+        const spineWidth = Math.max(20, Math.round(thicknessMm * 2.5));
+        const canSpineText = p.pages >= 79;
+        const coverW = 135; // mm
+        const coverH = 210; // mm
+        const bleed = 2.5;
+        const totalWmm = bleed + coverW + thicknessMm + coverW + bleed;
+        const totalHmm = bleed + coverH + bleed;
+        // Scale for display: 1mm ≈ 1.4px
+        const scale = 1.4;
+        const totalWpx = Math.round(totalWmm * scale);
+        const totalHpx = Math.round(totalHmm * scale);
+        const coverWpx = Math.round(coverW * scale);
+        const bleedPx = Math.round(bleed * scale);
+
+        return (
+          <Card hover={false} className="overflow-hidden mb-6">
+            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+              <span className="text-[13px] font-semibold" style={{ color: c.mv }}>📐 Gabarit couverture complète — {p.title}</span>
+            </div>
+
+            {/* Specs row */}
+            <div className="px-5 py-3 flex gap-6 flex-wrap" style={{ background: c.ft }}>
+              {[
+                ['Format couverture', `${coverW} × ${coverH} mm`],
+                ['Dos', `${thickness} mm (${p.pages} pages)`],
+                ['Total déplié', `${totalWmm.toFixed(1)} × ${totalHmm.toFixed(1)} mm`],
+                ['Bleed', `${bleed} mm`],
+                ['Résolution', `${Math.ceil((totalWmm / 25.4) * 300)} × ${Math.ceil((totalHmm / 25.4) * 300)} px @300dpi`],
+                ['Texte dos', canSpineText ? '✓ Possible' : '✗ Trop fin'],
+              ].map(([k, v]) => (
+                <div key={k as string}>
+                  <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>{k}</div>
+                  <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{v}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Visual preview */}
+            <div className="p-6 flex justify-center" style={{ background: '#E8E4DE' }}>
+              <div className="relative" style={{ width: totalWpx, height: totalHpx }}>
+                {/* Bleed zone */}
+                <div className="absolute inset-0 rounded-sm" style={{ background: '#D4CFC6', border: '1px dashed #B0A898' }} />
+
+                {/* 4e de couverture (left) */}
+                <div className="absolute flex flex-col justify-between p-4" style={{
+                  left: bleedPx, top: bleedPx, width: coverWpx, height: totalHpx - bleedPx * 2,
+                  background: 'white', borderRight: `1px solid ${c.gc}`
+                }}>
+                  <div>
+                    <div className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>4e de couverture</div>
+                    <div className="text-[8px] leading-relaxed" style={{ color: c.nr }}>
+                      {p.backCover ? p.backCover.slice(0, 280) + (p.backCover.length > 280 ? '…' : '') : 'Texte de 4e non renseigné'}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-[7px] tracking-wider" style={{ color: c.gr }}>ISBN</div>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: c.mv }}>
+                      {p.editions[0]?.isbn || '978-2-488647-XX-X'}
+                    </div>
+                    <div className="mt-1 mx-auto" style={{ width: 60, height: 20, background: c.ft, border: `1px solid ${c.gc}` }}>
+                      <div className="text-[6px] text-center pt-1" style={{ color: c.gr }}>Code-barres EAN</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dos (center) */}
+                <div className="absolute flex items-center justify-center" style={{
+                  left: bleedPx + coverWpx, top: bleedPx, width: spineWidth, height: totalHpx - bleedPx * 2,
+                  background: '#F5F0E8', borderLeft: `1px solid ${c.gc}`, borderRight: `1px solid ${c.gc}`
+                }}>
+                  {canSpineText ? (
+                    <div className="font-semibold" style={{
+                      writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)',
+                      fontSize: Math.min(9, spineWidth * 0.35), color: c.mv, letterSpacing: 1,
+                      overflow: 'hidden', maxHeight: totalHpx - bleedPx * 2 - 20,
+                    }}>
+                      {p.title.length > 30 ? p.title.slice(0, 28) + '…' : p.title} — Steve Moradel
+                    </div>
+                  ) : (
+                    <div className="text-[6px] text-center" style={{ color: c.gr, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>DOS</div>
+                  )}
+                </div>
+
+                {/* 1re de couverture (right) */}
+                <div className="absolute flex flex-col items-center justify-center" style={{
+                  left: bleedPx + coverWpx + spineWidth, top: bleedPx, width: coverWpx, height: totalHpx - bleedPx * 2,
+                  background: p.coverImage ? undefined : '#FDFAF5', borderLeft: `1px solid ${c.gc}`,
+                  backgroundImage: p.coverImage ? `url(${p.coverImage})` : undefined,
+                  backgroundSize: 'cover', backgroundPosition: 'center',
+                }}>
+                  {!p.coverImage && (
+                    <>
+                      <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: c.gr }}>Steve Moradel</div>
+                      <div className="text-[14px] font-bold text-center px-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>{p.title}</div>
+                      <div className="text-[8px] mt-2 italic" style={{ color: c.gr }}>{p.genre.toLowerCase()}</div>
+                      <div className="absolute bottom-3 text-[7px] tracking-widest uppercase" style={{ color: c.gr }}>Jabrilia Éditions</div>
+                    </>
+                  )}
+                  {p.coverImage && (
+                    <div className="absolute bottom-0 left-0 right-0 p-2 text-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+                      <div className="text-[8px] font-semibold text-white truncate">{p.title}</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Labels */}
+                <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverWpx / 2, top: -14, transform: 'translateX(-50%)', color: c.gr }}>← 4e ({coverW}mm) →</div>
+                <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverWpx + spineWidth / 2, top: -14, transform: 'translateX(-50%)', color: c.or }}>Dos</div>
+                <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverWpx + spineWidth + coverWpx / 2, top: -14, transform: 'translateX(-50%)', color: c.gr }}>← 1re ({coverW}mm) →</div>
+              </div>
+            </div>
+
+            {/* Export specs */}
+            <div className="px-5 py-3 grid grid-cols-3 gap-4" style={{ borderTop: `1px solid ${c.ft}` }}>
+              <div className="p-3 rounded-lg" style={{ background: c.ft }}>
+                <div className="text-[10px] font-semibold" style={{ color: c.vm }}>KDP</div>
+                <div className="text-[9px] mt-1" style={{ color: c.gr }}>
+                  PDF couverture unique · Fond perdu 3,2 mm · Pas de traits de coupe · sRGB ou CMJN
+                </div>
+              </div>
+              <div className="p-3 rounded-lg" style={{ background: c.ft }}>
+                <div className="text-[10px] font-semibold" style={{ color: c.vm }}>Pollen / Imprimeur FR</div>
+                <div className="text-[9px] mt-1" style={{ color: c.gr }}>
+                  PDF/X-1a · CMJN obligatoire · Fond perdu 2,5 mm + traits de coupe · Profil Fogra39
+                </div>
+              </div>
+              <div className="p-3 rounded-lg" style={{ background: c.ft }}>
+                <div className="text-[10px] font-semibold" style={{ color: c.vm }}>IngramSpark</div>
+                <div className="text-[9px] mt-1" style={{ color: c.gr }}>
+                  PDF single page · Fond perdu 3,2 mm · sRGB ou CMJN · Cover calculator requis
+                </div>
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
     </div>
   );
 };
@@ -956,16 +1130,91 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
   projects.forEach(p => { byGenre[p.genre] = (byGenre[p.genre] || 0) + 1; });
   const byFormat: Record<string, number> = {};
   projects.forEach(p => p.editions.forEach(e => { byFormat[e.format] = (byFormat[e.format] || 0) + 1; }));
+
+  // Production readiness checks
+  const checks = (p: typeof projects[0]) => ({
+    'Manuscrit validé': p.manuscriptStatus === 'validated' || p.manuscriptStatus === 'isbn-injected',
+    'ISBN attribué': p.editions.length > 0,
+    'Couverture OK': p.corrections.length === 0,
+    'Artwork intégré': !!p.coverImage,
+    '4e de couverture': !!(p.backCover && p.backCover.length > 50),
+    'Analyse IA': !!p.analysis,
+    'Statut publié': p.status === 'published',
+  });
+
+  // Revenue estimator
+  const estimateRevenue = (p: typeof projects[0]) => {
+    let rev = 0;
+    p.editions.forEach(ed => {
+      const price = parseFloat((ed.price || '0').replace('€', '').replace(',', '.'));
+      if (ed.format === 'broché') rev += price * 0.4 * 200; // 40% margin, 200 copies estimate
+      else if (ed.format === 'epub') rev += price * 0.7 * 150; // 70% margin, 150 sales
+      else if (ed.format === 'audiobook') rev += price * 0.4 * 80;
+      else if (ed.format === 'poche') rev += price * 0.35 * 300;
+    });
+    return Math.round(rev);
+  };
+
+  const totalEstRev = projects.reduce((s, p) => s + estimateRevenue(p), 0);
+  const analyzed = projects.filter(p => p.analysis);
+  const avgIa = analyzed.length > 0 ? Math.round(analyzed.reduce((s, p) => s + (p.analysis?.iaScore || 0), 0) / analyzed.length) : null;
+
   return (
     <div>
       <h2 className="text-2xl mb-1" style={{ color: c.mv }}>Analytics</h2>
-      <p className="mb-5" style={{ color: c.gr, fontSize: 13 }}>Vue d&apos;ensemble du catalogue</p>
+      <p className="mb-5" style={{ color: c.gr, fontSize: 13 }}>Vue d&apos;ensemble du catalogue · Production · Revenus estimés</p>
       <div className="flex gap-3.5 mb-7 flex-wrap">
         <StatCard value={projects.length} label="Titres" accent={c.mv} />
         <StatCard value={totalEditions} label="Éditions (ISBN)" accent={c.or} />
         <StatCard value={`${avg}/7`} label="Score moyen" accent={c.ok} />
         <StatCard value={totalPages.toLocaleString()} label="Pages totales" accent={c.vm} />
+        {avgIa !== null && <StatCard value={`${avgIa}%`} label="Score IA moyen" accent={avgIa > 25 ? c.er : c.ok} />}
+        <StatCard value={`~${totalEstRev.toLocaleString()}€`} label="Revenus estimés/an" accent={c.or} />
       </div>
+
+      {/* Production readiness matrix */}
+      <Card hover={false} className="mb-6 overflow-hidden">
+        <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Readiness par titre</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr style={{ background: c.ft }}>
+                <th className="text-left px-4 py-2.5 font-semibold" style={{ color: c.gr }}>Titre</th>
+                {Object.keys(checks(projects[0])).map(k => (
+                  <th key={k} className="px-2 py-2.5 font-semibold text-center" style={{ color: c.gr, fontSize: 9 }}>{k}</th>
+                ))}
+                <th className="px-3 py-2.5 font-semibold text-center" style={{ color: c.gr }}>Rev. est.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {projects.map(p => {
+                const ch = checks(p);
+                const doneCount = Object.values(ch).filter(Boolean).length;
+                const total = Object.keys(ch).length;
+                return (
+                  <tr key={p.id} style={{ borderBottom: `1px solid ${c.ft}` }}>
+                    <td className="px-4 py-2 font-semibold" style={{ color: c.nr, maxWidth: 160 }}>
+                      <div className="truncate">{p.title}</div>
+                      <div className="text-[9px]" style={{ color: doneCount === total ? c.ok : c.og }}>{doneCount}/{total}</div>
+                    </td>
+                    {Object.values(ch).map((ok, i) => (
+                      <td key={i} className="text-center px-2 py-2">
+                        <span className="text-[13px]">{ok ? '✅' : '⬜'}</span>
+                      </td>
+                    ))}
+                    <td className="text-center px-3 py-2 font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: c.or }}>
+                      ~{estimateRevenue(p).toLocaleString()}€
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
       <div className="grid grid-cols-3 gap-5">
         <Card hover={false} className="p-5">
           <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Score par titre</div>
