@@ -135,6 +135,7 @@ export default function Home() {
             <a href="#pipeline" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Pipeline</a>
             <a href="#stats" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Chiffres</a>
             <a href="#testimonials" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Retours</a>
+            <a href="#pricing" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Tarifs</a>
             <Link href="/demo"
               className="px-5 py-2.5 rounded-lg font-semibold text-sm text-white transition-all hover:scale-105"
               style={{ background: c.or }}>
@@ -514,7 +515,182 @@ export default function Home() {
       </section>
 
       {/* ═══════════════════════════════════ */}
-      {/* CTA FINAL */}
+      {/* PRICING */}
+      {/* ═══════════════════════════════════ */}
+      <section id="pricing" style={{ background: c.bg }}>
+        <div className="max-w-6xl mx-auto px-8 py-28">
+          <FadeIn>
+            <div className="text-center mb-16">
+              <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold mb-6" style={{ background: 'rgba(200,149,46,0.1)', color: c.or, letterSpacing: 1.5 }}>
+                TARIFS
+              </span>
+              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: 'white', lineHeight: 1.15 }}>
+                Un plan pour chaque éditeur
+              </h2>
+              <p className="mt-4 text-base max-w-lg mx-auto" style={{ color: 'rgba(255,255,255,0.4)', lineHeight: 1.7 }}>
+                Du manuscrit au lecteur, sans friction. Commencez gratuitement.
+              </p>
+            </div>
+          </FadeIn>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {/* Starter */}
+            <FadeIn delay={0}>
+              <div className="rounded-2xl p-8 h-full flex flex-col" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>Starter</div>
+                <div className="flex items-end gap-1 mb-2">
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 42, fontWeight: 700, color: 'white' }}>0€</span>
+                  <span className="text-sm mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>/mois</span>
+                </div>
+                <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>Idéal pour tester JABR avec un premier titre.</p>
+                <div className="flex-1 space-y-3 mb-8">
+                  {['3 titres max', '10 ISBN', 'Diagnostic couverture', 'Export CSV', 'Scanner 6D basique', 'Dashboard'].map((f, i) => (
+                    <div key={i} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      <span style={{ color: c.or }}>✓</span> {f}
+                    </div>
+                  ))}
+                </div>
+                <Link href="/demo" className="block text-center py-3.5 rounded-xl font-semibold text-sm transition-all hover:scale-[1.02]"
+                  style={{ background: 'rgba(255,255,255,0.06)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  Commencer gratuitement
+                </Link>
+              </div>
+            </FadeIn>
+
+            {/* Pro — highlighted */}
+            <FadeIn delay={0.1}>
+              <div className="rounded-2xl p-8 h-full flex flex-col relative" style={{ background: 'rgba(200,149,46,0.06)', border: `2px solid ${c.or}` }}>
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-bold" style={{ background: c.or, color: c.bg }}>
+                  POPULAIRE
+                </div>
+                <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: c.or }}>Pro</div>
+                <div className="flex items-end gap-1 mb-2">
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 42, fontWeight: 700, color: 'white' }}>29€</span>
+                  <span className="text-sm mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>/mois</span>
+                </div>
+                <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>Pour l'éditeur indépendant qui publie régulièrement.</p>
+                <div className="flex-1 space-y-3 mb-8">
+                  {['Titres illimités', '100 ISBN', 'Tous les 16 modules', 'ONIX 3.0 complet', 'Calendrier éditorial IA', 'Plan média IA', 'Export PDF', 'Import CSV', 'Kanban drag & drop', 'Ctrl+K recherche globale'].map((f, i) => (
+                    <div key={i} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                      <span style={{ color: c.or }}>✓</span> {f}
+                    </div>
+                  ))}
+                </div>
+                <Link href="/demo" className="block text-center py-3.5 rounded-xl font-semibold text-sm transition-all hover:scale-[1.02]"
+                  style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})`, color: 'white', boxShadow: '0 8px 24px rgba(200,149,46,0.3)' }}>
+                  Essai gratuit 14 jours
+                </Link>
+              </div>
+            </FadeIn>
+
+            {/* Maison */}
+            <FadeIn delay={0.2}>
+              <div className="rounded-2xl p-8 h-full flex flex-col" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>Maison d&apos;édition</div>
+                <div className="flex items-end gap-1 mb-2">
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 42, fontWeight: 700, color: 'white' }}>79€</span>
+                  <span className="text-sm mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>/mois</span>
+                </div>
+                <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>Pour les structures avec plusieurs auteurs et collections.</p>
+                <div className="flex-1 space-y-3 mb-8">
+                  {['Tout du plan Pro', '500 ISBN', 'Multi-utilisateurs (5)', 'API & webhooks', 'Connexion Dilicom directe', 'Support prioritaire', 'Marque blanche', 'Formation 1h offerte'].map((f, i) => (
+                    <div key={i} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      <span style={{ color: c.or }}>✓</span> {f}
+                    </div>
+                  ))}
+                </div>
+                <a href="mailto:contact@jabrilia.com" className="block text-center py-3.5 rounded-xl font-semibold text-sm transition-all hover:scale-[1.02]"
+                  style={{ background: 'rgba(255,255,255,0.06)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  Nous contacter
+                </a>
+              </div>
+            </FadeIn>
+          </div>
+
+          <FadeIn delay={0.3}>
+            <div className="text-center mt-10">
+              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                Tous les plans incluent : hébergement Vercel, mises à jour, chiffrement données, RGPD conforme.
+                <br />14 jours d&apos;essai gratuit sur les plans payants. Sans engagement.
+              </p>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════ */}
+      {/* INTERACTIVE DEMO PREVIEW */}
+      {/* ═══════════════════════════════════ */}
+      <section style={{ background: c.cream }}>
+        <div className="max-w-6xl mx-auto px-8 py-28">
+          <FadeIn>
+            <div className="text-center mb-14">
+              <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold mb-6" style={{ background: 'rgba(45,27,78,0.06)', color: c.mv, letterSpacing: 1.5 }}>
+                DÉMO INTERACTIVE
+              </span>
+              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 700, color: c.mv, lineHeight: 1.2 }}>
+                Testez JABR en 30 secondes
+              </h2>
+              <p className="mt-4 text-base max-w-lg mx-auto" style={{ color: '#9E9689', lineHeight: 1.7 }}>
+                Pas de compte. Pas de carte bancaire. Cliquez et explorez.
+              </p>
+            </div>
+          </FadeIn>
+
+          <FadeIn delay={0.1}>
+            <div className="max-w-4xl mx-auto">
+              <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(200,149,46,0.15)', boxShadow: '0 20px 60px rgba(45,27,78,0.08)' }}>
+                {/* Browser chrome */}
+                <div className="flex items-center gap-2 px-5 py-3" style={{ background: '#FAF7F2', borderBottom: '1px solid rgba(200,149,46,0.1)' }}>
+                  <div className="flex gap-1.5">
+                    <div className="w-3 h-3 rounded-full" style={{ background: '#E8C0C0' }} />
+                    <div className="w-3 h-3 rounded-full" style={{ background: '#F0DCA0' }} />
+                    <div className="w-3 h-3 rounded-full" style={{ background: '#C0DEC0' }} />
+                  </div>
+                  <div className="flex-1 mx-4 px-4 py-1.5 rounded-lg text-xs" style={{ background: 'white', color: '#9E9689', border: '1px solid #E8E4DF' }}>
+                    jabr-eta.vercel.app/demo
+                  </div>
+                </div>
+
+                {/* Demo modules grid */}
+                <div className="p-8" style={{ background: 'white' }}>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                      { icon: '📊', label: 'Dashboard', desc: 'Vue d\'ensemble', color: '#2D1B4E' },
+                      { icon: '📅', label: 'Calendrier IA', desc: 'Fenêtres de sortie', color: '#C8952E' },
+                      { icon: '🔍', label: 'Scanner 6D', desc: 'Détection patterns', color: '#E07A2F' },
+                      { icon: '🚚', label: 'Distribution', desc: '6 canaux', color: '#2EAE6D' },
+                      { icon: '📡', label: 'Plan Média', desc: 'IA recommandations', color: '#3B6DC6' },
+                      { icon: '📈', label: 'Finances', desc: 'Marges & ROI', color: '#5B3E8A' },
+                      { icon: '📋', label: 'ONIX 3.0', desc: 'Export Dilicom', color: '#D94452' },
+                      { icon: '▣', label: 'Kanban', desc: 'Drag & drop', color: '#C8952E' },
+                    ].map((mod, i) => (
+                      <Link href="/demo" key={i}
+                        className="p-4 rounded-xl text-center transition-all hover:scale-105 hover:shadow-lg cursor-pointer"
+                        style={{ background: '#FAF7F2', border: '1px solid #E8E4DF' }}>
+                        <div className="text-2xl mb-2">{mod.icon}</div>
+                        <div className="text-xs font-bold" style={{ color: mod.color }}>{mod.label}</div>
+                        <div className="text-[10px] mt-0.5" style={{ color: '#9E9689' }}>{mod.desc}</div>
+                      </Link>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 text-center">
+                    <Link href="/demo"
+                      className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm text-white transition-all hover:scale-105"
+                      style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})`, boxShadow: '0 8px 24px rgba(200,149,46,0.25)' }}>
+                      Explorer le Dashboard complet →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════ */}
+      {/* CTA FINAL + WAITLIST */}
       {/* ═══════════════════════════════════ */}
       <section className="relative overflow-hidden" style={{ background: `linear-gradient(160deg, ${c.bg}, ${c.mv})` }}>
         <div className="absolute inset-0">
@@ -531,15 +707,47 @@ export default function Home() {
           </FadeIn>
           <FadeIn delay={0.2}>
             <p className="mt-6 text-base max-w-lg mx-auto" style={{ color: 'rgba(255,255,255,0.4)', lineHeight: 1.7 }}>
-              JABR est conçu pour les éditeurs indépendants qui refusent de gérer leurs livres dans des tableurs.
+              Rejoignez la liste d&apos;attente pour être parmi les premiers à utiliser JABR en production.
             </p>
           </FadeIn>
           <FadeIn delay={0.3}>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10">
+            {/* Waitlist form */}
+            <div className="max-w-md mx-auto mt-10">
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  placeholder="votre@email.com"
+                  className="flex-1 px-5 py-4 rounded-xl text-sm outline-none"
+                  style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                  onFocus={e => { e.target.style.borderColor = 'rgba(200,149,46,0.4)'; }}
+                  onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+                />
+                <button
+                  onClick={(e) => {
+                    const input = (e.target as HTMLElement).parentElement?.querySelector('input');
+                    if (input && input.value.includes('@')) {
+                      input.value = '';
+                      const btn = e.target as HTMLElement;
+                      btn.textContent = '✓ Inscrit !';
+                      btn.style.background = '#2EAE6D';
+                      setTimeout(() => { btn.textContent = 'Rejoindre'; btn.style.background = `linear-gradient(135deg, ${c.or}, ${c.oc})`; }, 3000);
+                    }
+                  }}
+                  className="px-6 py-4 rounded-xl font-semibold text-sm text-white cursor-pointer border-none transition-all hover:scale-105"
+                  style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})`, boxShadow: '0 8px 24px rgba(200,149,46,0.3)', whiteSpace: 'nowrap' }}>
+                  Rejoindre
+                </button>
+              </div>
+              <p className="mt-3 text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                Pas de spam. Notification au lancement uniquement.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
               <Link href="/demo"
                 className="group px-10 py-5 rounded-xl font-semibold text-lg text-white transition-all hover:scale-105 flex items-center gap-3"
-                style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})`, boxShadow: '0 12px 40px rgba(200,149,46,0.35)' }}>
-                Ouvrir le Dashboard
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                Tester la démo
                 <span className="transition-transform group-hover:translate-x-1">→</span>
               </Link>
             </div>
@@ -559,7 +767,7 @@ export default function Home() {
               <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>par Jabrilia Éditions</span>
             </div>
             <div className="flex items-center gap-6" style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-              <span>Pipeline éditorial v2.0</span>
+              <span>Pipeline éditorial v2.1</span>
               <span>·</span>
               <span>10 titres · 28 ISBN · 16 modules</span>
               <span>·</span>
