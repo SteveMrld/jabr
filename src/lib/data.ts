@@ -64,6 +64,10 @@ export interface Project {
   manuscriptFile?: string;
   analysis?: AnalysisResult;
   notes?: string;
+  series?: string;
+  seriesOrder?: number;
+  printCost?: number;
+  revenue?: number;
 }
 
 export const PROJECTS: Project[] = [
@@ -75,7 +79,7 @@ export const PROJECTS: Project[] = [
       { format: 'epub', isbn: '978-2-488647-01-4', status: 'planned' },
       { format: 'pdf', isbn: '978-2-488647-02-1', status: 'planned' },
     ],
-    diag: { ean: true, prix: true, isbn_txt: true, texte4e: true, typo: true, dos: true, logo: true }, corrections: []
+    diag: { ean: true, prix: true, isbn_txt: true, texte4e: true, typo: true, dos: true, logo: true }, corrections: [], printCost: 4.85, revenue: 0
   },
   {
     id: 2, title: "Sur les hauteurs des chutes du Niagara", author: "Steve Moradel",
@@ -123,7 +127,7 @@ export const PROJECTS: Project[] = [
   },
   {
     id: 6, title: "Le Trône de Cendre", subtitle: "Tome I – Le Lion Déchu", author: "Steve Moradel",
-    genre: "Roman historique", score: 3, maxScore: 7, status: "in-progress", pages: 420, cover: "🏛️", coverImage: "/covers/trone-de-cendre.jpg",
+    genre: "Roman historique", series: "Le Trône de Cendre", seriesOrder: 1, score: 3, maxScore: 7, status: "in-progress", pages: 420, cover: "🏛️", coverImage: "/covers/trone-de-cendre.jpg",
     editions: [
       { format: 'broché', isbn: '978-2-488647-17-5', status: 'in-progress' },
       { format: 'relié', isbn: '978-2-488647-18-2', status: 'planned' },

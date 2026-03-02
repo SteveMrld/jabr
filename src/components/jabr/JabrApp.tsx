@@ -1533,6 +1533,107 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
           </div>
         </Card>
       </div>
+
+      {/* Financial Dashboard */}
+      <Card hover={false} className="mt-6 overflow-hidden">
+        <div className="px-5 py-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+          <span className="text-[15px] font-semibold" style={{ color: c.mv }}>Tableau de bord financier</span>
+          <span className="text-[11px] ml-3" style={{ color: c.gr }}>Coûts, marges et projections par titre</span>
+        </div>
+        <div className="p-5">
+          {(() => {
+            const kdpMargin = (pages: number, price: string | undefined) => {
+              if (!price) return null;
+              const p = parseFloat(price.replace(',', '.').replace('€', '').trim());
+              if (isNaN(p) || p <= 0) return null;
+              const cost = 1.72 + (pages * 0.012);
+              return { price: p, cost: Math.round(cost * 100) / 100, royalty: Math.round((p * 0.6 - cost) * 100) / 100 };
+            };
+
+            const rows = projects.map(p => {
+              const broche = p.editions.find(e => e.format === 'broché');
+              const epub = p.editions.find(e => e.format === 'epub');
+              const audio = p.editions.find(e => e.format === 'audiobook');
+              const margin = kdpMargin(p.pages, broche?.price);
+              const epubPrice = epub?.price ? parseFloat(epub.price.replace(',', '.').replace('€', '').trim()) * 0.7 : null;
+              return { ...p, margin, epubRoyalty: epubPrice ? Math.round(epubPrice * 100) / 100 : null };
+            });
+
+            const totalRoyalty = rows.reduce((s, r) => s + (r.margin?.royalty || 0), 0);
+            const avgRoyalty = rows.filter(r => r.margin).length > 0 ? totalRoyalty / rows.filter(r => r.margin).length : 0;
+            const withPrice = rows.filter(r => r.margin);
+            const bestMargin = withPrice.sort((a, b) => (b.margin?.royalty || 0) - (a.margin?.royalty || 0))[0];
+
+            return (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                  <StatCard value={`${totalRoyalty.toFixed(2)}€`} label="Marge totale (KDP)" accent={totalRoyalty > 0 ? c.ok : c.er} />
+                  <StatCard value={`${avgRoyalty.toFixed(2)}€`} label="Marge moyenne/titre" accent={c.or} />
+                  <StatCard value={withPrice.length} label="Titres avec prix" accent={c.vm} />
+                  <StatCard value={bestMargin ? `${bestMargin.margin!.royalty.toFixed(2)}€` : '—'} label={bestMargin ? `Top: ${bestMargin.title.slice(0, 15)}` : 'Meilleure marge'} accent={c.ok} />
+                </div>
+
+                <div className="overflow-x-auto">
+                  <div className="grid text-[10px] font-semibold uppercase tracking-wider px-4 py-2" style={{ gridTemplateColumns: '180px 70px 70px 70px 80px 80px', background: c.ft, color: c.gr, minWidth: 550 }}>
+                    <div>Titre</div><div className="text-right">Prix</div><div className="text-right">Coût imp.</div><div className="text-right">Marge KDP</div><div className="text-right">ePub (70%)</div><div className="text-right">ROI</div>
+                  </div>
+                  {rows.map(r => {
+                    const roi = r.margin && r.margin.cost > 0 ? Math.round((r.margin.royalty / r.margin.cost) * 100) : null;
+                    return (
+                      <div key={r.id} className="grid px-4 py-2.5 items-center text-[12px]" style={{ gridTemplateColumns: '180px 70px 70px 70px 80px 80px', borderBottom: `1px solid ${c.ft}`, minWidth: 550 }}>
+                        <div className="font-medium truncate" style={{ color: c.mv }}>{r.title}</div>
+                        <div className="text-right" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: c.nr }}>
+                          {r.margin ? `${r.margin.price.toFixed(2)}€` : '—'}
+                        </div>
+                        <div className="text-right" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: c.gr }}>
+                          {r.margin ? `${r.margin.cost.toFixed(2)}€` : '—'}
+                        </div>
+                        <div className="text-right font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: r.margin ? (r.margin.royalty > 0 ? c.ok : c.er) : c.gr }}>
+                          {r.margin ? `${r.margin.royalty > 0 ? '+' : ''}${r.margin.royalty.toFixed(2)}€` : '—'}
+                        </div>
+                        <div className="text-right" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: r.epubRoyalty ? c.ok : c.gr }}>
+                          {r.epubRoyalty ? `+${r.epubRoyalty.toFixed(2)}€` : '—'}
+                        </div>
+                        <div className="text-right">
+                          {roi !== null ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: roi > 100 ? '#D4F0E0' : roi > 0 ? '#FDE8D0' : '#FFE0E3', color: roi > 100 ? c.ok : roi > 0 ? c.og : c.er }}>
+                              {roi}%
+                            </span>
+                          ) : '—'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 p-4 rounded-xl" style={{ background: '#FFFBF5', border: `1px dashed ${c.gc}` }}>
+                  <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.or }}>Projection — 100 ventes/titre (KDP broché)</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <div className="text-[11px]" style={{ color: c.gr }}>Revenus bruts</div>
+                      <div className="text-[18px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>
+                        {(withPrice.reduce((s, r) => s + (r.margin?.price || 0) * 100, 0)).toLocaleString('fr-FR', { minimumFractionDigits: 0 })}€
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[11px]" style={{ color: c.gr }}>Marges nettes</div>
+                      <div className="text-[18px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.ok }}>
+                        +{(withPrice.reduce((s, r) => s + (r.margin?.royalty || 0) * 100, 0)).toLocaleString('fr-FR', { minimumFractionDigits: 0 })}€
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[11px]" style={{ color: c.gr }}>Coûts d'impression</div>
+                      <div className="text-[18px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.og }}>
+                        {(withPrice.reduce((s, r) => s + (r.margin?.cost || 0) * 100, 0)).toLocaleString('fr-FR', { minimumFractionDigits: 0 })}€
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </Card>
     </div>
   );
 };
