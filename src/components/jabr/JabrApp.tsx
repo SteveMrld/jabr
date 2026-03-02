@@ -1,18 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { PROJECTS, PIPELINE_STEPS, COLLECTIONS, DIAG_LABELS, DISTRIBUTION_CHANNELS, FORMAT_LABELS, EDITION_STATUS_LABELS, MANUSCRIPT_STATUS_LABELS, countISBN, primaryISBN, primaryPrice, KDP_TRIM_SIZES, KDP_PAPER_TYPES, KDP_CONSTANTS, FR_PRINT_CONSTANTS, FR_TRIM_SIZES, calcKDPCover, calcFRCover, type Project, type Edition, type EditionFormat, type ManuscriptStatus, type AnalysisResult, type TrimSizeKey, type PaperType, type FrTrimKey, type CoverSpecs } from '@/lib/data';
-import { useProjects } from '@/lib/useProjects';
+import { useProjects, useDistributionChecks, useCalendarResults } from '@/lib/useProjects';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
 // ═══════════════════════════════════
-const c = {
+const lightColors = {
   or: '#C8952E', oc: '#E8B84B', od: '#F5DCA0',
   mv: '#2D1B4E', vi: '#3E2768', vm: '#5B3E8A',
   bc: '#FAF7F2', gr: '#9E9689', gc: '#E8E4DF', ft: '#F5F3EF',
   og: '#E07A2F', ok: '#2EAE6D', er: '#D94452', nr: '#2D2A26',
 };
+
+const darkColors = {
+  or: '#E8B84B', oc: '#C8952E', od: '#A07424',
+  mv: '#E8E0F0', vi: '#5B3E8A', vm: '#9B8ABF',
+  bc: '#111016', gr: '#8A8580', gc: '#2A2830', ft: '#1C1A22',
+  og: '#E07A2F', ok: '#3CC87F', er: '#E8616D', nr: '#E8E4DF',
+};
+
+// Mutable theme reference — updated by useTheme before each render
+let c = lightColors;
 
 // ═══════════════════════════════════
 // ICONS
@@ -676,6 +686,16 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
           {icons.chevL} Projets
         </button>
         <div className="flex gap-2">
+          <Btn variant="secondary" onClick={() => {
+            const w = window.open('', '_blank');
+            if (!w) return;
+            w.document.write('<p>Génération en cours…</p>');
+            fetch('/api/export-pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })
+              .then(r => r.text())
+              .then(html => { w.document.open(); w.document.write(html); w.document.close(); })
+              .catch(() => { w.close(); onToast('Erreur export PDF'); });
+            onToast(`Export PDF : ${p.title}`);
+          }}>{icons.download} PDF</Btn>
           {!editing && <Btn variant="secondary" onClick={() => { setEditTitle(p.title); setEditPages(String(p.pages)); setEditSubtitle(p.subtitle || ''); setEditBackCover(p.backCover || ''); setEditNotes(p.notes || ''); setEditing(true); }}>{icons.edit} Modifier</Btn>}
           <button onClick={() => setShowDeleteConfirm(true)} className="px-3 py-2 rounded-lg cursor-pointer border transition-colors hover:bg-red-50"
             style={{ borderColor: '#E8C0C0', color: c.er, background: 'white', fontSize: 13 }}>
@@ -1518,16 +1538,14 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
 };
 
 // --- DISTRIBUTION ---
-const DistributionView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+const DistributionView = ({ projects, onToast, distChecks }: { projects: Project[]; onToast: (msg: string) => void; distChecks: ReturnType<typeof useDistributionChecks> }) => {
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
-  const [manualChecks, setManualChecks] = useState<Record<string, boolean>>({});
   const [expandedTitle, setExpandedTitle] = useState<number | null>(null);
 
-  const toggleCheck = (key: string) => setManualChecks(prev => ({ ...prev, [key]: !prev[key] }));
   const checkKey = (channel: string, projectId: number, stepIdx: number) => `${channel}:${projectId}:${stepIdx}`;
   const isChecked = (channel: string, projectId: number, stepIdx: number, autoFn: (p: Project) => boolean, project: Project) => {
     const key = checkKey(channel, projectId, stepIdx);
-    return manualChecks[key] !== undefined ? manualChecks[key] : autoFn(project);
+    return distChecks.isChecked(key, autoFn(project));
   };
 
   const channelFormats: Record<string, EditionFormat[]> = {
@@ -1754,10 +1772,10 @@ const DistributionView = ({ projects, onToast }: { projects: Project[]; onToast:
                             {selectedChecklist.map((step, i) => {
                               const done = isChecked(selectedChannel, p.id, i, step.done, p);
                               const key = checkKey(selectedChannel, p.id, i);
-                              const isManual = manualChecks[key] !== undefined;
+                              const isManualCheck = distChecks.isManual(key);
                               return (
                                 <div key={i} className="flex items-center gap-2.5 py-1.5 cursor-pointer hover:bg-[#FAF7F2] px-2 rounded transition-colors"
-                                  onClick={() => toggleCheck(key)}>
+                                  onClick={() => distChecks.toggle(key)}>
                                   <div className="w-[18px] h-[18px] rounded border-2 flex items-center justify-center shrink-0 transition-colors"
                                     style={{ borderColor: done ? c.ok : c.gc, background: done ? c.ok : 'white' }}>
                                     {done && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
@@ -1765,7 +1783,7 @@ const DistributionView = ({ projects, onToast }: { projects: Project[]; onToast:
                                   <span className="text-[11px] flex-1" style={{ color: done ? c.ok : c.nr, textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.7 : 1 }}>
                                     {step.label}
                                   </span>
-                                  {isManual && <span className="text-[8px] px-1.5 py-0.5 rounded" style={{ background: c.ft, color: c.gr }}>manuel</span>}
+                                  {isManualCheck && <span className="text-[8px] px-1.5 py-0.5 rounded" style={{ background: c.ft, color: c.gr }}>manuel</span>}
                                 </div>
                               );
                             })}
@@ -2592,12 +2610,13 @@ type AiRecommendation = {
   strategie: string;
 };
 
-const CalendrierView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+const CalendrierView = ({ projects, onToast, calStore }: { projects: Project[]; onToast: (msg: string) => void; calStore: ReturnType<typeof useCalendarResults> }) => {
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
-  const [aiResults, setAiResults] = useState<Record<number, AiRecommendation>>({});
   const [loading, setLoading] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const aiResults = calStore.results as Record<number, AiRecommendation>;
 
   const currentMonth = new Date().getMonth() + 1;
 
@@ -2644,7 +2663,7 @@ Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (r
       const text = data.content?.map((b: { type: string; text?: string }) => b.type === 'text' ? b.text : '').join('') || '';
       const cleaned = text.replace(/```json|```/g, '').trim();
       const parsed: AiRecommendation = JSON.parse(cleaned);
-      setAiResults(prev => ({ ...prev, [p.id]: parsed }));
+      calStore.save(p.id, parsed);
       setSelectedProject(p.id);
       onToast(`Analyse calendrier : ${p.title}`);
     } catch (err) {
@@ -2916,7 +2935,7 @@ Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (r
   );
 };
 
-const SettingsView = ({ onToast }: { onToast: (msg: string) => void }) => {
+const SettingsView = ({ onToast, dark, toggleDark }: { onToast: (msg: string) => void; dark: boolean; toggleDark: () => void }) => {
   const loadSettings = () => {
     try { const s = localStorage.getItem('jabr-settings'); return s ? JSON.parse(s) : null; } catch { return null; }
   };
@@ -3002,6 +3021,24 @@ const SettingsView = ({ onToast }: { onToast: (msg: string) => void }) => {
             <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Production audio</h3>
             <Field label="Voix TTS par défaut" k="ttsVoice" />
             <Field label="Coût estimé €/min" k="ttsCost" mono />
+          </Card>
+          <Card hover={false} className="p-5">
+            <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Interface</h3>
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <div className="text-[13px] font-semibold" style={{ color: c.nr }}>Mode sombre</div>
+                <div className="text-[10px]" style={{ color: c.gr }}>Thème sombre pour réduire la fatigue oculaire</div>
+              </div>
+              <button onClick={toggleDark} className="w-12 h-6 rounded-full cursor-pointer border-none transition-colors relative"
+                style={{ background: dark ? c.or : c.gc }}>
+                <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
+                  style={{ left: dark ? 24 : 2 }} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2 mt-3 p-2.5 rounded-lg" style={{ background: c.ft }}>
+              <span className="text-lg">{dark ? '🌙' : '☀️'}</span>
+              <span className="text-[11px] font-semibold" style={{ color: c.gr }}>{dark ? 'Thème sombre activé' : 'Thème clair (défaut)'}</span>
+            </div>
           </Card>
         </div>
       </div>
@@ -3414,49 +3451,107 @@ const Toast = ({ message, onClose }: { message: string; onClose: () => void }) =
 // ═══════════════════════════════════
 // NOTIFICATION PANEL
 // ═══════════════════════════════════
+type Notif = { type: 'error' | 'warning' | 'info' | 'success'; title: string; desc: string; icon?: string };
+
+const generateNotifs = (projects: Project[]): Notif[] => {
+  const notifs: Notif[] = [];
+  const currentMonth = new Date().getMonth() + 1;
+
+  // Cover corrections needed
+  const corr = projects.filter(p => p.corrections.length > 0);
+  if (corr.length > 0) {
+    notifs.push({ type: 'error', title: `${corr.reduce((s, p) => s + p.corrections.length, 0)} corrections couverture`, desc: `${corr.map(p => p.title).join(', ')}`, icon: '🔴' });
+  }
+
+  // Missing prices
+  const noPrice = projects.filter(p => p.editions.some(e => !e.price && e.isbn));
+  if (noPrice.length > 0) {
+    notifs.push({ type: 'warning', title: `Prix manquant sur ${noPrice.length} titre${noPrice.length > 1 ? 's' : ''}`, desc: noPrice.map(p => p.title).slice(0, 3).join(', '), icon: '💰' });
+  }
+
+  // Missing back cover text
+  const noBack = projects.filter(p => !p.backCover);
+  if (noBack.length > 0) {
+    notifs.push({ type: 'warning', title: `4e de couverture manquante`, desc: `${noBack.length} titre${noBack.length > 1 ? 's' : ''} sans texte de 4e`, icon: '📝' });
+  }
+
+  // Manuscripts not analyzed
+  const noAnalysis = projects.filter(p => p.manuscriptFile && !p.analysis);
+  if (noAnalysis.length > 0) {
+    notifs.push({ type: 'info', title: `${noAnalysis.length} manuscrit${noAnalysis.length > 1 ? 's' : ''} non analysé${noAnalysis.length > 1 ? 's' : ''}`, desc: 'Lancez le Scanner 6D pour détecter les patterns IA', icon: '🔍' });
+  }
+
+  // High IA score
+  const highIa = projects.filter(p => p.analysis && p.analysis.iaScore > 30);
+  if (highIa.length > 0) {
+    notifs.push({ type: 'error', title: `Score IA élevé (>${'\u200B'}30%)`, desc: highIa.map(p => `${p.title}: ${p.analysis!.iaScore}%`).join(', '), icon: '🤖' });
+  }
+
+  // Seasonal windows approaching
+  const seasonalHints: Record<number, string[]> = {
+    7: ['Préparez vos sorties rentrée littéraire (septembre)'],
+    8: ['Rentrée littéraire dans 1 mois — finalisez vos manuscrits'],
+    9: ['Rentrée littéraire en cours — c\'est le moment de publier'],
+    10: ['Salon du Livre Jeunesse approche — titres jeunesse prêts ?', 'Prix littéraires : soumettez vos candidatures'],
+    11: ['Black Friday / Noël — vérifiez vos stocks et ePubs', 'Salon Montreuil ce mois-ci'],
+    1: ['Angoulême approche — titres BD prêts ?', 'Saison bonnes résolutions — dev perso en vitrine'],
+    2: ['Salon du Livre Paris dans 1 mois — préparez vos ouvrages'],
+    3: ['Salon du Livre Paris ce mois — dédicaces et pitch éditeurs'],
+  };
+  const hints = seasonalHints[currentMonth] || [];
+  hints.forEach(h => {
+    notifs.push({ type: 'info', title: 'Fenêtre éditoriale', desc: h, icon: '📅' });
+  });
+
+  // Drafts stalling
+  const drafts = projects.filter(p => p.status === 'draft');
+  if (drafts.length > 0) {
+    notifs.push({ type: 'warning', title: `${drafts.length} brouillon${drafts.length > 1 ? 's' : ''} en attente`, desc: 'Manuscrits à faire avancer dans le pipeline', icon: '📋' });
+  }
+
+  // ISBN status
+  const usedISBN = countISBN(projects);
+  if (usedISBN > 80) {
+    notifs.push({ type: 'warning', title: `ISBN : ${usedISBN}/100 utilisés`, desc: `${100 - usedISBN} ISBN restants — pensez à réapprovisionner`, icon: '🔢' });
+  } else {
+    notifs.push({ type: 'success', title: `ISBN : ${usedISBN}/100`, desc: `${100 - usedISBN} ISBN disponibles`, icon: '✅' });
+  }
+
+  return notifs;
+};
+
 const NotifPanel = ({ open, onClose, projects }: { open: boolean; onClose: () => void; projects: Project[] }) => {
   if (!open) return null;
-  const corr = projects.filter(p => p.corrections.length > 0);
-  const drafts = projects.filter(p => p.status === 'draft');
+  const notifs = generateNotifs(projects);
+  const errors = notifs.filter(n => n.type === 'error');
+  const warnings = notifs.filter(n => n.type === 'warning');
+  const infos = notifs.filter(n => n.type === 'info');
+  const successes = notifs.filter(n => n.type === 'success');
+
+  const colorMap = { error: c.er, warning: c.og, info: '#3B6DC6', success: c.ok };
+
   return (
-    <div className="absolute top-full right-0 mt-2 w-[340px] bg-white rounded-xl shadow-xl border z-50" style={{ borderColor: c.gc }}>
+    <div className="absolute top-full right-0 mt-2 w-[360px] bg-white rounded-xl shadow-xl border z-50" style={{ borderColor: c.gc }}>
       <div className="flex justify-between items-center px-4 py-3" style={{ borderBottom: `1px solid ${c.gc}` }}>
-        <span className="font-semibold text-[13px]" style={{ color: c.mv }}>Notifications</span>
+        <div>
+          <span className="font-semibold text-[13px]" style={{ color: c.mv }}>Notifications</span>
+          <span className="text-[10px] ml-2 px-1.5 py-0.5 rounded-full font-bold" style={{ background: errors.length > 0 ? '#FFE0E3' : '#D4F0E0', color: errors.length > 0 ? c.er : c.ok }}>
+            {notifs.length}
+          </span>
+        </div>
         <button onClick={onClose} className="cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>{icons.close}</button>
       </div>
-      <div className="max-h-[320px] overflow-y-auto">
-        {corr.length > 0 && (
-          <div className="px-4 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full" style={{ background: c.er }} />
-              <span className="text-[12px] font-semibold" style={{ color: c.er }}>{corr.reduce((s, p) => s + p.corrections.length, 0)} corrections bloquantes</span>
+      <div className="max-h-[400px] overflow-y-auto">
+        {[...errors, ...warnings, ...infos, ...successes].map((n, i) => (
+          <div key={i} className="px-4 py-3 flex gap-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+            <span className="text-base shrink-0">{n.icon}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[12px] font-semibold" style={{ color: colorMap[n.type] }}>{n.title}</div>
+              <div className="text-[11px] mt-0.5 leading-relaxed" style={{ color: c.gr }}>{n.desc}</div>
             </div>
-            <div className="text-[11px]" style={{ color: c.gr }}>{corr.length} couverture{corr.length > 1 ? 's' : ''} à corriger</div>
+            <div className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ background: colorMap[n.type] }} />
           </div>
-        )}
-        {drafts.length > 0 && (
-          <div className="px-4 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full" style={{ background: c.og }} />
-              <span className="text-[12px] font-semibold" style={{ color: c.og }}>{drafts.length} brouillon{drafts.length > 1 ? 's' : ''} en attente</span>
-            </div>
-            <div className="text-[11px]" style={{ color: c.gr }}>Manuscrits à faire avancer dans le pipeline</div>
-          </div>
-        )}
-        <div className="px-4 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 rounded-full" style={{ background: c.ok }} />
-            <span className="text-[12px] font-semibold" style={{ color: c.ok }}>ISBN : {countISBN(projects)}/100 attribués</span>
-          </div>
-          <div className="text-[11px]" style={{ color: c.gr }}>{100 - countISBN(projects)} ISBN disponibles · {projects.length} titres</div>
-        </div>
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 rounded-full" style={{ background: c.vm }} />
-            <span className="text-[12px] font-semibold" style={{ color: c.vm }}>Distribution</span>
-          </div>
-          <div className="text-[11px]" style={{ color: c.gr }}>Amazon KDP prêt · 2 canaux en attente</div>
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -3470,6 +3565,8 @@ export default function JabrApp() {
   const [project, setProject] = useState<Project | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const { projects, loading, persisted, addProject, updateProject, deleteProject } = useProjects();
+  const distChecks = useDistributionChecks();
+  const calStore = useCalendarResults();
   const [search, setSearch] = useState('');
   const [filterGenre, setFilterGenre] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
@@ -3478,6 +3575,20 @@ export default function JabrApp() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [toast, setToast] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dark, setDark] = useState(() => {
+    try { return localStorage.getItem('jabr-dark') === 'true'; } catch { return false; }
+  });
+
+  // Update mutable theme reference before render
+  c = dark ? darkColors : lightColors;
+
+  const toggleDark = useCallback(() => {
+    setDark(prev => {
+      const next = !prev;
+      try { localStorage.setItem('jabr-dark', String(next)); } catch {}
+      return next;
+    });
+  }, []);
   const [notifOpen, setNotifOpen] = useState(false);
 
   const navigate = (id: string) => { setPage(id); setProject(null); };
@@ -3517,7 +3628,7 @@ export default function JabrApp() {
   const hasFilters = !!filterGenre || !!filterStatus || !!filterCollection;
   const clearFilters = () => { setFilterGenre(null); setFilterStatus(null); setFilterCollection(null); setSearch(''); };
 
-  const notifCount = projects.filter(p => p.corrections.length > 0).reduce((s, p) => s + p.corrections.length, 0);
+  const notifCount = generateNotifs(projects).filter(n => n.type === 'error' || n.type === 'warning').length;
 
   const renderContent = () => {
     if (loading) return (
@@ -3544,14 +3655,14 @@ export default function JabrApp() {
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
       case 'marketing': return <MarketingView projects={projects} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
-      case 'distribution': return <DistributionView projects={projects} onToast={showToast} />;
+      case 'distribution': return <DistributionView projects={projects} onToast={showToast} distChecks={distChecks} />;
       case 'calibrage': return <CalibrageView projects={projects} />;
       case 'manuscrits': return <ManuscritsView projects={projects} onProject={openProject} onToast={showToast} />;
       case 'analyse': return <AnalyseView projects={projects} onProject={openProject} onToast={showToast} />;
       case 'audiobooks': return <AudiobooksView projects={projects} onToast={showToast} />;
       case 'presse': return <PresseView projects={projects} onProject={openProject} onToast={showToast} />;
-      case 'calendrier': return <CalendrierView projects={projects} onToast={showToast} />;
-      case 'settings': return <SettingsView onToast={showToast} />;
+      case 'calendrier': return <CalendrierView projects={projects} onToast={showToast} calStore={calStore} />;
+      case 'settings': return <SettingsView onToast={showToast} dark={dark} toggleDark={toggleDark} />;
       default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} />;
     }
   };

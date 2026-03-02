@@ -2,9 +2,31 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getSupabase, isSupabaseConfigured } from './supabase';
-import { PROJECTS as STATIC_PROJECTS, type Project, type Edition, type EditionFormat } from './data';
+import { PROJECTS as STATIC_PROJECTS, type Project, type Edition, type EditionFormat, type AnalysisResult, type ManuscriptStatus } from './data';
 
-// DB row types
+// ═══════════════════════════════════
+// LOCAL STORAGE PERSISTENCE
+// ═══════════════════════════════════
+
+const LS_PROJECTS_KEY = 'jabr-projects-v2';
+const LS_CHECKLISTS_KEY = 'jabr-dist-checklists';
+const LS_CALENDAR_KEY = 'jabr-calendar-results';
+
+const saveToLS = (key: string, data: unknown) => {
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
+};
+
+const loadFromLS = <T,>(key: string): T | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : null;
+  } catch { return null; }
+};
+
+// ═══════════════════════════════════
+// SUPABASE DB TYPES
+// ═══════════════════════════════════
+
 interface DbProject {
   id: number;
   title: string;
@@ -18,8 +40,14 @@ interface DbProject {
   status: string;
   pages: number;
   cover: string;
+  cover_image: string | null;
+  back_cover: string | null;
+  notes: string | null;
   diag: Record<string, boolean>;
   corrections: string[];
+  manuscript_status: string | null;
+  manuscript_file: string | null;
+  analysis: AnalysisResult | null;
 }
 
 interface DbEdition {
@@ -31,7 +59,6 @@ interface DbEdition {
   status: string;
 }
 
-// Convert DB rows → Project
 const toProject = (row: DbProject, editions: DbEdition[]): Project => ({
   id: row.id,
   title: row.title,
@@ -42,157 +69,207 @@ const toProject = (row: DbProject, editions: DbEdition[]): Project => ({
   collection: row.collection || undefined,
   editions: editions
     .filter(e => e.project_id === row.id)
-    .map(e => ({
-      format: e.format as EditionFormat,
-      isbn: e.isbn,
-      price: e.price || undefined,
-      status: e.status as Edition['status'],
-    })),
+    .map(e => ({ format: e.format as EditionFormat, isbn: e.isbn, price: e.price || undefined, status: e.status as Edition['status'] })),
   score: row.score,
   maxScore: row.max_score,
   status: row.status as Project['status'],
   pages: row.pages,
   cover: row.cover,
+  coverImage: row.cover_image || undefined,
+  backCover: row.back_cover || undefined,
+  notes: row.notes || undefined,
   diag: row.diag,
   corrections: row.corrections || [],
+  manuscriptStatus: (row.manuscript_status as ManuscriptStatus) || undefined,
+  manuscriptFile: row.manuscript_file || undefined,
+  analysis: row.analysis || undefined,
 });
+
+const toDbRow = (p: Project) => ({
+  title: p.title,
+  subtitle: p.subtitle || null,
+  author: p.author,
+  illustrator: p.illustrator || null,
+  genre: p.genre,
+  collection: p.collection || null,
+  score: p.score,
+  max_score: p.maxScore,
+  status: p.status,
+  pages: p.pages,
+  cover: p.cover,
+  cover_image: p.coverImage || null,
+  back_cover: p.backCover || null,
+  notes: p.notes || null,
+  diag: p.diag,
+  corrections: p.corrections,
+  manuscript_status: p.manuscriptStatus || null,
+  manuscript_file: p.manuscriptFile || null,
+  analysis: p.analysis || null,
+});
+
+// ═══════════════════════════════════
+// DISTRIBUTION CHECKLISTS STORE
+// ═══════════════════════════════════
+
+export function useDistributionChecks() {
+  const [checks, setChecks] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const saved = loadFromLS<Record<string, boolean>>(LS_CHECKLISTS_KEY);
+    if (saved) setChecks(saved);
+  }, []);
+
+  const toggle = useCallback((key: string) => {
+    setChecks(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      saveToLS(LS_CHECKLISTS_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const isChecked = useCallback((key: string, autoValue: boolean) => {
+    return checks[key] !== undefined ? checks[key] : autoValue;
+  }, [checks]);
+
+  const isManual = useCallback((key: string) => checks[key] !== undefined, [checks]);
+
+  return { checks, toggle, isChecked, isManual };
+}
+
+// ═══════════════════════════════════
+// CALENDAR AI RESULTS STORE
+// ═══════════════════════════════════
+
+export function useCalendarResults() {
+  const [results, setResults] = useState<Record<number, unknown>>({});
+
+  useEffect(() => {
+    const saved = loadFromLS<Record<number, unknown>>(LS_CALENDAR_KEY);
+    if (saved) setResults(saved);
+  }, []);
+
+  const save = useCallback((projectId: number, result: unknown) => {
+    setResults(prev => {
+      const next = { ...prev, [projectId]: result };
+      saveToLS(LS_CALENDAR_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const get = useCallback((projectId: number) => results[projectId] || null, [results]);
+
+  return { results, save, get };
+}
+
+// ═══════════════════════════════════
+// MAIN PROJECTS HOOK
+// ═══════════════════════════════════
 
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>(STATIC_PROJECTS);
   const [loading, setLoading] = useState(true);
   const [persisted, setPersisted] = useState(false);
 
-  // Load from Supabase on mount
+  // Persist to localStorage on every change
+  const persistLocal = useCallback((projs: Project[]) => {
+    saveToLS(LS_PROJECTS_KEY, projs);
+  }, []);
+
+  // Load on mount: Supabase first, then localStorage, then static
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
-      setLoading(false);
-      return;
-    }
-
     const load = async () => {
-      try {
-        const sb = getSupabase();
-        if (!sb) { setLoading(false); return; }
+      // Try localStorage first (always available)
+      const localData = loadFromLS<Project[]>(LS_PROJECTS_KEY);
 
-        const [{ data: rows, error: pErr }, { data: eds, error: eErr }] = await Promise.all([
-          sb.from('projects').select('*').order('id'),
-          sb.from('editions').select('*').order('project_id, id'),
-        ]);
-
-        if (pErr || eErr) throw pErr || eErr;
-        if (rows && rows.length > 0 && eds) {
-          setProjects(rows.map((r: DbProject) => toProject(r, eds as DbEdition[])));
-          setPersisted(true);
+      if (isSupabaseConfigured()) {
+        try {
+          const sb = getSupabase();
+          if (sb) {
+            const [{ data: rows, error: pErr }, { data: eds, error: eErr }] = await Promise.all([
+              sb.from('projects').select('*').order('id'),
+              sb.from('editions').select('*').order('project_id, id'),
+            ]);
+            if (!pErr && !eErr && rows && rows.length > 0 && eds) {
+              const loaded = rows.map((r: DbProject) => toProject(r, eds as DbEdition[]));
+              setProjects(loaded);
+              persistLocal(loaded);
+              setPersisted(true);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn('Supabase non disponible:', err);
         }
-      } catch (err) {
-        console.warn('Supabase non disponible, mode local:', err);
-      } finally {
-        setLoading(false);
       }
+
+      // Fallback: localStorage
+      if (localData && localData.length > 0) {
+        setProjects(localData);
+        setPersisted(true);
+      }
+      // else: keep STATIC_PROJECTS and save them
+      else {
+        persistLocal(STATIC_PROJECTS);
+      }
+      setLoading(false);
     };
-
     load();
-  }, []);
+  }, [persistLocal]);
 
-  // ADD project
+  // ADD
   const addProject = useCallback(async (p: Project) => {
-    if (!isSupabaseConfigured()) {
-      setProjects(prev => [...prev, p]);
-      return;
-    }
+    const updated = [...projects, p];
+    setProjects(updated);
+    persistLocal(updated);
 
-    try {
-      const { data: row, error } = await getSupabase()!
-        .from('projects')
-        .insert({
-          title: p.title,
-          subtitle: p.subtitle || null,
-          author: p.author,
-          illustrator: p.illustrator || null,
-          genre: p.genre,
-          collection: p.collection || null,
-          score: p.score,
-          max_score: p.maxScore,
-          status: p.status,
-          pages: p.pages,
-          cover: p.cover,
-          diag: p.diag,
-          corrections: p.corrections,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Insert editions
-      if (p.editions.length > 0) {
-        const { error: edErr } = await getSupabase()!.from('editions').insert(
-          p.editions.map(e => ({
-            project_id: row.id,
-            format: e.format,
-            isbn: e.isbn,
-            price: e.price || null,
-            status: e.status,
-          }))
-        );
-        if (edErr) throw edErr;
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: row, error } = await getSupabase()!.from('projects').insert(toDbRow(p)).select().single();
+        if (error) throw error;
+        if (p.editions.length > 0) {
+          await getSupabase()!.from('editions').insert(
+            p.editions.map(e => ({ project_id: row.id, format: e.format, isbn: e.isbn, price: e.price || null, status: e.status }))
+          );
+        }
+        const withId = updated.map(proj => proj === p ? { ...proj, id: row.id } : proj);
+        setProjects(withId);
+        persistLocal(withId);
+      } catch (err) {
+        console.error('Erreur ajout Supabase:', err);
       }
-
-      // Reload
-      const newProject = { ...p, id: row.id };
-      setProjects(prev => [...prev, newProject]);
-    } catch (err) {
-      console.error('Erreur ajout:', err);
-      setProjects(prev => [...prev, p]);
     }
-  }, []);
+  }, [projects, persistLocal]);
 
-  // UPDATE project
+  // UPDATE
   const updateProject = useCallback(async (updated: Project) => {
-    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
+    const next = projects.map(p => p.id === updated.id ? updated : p);
+    setProjects(next);
+    persistLocal(next);
 
-    if (!isSupabaseConfigured()) return;
-
-    try {
-      const { error } = await getSupabase()!
-        .from('projects')
-        .update({
-          title: updated.title,
-          subtitle: updated.subtitle || null,
-          author: updated.author,
-          illustrator: updated.illustrator || null,
-          genre: updated.genre,
-          collection: updated.collection || null,
-          score: updated.score,
-          max_score: updated.maxScore,
-          status: updated.status,
-          pages: updated.pages,
-          cover: updated.cover,
-          diag: updated.diag,
-          corrections: updated.corrections,
-        })
-        .eq('id', updated.id);
-
-      if (error) throw error;
-    } catch (err) {
-      console.error('Erreur update:', err);
+    if (isSupabaseConfigured()) {
+      try {
+        await getSupabase()!.from('projects').update(toDbRow(updated)).eq('id', updated.id);
+      } catch (err) {
+        console.error('Erreur update Supabase:', err);
+      }
     }
-  }, []);
+  }, [projects, persistLocal]);
 
-  // DELETE project
+  // DELETE
   const deleteProject = useCallback(async (id: number) => {
-    setProjects(prev => prev.filter(p => p.id !== id));
+    const next = projects.filter(p => p.id !== id);
+    setProjects(next);
+    persistLocal(next);
 
-    if (!isSupabaseConfigured()) return;
-
-    try {
-      // Editions auto-deleted via CASCADE
-      const { error } = await getSupabase()!.from('projects').delete().eq('id', id);
-      if (error) throw error;
-    } catch (err) {
-      console.error('Erreur delete:', err);
+    if (isSupabaseConfigured()) {
+      try {
+        await getSupabase()!.from('projects').delete().eq('id', id);
+      } catch (err) {
+        console.error('Erreur delete Supabase:', err);
+      }
     }
-  }, []);
+  }, [projects, persistLocal]);
 
-  return { projects, loading, persisted, addProject, updateProject, deleteProject };
+  return { projects, loading, persisted: persisted || !!loadFromLS(LS_PROJECTS_KEY), addProject, updateProject, deleteProject };
 }
