@@ -17,16 +17,21 @@ const c = {
 const Counter = ({ end, suffix = '', duration = 2000 }: { end: number; suffix?: string; duration?: number }) => {
   const [count, setCount] = useState(0);
   const [started, setStarted] = useState(false);
+  const [uid] = useState(() => `ctr-${end}-${Math.random().toString(36).slice(2)}`);
 
   useEffect(() => {
+    const el = document.getElementById(uid);
+    if (!el) { setStarted(true); return; }
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) { setStarted(true); return; }
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setStarted(true); },
-      { threshold: 0.3 }
+      ([entry]) => { if (entry.isIntersecting) { setStarted(true); observer.disconnect(); } },
+      { threshold: 0.2 }
     );
-    const el = document.getElementById(`counter-${end}`);
-    if (el) observer.observe(el);
-    return () => observer.disconnect();
-  }, [end]);
+    observer.observe(el);
+    const timer = setTimeout(() => setStarted(true), 2000);
+    return () => { observer.disconnect(); clearTimeout(timer); };
+  }, [uid]);
 
   useEffect(() => {
     if (!started) return;
@@ -41,7 +46,7 @@ const Counter = ({ end, suffix = '', duration = 2000 }: { end: number; suffix?: 
     return () => clearInterval(timer);
   }, [started, end, duration]);
 
-  return <span id={`counter-${end}`}>{count}{suffix}</span>;
+  return <span id={uid}>{count}{suffix}</span>;
 };
 
 // Fade-in on scroll
@@ -50,13 +55,25 @@ const FadeIn = ({ children, delay = 0, className = '' }: { children: React.React
   const [id] = useState(() => `fi-${Math.random().toString(36).slice(2)}`);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
-      { threshold: 0.15 }
-    );
     const el = document.getElementById(id);
-    if (el) observer.observe(el);
-    return () => observer.disconnect();
+    if (!el) { setVisible(true); return; }
+
+    // Immediate check: if already in viewport, show now
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      setVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+
+    // Fallback: always show after 1.5s
+    const timer = setTimeout(() => setVisible(true), 1500);
+    return () => { observer.disconnect(); clearTimeout(timer); };
   }, [id]);
 
   return (

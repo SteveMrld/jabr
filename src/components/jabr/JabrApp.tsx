@@ -197,8 +197,8 @@ const Sidebar = ({ active, onNav, projects, persisted, open, onToggle }: { activ
   return (
   <>
   {/* Overlay for mobile */}
-  {open && <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={onToggle} />}
-  <div className={`fixed lg:relative z-50 lg:z-auto w-[220px] min-h-screen flex flex-col py-5 shrink-0 transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{ background: `linear-gradient(180deg, ${c.mv}, #1A0F2E)` }}>
+  {open && <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden" onClick={onToggle} />}
+  <div className={`fixed md:relative z-50 md:z-auto w-[220px] min-h-screen flex flex-col py-5 shrink-0 transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`} style={{ background: `linear-gradient(180deg, ${c.mv}, #1A0F2E)` }}>
     <div className="px-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
       <JabrLogo />
       <div className="mt-1 uppercase" style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', letterSpacing: '1.5px' }}>Pipeline éditorial</div>
@@ -211,7 +211,7 @@ const Sidebar = ({ active, onNav, projects, persisted, open, onToggle }: { activ
         const isActive = active === id;
         const badge = badges[id];
         return (
-          <button key={id} onClick={() => { onNav(id); if (window.innerWidth < 1024) onToggle(); }}
+          <button key={id} onClick={() => { onNav(id); if (window.innerWidth < 768) onToggle(); }}
             className="flex items-center gap-2.5 px-3.5 py-2 rounded-lg cursor-pointer transition-all relative text-left"
             style={{ background: isActive ? c.vi : 'transparent', color: isActive ? 'white' : 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: isActive ? 600 : 400, border: 'none' }}
             onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(62,39,104,0.5)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; } }}
@@ -4006,9 +4006,9 @@ export default function JabrApp() {
       <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} persisted={persisted} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       <div className="flex-1 flex flex-col min-w-0 lg:ml-0">
         {/* TOP BAR */}
-        <div className="flex flex-wrap gap-2 justify-between items-center px-4 lg:px-8 py-2.5 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>
+        <div className="flex flex-wrap gap-2 justify-between items-center px-4 md:px-8 py-2.5 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>
           {/* Hamburger for mobile */}
-          <button className="lg:hidden mr-3 cursor-pointer bg-transparent border-none p-1" style={{ color: c.mv }} onClick={() => setSidebarOpen(true)}>
+          <button className="md:hidden mr-3 cursor-pointer bg-transparent border-none p-1" style={{ color: c.mv }} onClick={() => setSidebarOpen(true)}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg flex-1 max-w-sm" style={{ background: c.ft }}>
@@ -4071,7 +4071,7 @@ export default function JabrApp() {
             <NotifPanel open={notifOpen} onClose={() => setNotifOpen(false)} projects={projects} />
           </div>
         </div>
-        <div className="flex-1 p-4 lg:p-7 overflow-y-auto" onClick={() => notifOpen && setNotifOpen(false)}>{renderContent()}</div>
+        <div className="flex-1 p-4 md:p-7 overflow-y-auto" onClick={() => notifOpen && setNotifOpen(false)}>{renderContent()}</div>
       </div>
       <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={handleAdd} />
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
