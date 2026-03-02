@@ -1381,19 +1381,32 @@ const NewProjectModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () 
 
 // --- CALIBRAGE VIEW ---
 const CalibrageView = ({ projects }: { projects: Project[] }) => {
+  const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const specs = [
-    { label: 'Format standard', value: '15,2 × 22,9 cm', detail: '6 × 9 pouces (Amazon KDP & IngramSpark)' },
-    { label: 'Marges intérieures', value: '20 mm', detail: 'Petit fond : 15 mm · Grand fond : 20 mm' },
-    { label: 'Police corps', value: 'Garamond 11pt', detail: 'Interligne 1.4 · Justifié, césure auto' },
-    { label: 'Titres chapitres', value: 'Playfair Display 18pt', detail: 'Saut de page avant chaque chapitre' },
-    { label: 'En-tête/pied', value: 'Inter 8pt', detail: 'Numéro de page centré · Titre courant' },
-    { label: 'Reliure', value: 'Dos carré collé', detail: 'Épaisseur dos = pages × 0.05 mm' },
+    { label: 'Format', value: '13,5 × 21 cm', detail: 'Standard Jabrilia — proche du 5,25" × 8,25"' },
+    { label: 'Marges', value: 'Miroir', detail: 'Int. 2,30 cm · Ext. 1,90 cm · Haut 1,80 cm · Bas 2,70 cm' },
+    { label: 'Police corps', value: 'Garamond 11,5pt', detail: 'Interligne 15pt · Justifié · Alinéa 4,5 mm' },
+    { label: 'Titres chapitres', value: 'Garamond 15pt', detail: 'Romain (pas gras, pas italique) · Numéro en petites capitales 12,5pt' },
+    { label: 'Séparateurs', value: '∗ ∗ ∗', detail: 'Centrés · ~0,6 cm avant/après' },
+    { label: 'Reliure', value: 'Dos carré collé', detail: 'Chapitres en page impaire · Espace 6-8 lignes avant titre' },
   ];
+
+  const liminaires = [
+    { page: 'Faux-titre', desc: 'Titre en petites capitales, centré' },
+    { page: 'Page de titre', desc: 'Auteur / Titre / « roman » / Jabrilia Éditions' },
+    { page: 'Copyright', desc: '© Jabrilia Éditions · ISBN · Dépôt légal · Mention CPI · Fiction' },
+    { page: 'Dédicace', desc: 'Page impaire, italique, centré vertical' },
+  ];
+
+  const sel = selectedProject ? projects.find(p => p.id === selectedProject) : null;
+
   return (
     <div>
       <div className="flex justify-between items-end mb-5">
-        <div><h2 className="text-2xl" style={{ color: c.mv }}>Calibrage</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Spécifications typographiques Jabrilia Éditions</p></div>
-        <Btn>{icons.plus} Importer un manuscrit</Btn>
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Calibrage</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Cahier de mise en page Jabrilia Éditions</p>
+        </div>
       </div>
       <div className="grid grid-cols-3 gap-3.5 mb-6">
         {specs.map(s => (
@@ -1404,27 +1417,81 @@ const CalibrageView = ({ projects }: { projects: Project[] }) => {
           </Card>
         ))}
       </div>
+
+      {/* Pages liminaires */}
+      <Card hover={false} className="mb-6 p-5">
+        <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 11, color: c.gr }}>Pages liminaires obligatoires</div>
+        <div className="grid grid-cols-4 gap-3">
+          {liminaires.map(l => (
+            <div key={l.page} className="p-3 rounded-lg" style={{ background: c.ft }}>
+              <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{l.page}</div>
+              <div className="text-[10px] mt-1" style={{ color: c.gr }}>{l.desc}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Calibrage par titre */}
       <Card hover={false}>
         <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Calibrage par titre</span>
         </div>
         {projects.map(p => {
           const thickness = (p.pages * 0.05).toFixed(1);
+          const canSpineText = p.pages >= 79;
+          const isSelected = selectedProject === p.id;
           return (
-            <div key={p.id} className="flex items-center gap-4 px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
-              <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold truncate">{p.title}</div>
+            <div key={p.id}>
+              <div className="flex items-center gap-4 px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
+                onClick={() => setSelectedProject(isSelected ? null : p.id)}
+                style={{ borderBottom: `1px solid ${c.ft}` }}>
+                <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-semibold truncate">{p.title}</div>
+                  <div className="text-[10px]" style={{ color: c.gr }}>{p.genre} · {p.collection || 'Hors collection'}</div>
+                </div>
+                <div className="text-right" style={{ minWidth: 80 }}>
+                  <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{p.pages} p.</div>
+                  <div style={{ fontSize: 10, color: c.gr }}>Dos : {thickness} mm</div>
+                </div>
+                <div className="text-right" style={{ minWidth: 110 }}>
+                  <div style={{ fontSize: 11, color: c.gr }}>13,5 × 21 cm</div>
+                  <div style={{ fontSize: 10, color: canSpineText ? c.ok : c.og }}>{canSpineText ? '✓ Texte dos possible' : '✗ Dos trop fin pour texte'}</div>
+                </div>
+                <span style={{ color: c.gr, fontSize: 12, transition: 'transform 0.2s', transform: isSelected ? 'rotate(180deg)' : '' }}>▾</span>
               </div>
-              <div className="text-right" style={{ minWidth: 80 }}>
-                <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{p.pages} p.</div>
-                <div style={{ fontSize: 10, color: c.gr }}>Dos : {thickness} mm</div>
-              </div>
-              <div className="text-right" style={{ minWidth: 100 }}>
-                <div style={{ fontSize: 11, color: c.gr }}>15,2 × 22,9 cm</div>
-                <div style={{ fontSize: 10, color: c.gr }}>Garamond 11pt</div>
-              </div>
-              <StatusBadge status={p.status} />
+              {isSelected && (
+                <div className="px-5 py-4 grid grid-cols-3 gap-4" style={{ background: '#FDFCFA', borderBottom: `1px solid ${c.ft}` }}>
+                  <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
+                    <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>Specs KDP</div>
+                    <div className="text-[10px] space-y-1" style={{ color: c.gr }}>
+                      <div>Format : 5,25" × 8" (133 × 203 mm)</div>
+                      <div>Dos : {(p.pages * 0.002252 + 0.06).toFixed(3)}" ({((p.pages * 0.002252 + 0.06) * 25.4).toFixed(1)} mm)</div>
+                      <div>Couverture : {Math.ceil((0.125 + 5.25 + (p.pages * 0.002252 + 0.06) + 5.25 + 0.125) * 300)} × {Math.ceil((0.125 + 8 + 0.125) * 300)} px</div>
+                      <div>Bleed : 3,2 mm · DPI : 300</div>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
+                    <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>Specs Pollen/FR</div>
+                    <div className="text-[10px] space-y-1" style={{ color: c.gr }}>
+                      <div>Format : 13,5 × 21 cm</div>
+                      <div>Dos : {thickness} mm (pages × 0,05)</div>
+                      <div>Couverture : {Math.ceil(((2.5 + 135 + parseFloat(thickness) + 135 + 2.5) / 25.4) * 300)} × {Math.ceil(((2.5 + 210 + 2.5) / 25.4) * 300)} px</div>
+                      <div>Bleed : 2,5 mm · CMJN · 300 DPI</div>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
+                    <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>Intérieur</div>
+                    <div className="text-[10px] space-y-1" style={{ color: c.gr }}>
+                      <div>Garamond 11,5pt · Interligne 15pt</div>
+                      <div>Marge int. 23 mm · ext. 19 mm</div>
+                      <div>Haut 18 mm · Bas 27 mm</div>
+                      <div>Alinéa 4,5 mm · Justifié</div>
+                      <div>Tirets dialogue : cadratin (—)</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -1545,16 +1612,28 @@ const AnalyseView = ({ projects, onProject }: { projects: Project[]; onProject: 
   const avgIa = analyzed.length > 0 ? Math.round(analyzed.reduce((s, p) => s + (p.analysis?.iaScore || 0), 0) / analyzed.length) : 0;
   const totalFlags = analyzed.reduce((s, p) => s + (p.analysis?.flaggedPatterns.length || 0), 0);
   const criticals = analyzed.reduce((s, p) => s + (p.analysis?.flaggedPatterns.filter(f => f.severity === 'critical').length || 0), 0);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const sevColors = { critical: c.er, moderate: c.og, minor: c.gr };
   const sevLabels = { critical: 'Critique', moderate: 'Modéré', minor: 'Mineur' };
+
+  const dimLabels: Record<string, { label: string; icon: string; desc: string }> = {
+    rythme: { label: 'Rythme', icon: '🎵', desc: 'Alternance longue/courte, souffle littéraire, monotonie' },
+    images: { label: 'Images', icon: '🖼️', desc: 'Métaphores, comparaisons, densité figurative' },
+    tension: { label: 'Tension', icon: '⚡', desc: 'Conflit, résistance du personnage, mouvement dramatique' },
+    voix: { label: 'Voix', icon: '🎤', desc: 'Authenticité — absence de patterns IA' },
+    architecture: { label: 'Architecture', icon: '🏗️', desc: 'Variété des ouvertures/fermetures, attaques' },
+    sensorialite: { label: 'Sensorialité', icon: '👁️', desc: '5 sens mobilisés, ancrage corporel et spatial' },
+  };
+
+  const dimScoreColor = (score: number) => score >= 8 ? c.ok : score >= 6 ? c.og : score >= 4 ? '#E07A2F' : c.er;
 
   return (
     <div>
       <div className="flex justify-between items-end mb-5">
         <div>
           <h2 className="text-2xl" style={{ color: c.mv }}>Analyse</h2>
-          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Détection patterns IA, redondances, rythme — Scanner intégré</p>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Diagnostic 6 dimensions Moradel — Scanner intégré</p>
         </div>
         <Btn>{icons.analyse} Lancer une analyse</Btn>
       </div>
@@ -1566,19 +1645,15 @@ const AnalyseView = ({ projects, onProject }: { projects: Project[]; onProject: 
         <StatCard value={criticals} label="Critiques" accent={c.er} />
       </div>
 
-      {/* Scanner explanation */}
+      {/* 6 Dimensions explanation */}
       <Card hover={false} className="p-6 mb-6">
-        <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 12, color: c.gr }}>Critères du scanner</div>
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { icon: '🔴', title: 'Marqueurs IA', desc: 'Structures binaires « ne X pas Y : elle Z », accumulations abstraites, ouvertures impersonnelles' },
-            { icon: '🟡', title: 'Redondances', desc: 'Formules répétitives, béquilles stylistiques, adverbes creux, transitions mécaniques' },
-            { icon: '🟢', title: 'Rythme & Voix', desc: 'Longueur des phrases, variation syntaxique, densité lexicale, authenticité du ton' },
-          ].map(c2 => (
-            <div key={c2.title} className="p-4 rounded-xl" style={{ background: c.ft }}>
-              <span className="text-xl">{c2.icon}</span>
-              <div className="font-semibold text-[13px] mt-2" style={{ color: c.mv }}>{c2.title}</div>
-              <div className="text-[11px] mt-1 leading-relaxed" style={{ color: c.gr }}>{c2.desc}</div>
+        <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Les 6 dimensions Moradel</div>
+        <div className="grid grid-cols-6 gap-3">
+          {Object.entries(dimLabels).map(([key, d]) => (
+            <div key={key} className="p-3 rounded-xl text-center" style={{ background: c.ft }}>
+              <span className="text-xl">{d.icon}</span>
+              <div className="font-semibold text-[12px] mt-1.5" style={{ color: c.mv }}>{d.label}</div>
+              <div className="text-[10px] mt-1 leading-relaxed" style={{ color: c.gr }}>{d.desc}</div>
             </div>
           ))}
         </div>
@@ -1589,16 +1664,22 @@ const AnalyseView = ({ projects, onProject }: { projects: Project[]; onProject: 
         <Card hover={false} className="p-8 text-center">
           <div className="text-4xl mb-3">🔍</div>
           <h3 className="text-lg font-semibold mb-2" style={{ color: c.mv }}>Aucune analyse disponible</h3>
-          <p className="text-sm" style={{ color: c.gr }}>Importez un manuscrit puis lancez le scanner pour détecter les patterns IA et les redondances.</p>
+          <p className="text-sm" style={{ color: c.gr }}>Importez un manuscrit puis lancez le scanner pour détecter les patterns IA et évaluer les 6 dimensions.</p>
         </Card>
       ) : (
         <div className="space-y-4">
           {analyzed.map(p => {
             const a = p.analysis!;
             const iaColor = a.iaScore > 30 ? c.er : a.iaScore > 15 ? c.og : c.ok;
+            const isExpanded = expandedId === p.id;
+            const dims = (a as unknown as Record<string, unknown>).dimensions as Record<string, { score: number; label: string; findings: string[]; metrics: Record<string, number | string> }> | undefined;
+            const globalScore = dims ? (dims as unknown as Record<string, unknown>).global as number : null;
+
             return (
               <Card key={p.id} hover={false} className="p-0 overflow-hidden">
-                <div className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#FAF7F2]" onClick={() => onProject(p)}
+                {/* Header row */}
+                <div className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#FAF7F2]"
+                  onClick={() => setExpandedId(isExpanded ? null : p.id)}
                   style={{ borderBottom: `1px solid ${c.ft}` }}>
                   <CoverThumb emoji={p.cover} coverImage={p.coverImage} />
                   <div className="flex-1 min-w-0">
@@ -1607,14 +1688,77 @@ const AnalyseView = ({ projects, onProject }: { projects: Project[]; onProject: 
                       {a.wordCount.toLocaleString()} mots · {Math.round(a.avgSentenceLength)} mots/phrase · Analysé le {a.timestamp}
                     </div>
                   </div>
+                  {globalScore !== null && globalScore !== undefined && (
+                    <div className="text-right mr-3">
+                      <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Global</div>
+                      <div className="text-xl font-bold" style={{ fontFamily: "'Playfair Display', serif", color: dimScoreColor(globalScore) }}>{globalScore}/10</div>
+                    </div>
+                  )}
                   <div className="text-right">
-                    <div className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Score IA</div>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Score IA</div>
                     <div className="text-2xl font-bold" style={{ fontFamily: "'Playfair Display', serif", color: iaColor }}>{a.iaScore}%</div>
                   </div>
+                  <span style={{ color: c.gr, fontSize: 12, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : '' }}>▾</span>
                 </div>
-                {a.flaggedPatterns.length > 0 && (
+
+                {/* 6D dimension bars — always shown if available */}
+                {dims && (
+                  <div className="px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                    <div className="grid grid-cols-6 gap-3">
+                      {Object.entries(dimLabels).map(([key, meta]) => {
+                        const dim = dims[key];
+                        if (!dim) return null;
+                        return (
+                          <div key={key} className="text-center">
+                            <div className="text-[10px] font-semibold mb-1" style={{ color: c.gr }}>{meta.icon} {meta.label}</div>
+                            <div className="h-2 rounded-full overflow-hidden" style={{ background: c.ft }}>
+                              <div className="h-full rounded-full transition-all" style={{ width: `${dim.score * 10}%`, background: dimScoreColor(dim.score) }} />
+                            </div>
+                            <div className="text-[11px] font-bold mt-1" style={{ color: dimScoreColor(dim.score) }}>{dim.score}/10</div>
+                            <div className="text-[9px]" style={{ color: c.gr }}>{dim.label}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Expanded: detailed findings per dimension */}
+                {isExpanded && dims && (
+                  <div className="px-5 py-4" style={{ background: '#FDFCFA', borderBottom: `1px solid ${c.ft}` }}>
+                    <div className="grid grid-cols-2 gap-4">
+                      {Object.entries(dimLabels).map(([key, meta]) => {
+                        const dim = dims[key];
+                        if (!dim) return null;
+                        return (
+                          <div key={key} className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[12px] font-semibold" style={{ color: c.mv }}>{meta.icon} {meta.label}</span>
+                              <span className="text-[12px] font-bold" style={{ color: dimScoreColor(dim.score) }}>{dim.score}/10 — {dim.label}</span>
+                            </div>
+                            {dim.findings.map((f: string, i: number) => (
+                              <div key={i} className="text-[11px] py-0.5" style={{ color: c.nr }}>→ {f}</div>
+                            ))}
+                            {Object.entries(dim.metrics).length > 0 && (
+                              <div className="mt-2 pt-2 flex flex-wrap gap-x-4 gap-y-1" style={{ borderTop: `1px solid ${c.ft}` }}>
+                                {Object.entries(dim.metrics).map(([mk, mv]) => (
+                                  <span key={mk} className="text-[10px]" style={{ color: c.gr }}>
+                                    <span className="font-semibold">{mk}</span>: {mv}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Expanded: patterns */}
+                {isExpanded && a.flaggedPatterns.length > 0 && (
                   <div className="px-5 py-3" style={{ background: c.ft }}>
-                    <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Patterns détectés</div>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Patterns IA détectés</div>
                     <div className="space-y-1.5">
                       {a.flaggedPatterns.map((fp, i) => (
                         <div key={i} className="flex items-center gap-2 text-[12px]">
@@ -1629,7 +1773,9 @@ const AnalyseView = ({ projects, onProject }: { projects: Project[]; onProject: 
                     </div>
                   </div>
                 )}
-                {a.flaggedPatterns.length === 0 && (
+
+                {/* Clean manuscript badge */}
+                {a.flaggedPatterns.length === 0 && !isExpanded && (
                   <div className="px-5 py-2.5 text-center text-[12px] font-semibold" style={{ background: '#D4F0E0', color: c.ok }}>
                     ✓ Aucun pattern IA détecté — manuscrit authentique
                   </div>
@@ -2067,33 +2213,98 @@ const SettingsView = () => {
 const AudiobooksView = ({ projects }: { projects: Project[] }) => {
   const withAudio = projects.filter(p => p.editions.some(e => e.format === 'audiobook'));
   const withoutAudio = projects.filter(p => p.genre !== 'BD' && !p.editions.some(e => e.format === 'audiobook'));
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
   const pipeline = [
-    { icon: '📝', title: 'Import texte', desc: 'Chapitres découpés' },
-    { icon: '🎙️', title: 'Voix IA', desc: 'ElevenLabs TTS' },
-    { icon: '🎛️', title: 'Mastering', desc: 'EQ + compression' },
-    { icon: '📦', title: 'Distribution', desc: 'Multi-plateforme' },
+    { icon: '📝', title: '1. Import', desc: 'Upload .docx · Découpe chapitres auto', status: 'ready' },
+    { icon: '🎙️', title: '2. Voix IA', desc: 'ElevenLabs TTS · Choix voix / clonage', status: 'ready' },
+    { icon: '🎛️', title: '3. Mastering', desc: 'Normalisation -14 LUFS · EQ · Compression', status: 'ready' },
+    { icon: '✅', title: '4. Validation', desc: 'Écoute chapitres · Corrections ponctuelles', status: 'manual' },
+    { icon: '📦', title: '5. Export', desc: 'MP3 320kbps par chapitre + fichier complet', status: 'ready' },
+    { icon: '🌐', title: '6. Distribution', desc: 'ACX/Audible · Spotify · Apple Books', status: 'phase2' },
   ];
+
+  const voices = [
+    { name: 'Narrateur FR — Masculin', id: 'adam-fr', desc: 'Voix grave, posée, littéraire', cost: '~0,30€/min' },
+    { name: 'Narratrice FR — Féminin', id: 'bella-fr', desc: 'Voix claire, chaleureuse, expressive', cost: '~0,30€/min' },
+    { name: 'Clonage voix auteur', id: 'clone', desc: '3 min d\'échantillon requis · Voix personnalisée', cost: '~0,50€/min' },
+  ];
+
+  const acxSpecs = [
+    { label: 'Format audio', value: 'MP3 192kbps CBR mono / 44.1kHz' },
+    { label: 'Couverture', value: 'JPEG 2400 × 2400 px carré' },
+    { label: 'Durée minimum', value: '60 minutes' },
+    { label: 'Fichiers', value: '1 MP3 par chapitre + Opening + Closing Credits' },
+    { label: 'Niveaux', value: '-23dB RMS · -3dB peak · -60dB noise floor' },
+    { label: 'Silence', value: '0,5–1s entre sections · 1–5s entre chapitres' },
+  ];
+
+  const totalMinutes = projects.filter(p => p.genre !== 'BD').reduce((s, p) => s + Math.round(p.pages * 1.5), 0);
+  const estimatedCost = Math.round(totalMinutes * 0.3);
+
   return (
     <div>
       <div className="flex justify-between items-end mb-5">
-        <div><h2 className="text-2xl" style={{ color: c.mv }}>Audiobooks</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Production vocale IA — ElevenLabs TTS</p></div>
+        <div><h2 className="text-2xl" style={{ color: c.mv }}>Audiobooks</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Production vocale IA — ElevenLabs TTS · Pipeline automatisé</p></div>
         <Btn>{icons.plus} Lancer une production</Btn>
       </div>
       <div className="flex gap-3.5 mb-6 flex-wrap">
         <StatCard value={withAudio.length} label="Avec audiobook" accent={c.ok} />
         <StatCard value={withoutAudio.length} label="Éligibles" accent={c.og} />
-        <StatCard value={`~${projects.filter(p => p.genre !== 'BD').reduce((s, p) => s + Math.round(p.pages * 1.5), 0)} min`} label="Durée totale est." accent={c.vm} />
+        <StatCard value={`~${totalMinutes} min`} label="Durée totale est." accent={c.vm} />
+        <StatCard value={`~${estimatedCost}€`} label="Coût estimé TTS" accent={c.or} />
       </div>
-      <div className="grid grid-cols-4 gap-3.5 mb-6">
-        {pipeline.map(s => (
-          <Card key={s.title} hover={false} className="p-5 text-center">
-            <div className="text-3xl mb-2">{s.icon}</div>
-            <div className="font-semibold text-[14px]" style={{ color: c.mv }}>{s.title}</div>
-            <div className="text-[11px] mt-1" style={{ color: c.gr }}>{s.desc}</div>
+
+      {/* Pipeline */}
+      <div className="grid grid-cols-6 gap-2.5 mb-6">
+        {pipeline.map((s, i) => (
+          <Card key={s.title} hover={false} className="p-4 text-center relative">
+            <div className="text-2xl mb-1.5">{s.icon}</div>
+            <div className="font-semibold text-[12px]" style={{ color: c.mv }}>{s.title}</div>
+            <div className="text-[10px] mt-1 leading-relaxed" style={{ color: c.gr }}>{s.desc}</div>
+            <div className="mt-2">
+              <Badge bg={s.status === 'ready' ? '#D4F0E0' : s.status === 'manual' ? '#FDE8D0' : '#E8E0F0'}
+                color={s.status === 'ready' ? c.ok : s.status === 'manual' ? c.og : c.vm}>
+                {s.status === 'ready' ? 'Auto' : s.status === 'manual' ? 'Manuel' : 'Phase 2'}
+              </Badge>
+            </div>
+            {i < pipeline.length - 1 && (
+              <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 text-[14px]" style={{ color: c.gc }}>→</div>
+            )}
           </Card>
         ))}
       </div>
 
+      {/* Voice selection + ACX specs */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <Card hover={false} className="p-5">
+          <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 11, color: c.gr }}>Voix disponibles</div>
+          {voices.map(v => (
+            <div key={v.id} className="flex items-center gap-3 py-2.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-[14px]"
+                style={{ background: v.id === 'clone' ? '#E8E0F0' : c.ft }}>
+                {v.id === 'clone' ? '🧬' : v.id.includes('adam') ? '🗣️' : '🎤'}
+              </div>
+              <div className="flex-1">
+                <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{v.name}</div>
+                <div className="text-[10px]" style={{ color: c.gr }}>{v.desc}</div>
+              </div>
+              <span className="text-[10px] font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{v.cost}</span>
+            </div>
+          ))}
+        </Card>
+        <Card hover={false} className="p-5">
+          <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 11, color: c.gr }}>Specs ACX / Audible</div>
+          {acxSpecs.map(s => (
+            <div key={s.label} className="flex py-1.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
+              <span className="text-[11px] font-semibold w-[110px] shrink-0" style={{ color: c.vm }}>{s.label}</span>
+              <span className="text-[11px]" style={{ color: c.nr }}>{s.value}</span>
+            </div>
+          ))}
+        </Card>
+      </div>
+
+      {/* Titles with audio */}
       {withAudio.length > 0 && (
         <Card hover={false} className="mb-5">
           <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.ok}` }}>
@@ -2101,17 +2312,61 @@ const AudiobooksView = ({ projects }: { projects: Project[] }) => {
           </div>
           {withAudio.map(p => {
             const audioEd = p.editions.find(e => e.format === 'audiobook')!;
+            const duration = Math.round(p.pages * 1.5);
+            const chapters = Math.round(p.pages / 20);
+            const cost = Math.round(duration * 0.3);
+            const isExpanded = expandedId === p.id;
             return (
-              <div key={p.id} className="flex items-center gap-4 px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
-                <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
-                <div className="flex-1">
-                  <div className="text-[13px] font-semibold">{p.title}</div>
-                  <div style={{ fontSize: 11, color: c.gr }}>{p.pages} pages · ~{Math.round(p.pages * 1.5)} min</div>
+              <div key={p.id}>
+                <div className="flex items-center gap-4 px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
+                  onClick={() => setExpandedId(isExpanded ? null : p.id)}
+                  style={{ borderBottom: `1px solid ${c.ft}` }}>
+                  <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                  <div className="flex-1">
+                    <div className="text-[13px] font-semibold">{p.title}</div>
+                    <div style={{ fontSize: 11, color: c.gr }}>{p.pages} pages · ~{duration} min · ~{chapters} chapitres</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>~{cost}€</div>
+                    <div style={{ fontSize: 9, color: c.gr }}>coût TTS estimé</div>
+                  </div>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: c.gr }}>{audioEd.isbn}</div>
+                  <Badge bg={EDITION_STATUS_LABELS[audioEd.status]?.bg || c.gc} color={EDITION_STATUS_LABELS[audioEd.status]?.color || c.gr}>
+                    {EDITION_STATUS_LABELS[audioEd.status]?.label}
+                  </Badge>
+                  <span style={{ color: c.gr, fontSize: 12, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : '' }}>▾</span>
                 </div>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: c.gr }}>{audioEd.isbn}</div>
-                <Badge bg={EDITION_STATUS_LABELS[audioEd.status]?.bg || c.gc} color={EDITION_STATUS_LABELS[audioEd.status]?.color || c.gr}>
-                  {EDITION_STATUS_LABELS[audioEd.status]?.label}
-                </Badge>
+                {isExpanded && (
+                  <div className="px-5 py-4 grid grid-cols-3 gap-4" style={{ background: '#FDFCFA', borderBottom: `1px solid ${c.ft}` }}>
+                    <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
+                      <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>Production</div>
+                      <div className="text-[10px] space-y-1" style={{ color: c.gr }}>
+                        <div>Chapitres estimés : ~{chapters}</div>
+                        <div>Durée totale : ~{duration} min ({Math.floor(duration / 60)}h{duration % 60 > 0 ? `${duration % 60}min` : ''})</div>
+                        <div>Voix : à sélectionner</div>
+                        <div>Statut : en attente de lancement</div>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
+                      <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>Export</div>
+                      <div className="text-[10px] space-y-1" style={{ color: c.gr }}>
+                        <div>Format : MP3 192kbps CBR mono</div>
+                        <div>Fichiers : {chapters} chapitres + Opening + Closing</div>
+                        <div>Couverture : 2400 × 2400 px</div>
+                        <div>Métadonnées ID3 : titre, auteur, chapitre</div>
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
+                      <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>Coût estimé</div>
+                      <div className="text-[10px] space-y-1" style={{ color: c.gr }}>
+                        <div>TTS ElevenLabs : ~{cost}€</div>
+                        <div>Mastering auto : inclus</div>
+                        <div>Distribution ACX : 0€ (commission sur ventes)</div>
+                        <div className="pt-1 font-semibold" style={{ color: c.or }}>Total : ~{cost}€</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
