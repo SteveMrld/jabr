@@ -175,7 +175,7 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['settings', 'Paramètres', 'settings'],
 ];
 
-const Sidebar = ({ active, onNav, projects, persisted }: { active: string; onNav: (id: string) => void; projects: Project[]; persisted: boolean }) => {
+const Sidebar = ({ active, onNav, projects, persisted, open, onToggle }: { active: string; onNav: (id: string) => void; projects: Project[]; persisted: boolean; open: boolean; onToggle: () => void }) => {
   const corrCount = projects.reduce((s, p) => s + p.corrections.length, 0);
   const draftCount = projects.filter(p => p.status === 'draft').length;
   const audioCount = projects.filter(p => p.editions.some(e => e.format === 'audiobook')).length;
@@ -183,7 +183,10 @@ const Sidebar = ({ active, onNav, projects, persisted }: { active: string; onNav
   const badges: Record<string, number> = { couvertures: corrCount, projets: projects.length, isbn: countISBN(projects), audiobooks: audioCount, manuscrits: withManuscript };
 
   return (
-  <div className="w-[220px] min-h-screen flex flex-col py-5 shrink-0" style={{ background: `linear-gradient(180deg, ${c.mv}, #1A0F2E)` }}>
+  <>
+  {/* Overlay for mobile */}
+  {open && <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={onToggle} />}
+  <div className={`fixed lg:relative z-50 lg:z-auto w-[220px] min-h-screen flex flex-col py-5 shrink-0 transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{ background: `linear-gradient(180deg, ${c.mv}, #1A0F2E)` }}>
     <div className="px-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
       <JabrLogo />
       <div className="mt-1 uppercase" style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', letterSpacing: '1.5px' }}>Pipeline éditorial</div>
@@ -196,7 +199,7 @@ const Sidebar = ({ active, onNav, projects, persisted }: { active: string; onNav
         const isActive = active === id;
         const badge = badges[id];
         return (
-          <button key={id} onClick={() => onNav(id)}
+          <button key={id} onClick={() => { onNav(id); if (window.innerWidth < 1024) onToggle(); }}
             className="flex items-center gap-2.5 px-3.5 py-2 rounded-lg cursor-pointer transition-all relative text-left"
             style={{ background: isActive ? c.vi : 'transparent', color: isActive ? 'white' : 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: isActive ? 600 : 400, border: 'none' }}
             onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(62,39,104,0.5)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; } }}
@@ -226,6 +229,7 @@ const Sidebar = ({ active, onNav, projects, persisted }: { active: string; onNav
       </div>
     </div>
   </div>
+  </>
   );
 };
 
@@ -318,7 +322,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav }: { onP
       </div>
 
       {/* KPIs row 1 */}
-      <div className="grid grid-cols-6 gap-3 mb-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-3">
         <StatCard value={allProjects.length} label="Titres" accent={c.mv} />
         <StatCard value={pub} label="Publiés" accent={c.ok} />
         <StatCard value={prog} label="En cours" accent={c.og} />
@@ -328,7 +332,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav }: { onP
       </div>
 
       {/* KPIs row 2 — production */}
-      <div className="grid grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <StatCard value={`${withCoverArt}/${allProjects.length}`} label="Artwork" accent={withCoverArt === allProjects.length ? c.ok : c.og} />
         <StatCard value={`${withBackCover}/${allProjects.length}`} label="4e couverture" accent={withBackCover === allProjects.length ? c.ok : c.og} />
         <StatCard value={`${analyzed.length}/${allProjects.length}`} label="Analysés" accent={analyzed.length === allProjects.length ? c.ok : c.og} />
@@ -363,7 +367,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav }: { onP
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Readiness</span>
           <span className="text-[10px]" style={{ color: c.gr }}>Manuscrit · ISBN · Couverture · Artwork · 4e · Analyse · Publié</span>
         </div>
-        <div className="grid grid-cols-5 gap-0">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0">
           {allProjects.map(p => {
             const done = readinessChecks(p);
             const pct = Math.round((done / 7) * 100);
@@ -694,7 +698,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
       {/* Edit mode */}
       {editing && (
         <Card hover={false} className="p-5 mb-5">
-          <div className="grid grid-cols-[1fr_1fr_80px] gap-3 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_80px] gap-3 mb-3">
             <div>
               <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Titre</label>
               <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
@@ -728,7 +732,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
         </Card>
       )}
 
-      <div className="flex gap-6 mb-7">
+      <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-7">
         <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="lg" />
         <div className="flex-1">
           <h2 className="text-2xl" style={{ color: c.mv }}>{p.title}</h2>
@@ -810,7 +814,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
       {/* Diagnostic */}
       <Card hover={false} className="p-6">
         <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Diagnostic couverture</div>
-        <div className="grid grid-cols-4 gap-2.5 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
           {Object.entries(DIAG_LABELS).map(([key, label]) => (
             <div key={key} className="flex items-center gap-1.5 text-xs">
               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: p.diag[key] ? c.ok : c.er }} />
@@ -1033,7 +1037,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete }: { proje
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {dims.map(d => {
                   const pct = Math.min((d.value / d.max) * 100, 100);
                   const color = getColor(d);
@@ -1454,7 +1458,7 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
         </div>
       </Card>
 
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <Card hover={false} className="p-5">
           <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Score par titre</div>
           {projects.map((p, i) => (
@@ -1629,14 +1633,14 @@ const DistributionView = ({ projects, onToast }: { projects: Project[]; onToast:
         {selectedChannel && <Btn variant="secondary" onClick={exportChecklist}>{icons.download} Exporter checklist</Btn>}
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         <StatCard value={DISTRIBUTION_CHANNELS.filter(ch => ch.color === '#2EAE6D').length} label="Canaux prêts" accent={c.ok} />
         <StatCard value={countISBN(projects)} label="ISBN total" accent={c.or} />
         <StatCard value={projects.filter(p => p.editions.some(e => e.format === 'epub')).length} label="ePub prévus" accent={c.vm} />
       </div>
 
       {/* Channel cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {DISTRIBUTION_CHANNELS.map(ch => {
           const compat = channelFormats[ch.name] || [];
           const eligibleEditions = projects.reduce((s, p) => s + p.editions.filter(e => compat.includes(e.format)).length, 0);
@@ -1674,7 +1678,7 @@ const DistributionView = ({ projects, onToast }: { projects: Project[]; onToast:
             <Badge bg={selected.color === c.ok ? '#D4F0E0' : '#FDE8D0'} color={selected.color}>{selected.status}</Badge>
           </div>
 
-          <div className="grid grid-cols-2 gap-0">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
             {/* Specs */}
             <div className="p-6" style={{ borderRight: `1px solid ${c.ft}` }}>
               <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 11, color: c.gr }}>Spécifications techniques</div>
@@ -1781,14 +1785,14 @@ const DistributionView = ({ projects, onToast }: { projects: Project[]; onToast:
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Matrice titre × canal</span>
         </div>
         <div className="overflow-x-auto">
-          <div className="grid px-5 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ gridTemplateColumns: '180px repeat(6, 1fr)', background: c.ft, color: c.gr }}>
+          <div className="grid px-5 py-2 text-[10px] font-semibold uppercase tracking-wider" style={{ gridTemplateColumns: '150px repeat(6, minmax(60px, 1fr))', minWidth: 600, background: c.ft, color: c.gr }}>
             <div>Titre</div>
             {DISTRIBUTION_CHANNELS.map(ch => <div key={ch.name} className="text-center">{ch.name.split(' / ')[0]}</div>)}
           </div>
           {projects.map(p => {
             const fmts = p.editions.map(e => e.format);
             return (
-              <div key={p.id} className="grid px-5 py-2.5 items-center" style={{ gridTemplateColumns: '180px repeat(6, 1fr)', borderBottom: `1px solid ${c.ft}` }}>
+              <div key={p.id} className="grid px-5 py-2.5 items-center" style={{ gridTemplateColumns: '150px repeat(6, minmax(60px, 1fr))', minWidth: 600, borderBottom: `1px solid ${c.ft}` }}>
                 <div className="text-[12px] font-medium truncate">{p.title}</div>
                 {DISTRIBUTION_CHANNELS.map(ch => {
                   const compat = channelFormats[ch.name] || [];
@@ -1956,7 +1960,7 @@ const CalibrageView = ({ projects }: { projects: Project[] }) => {
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Cahier de mise en page Jabrilia Éditions</p>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-3.5 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 mb-6">
         {specs.map(s => (
           <Card key={s.label} hover={false} className="p-5">
             <div className="uppercase tracking-wider mb-1.5" style={{ fontSize: 10, color: c.gr, fontWeight: 600 }}>{s.label}</div>
@@ -2379,7 +2383,7 @@ const PresseView = ({ projects, onProject, onToast }: { projects: Project[]; onP
         <StatCard value={4} label="Distinctions auteur" accent={c.ok} />
       </div>
 
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* Left — Sélection */}
         <div className="col-span-1 space-y-4">
           {/* Dossier global */}
@@ -2572,7 +2576,7 @@ const SettingsView = ({ onToast }: { onToast: (msg: string) => void }) => {
           <Btn onClick={handleSave}>{saved ? icons.check : icons.edit} {saved ? 'Enregistré ✓' : 'Enregistrer'}</Btn>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <Card hover={false} className="p-5">
           <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Maison d&apos;édition</h3>
           <Field label="Nom" k="editeur" />
@@ -2597,7 +2601,7 @@ const SettingsView = ({ onToast }: { onToast: (msg: string) => void }) => {
         <div className="flex flex-col gap-5">
           <Card hover={false} className="p-5">
             <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Charte graphique</h3>
-            <div className="grid grid-cols-4 gap-2.5 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
               {[{ n: 'Or', c: '#C8952E' }, { n: 'Mauve', c: '#2D1B4E' }, { n: 'Orange', c: '#E07A2F' }, { n: 'Blanc cassé', c: '#FAF7F2' }].map(col => (
                 <div key={col.n} className="text-center">
                   <div className="w-10 h-10 rounded-lg mx-auto mb-1" style={{ background: col.c, border: col.c === '#FAF7F2' ? `1px solid ${c.gc}` : 'none' }} />
@@ -2672,7 +2676,7 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
       </div>
 
       {/* Pipeline */}
-      <div className="grid grid-cols-6 gap-2.5 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-6">
         {pipeline.map((s, i) => (
           <Card key={s.title} hover={false} className="p-4 text-center relative">
             <div className="text-2xl mb-1.5">{s.icon}</div>
@@ -3093,6 +3097,7 @@ export default function JabrApp() {
   const [sortBy, setSortBy] = useState<'title' | 'pages' | 'score' | 'editions'>('title');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [toast, setToast] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
   const navigate = (id: string) => { setPage(id); setProject(null); };
@@ -3172,10 +3177,14 @@ export default function JabrApp() {
 
   return (
     <div className="flex min-h-screen" style={{ fontFamily: "'Inter', sans-serif", background: c.bc }}>
-      <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} persisted={persisted} />
-      <div className="flex-1 flex flex-col min-w-0">
+      <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} persisted={persisted} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-0">
         {/* TOP BAR */}
-        <div className="flex justify-between items-center px-8 py-2.5 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>
+        <div className="flex flex-wrap gap-2 justify-between items-center px-4 lg:px-8 py-2.5 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>
+          {/* Hamburger for mobile */}
+          <button className="lg:hidden mr-3 cursor-pointer bg-transparent border-none p-1" style={{ color: c.mv }} onClick={() => setSidebarOpen(true)}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg flex-1 max-w-sm" style={{ background: c.ft }}>
             <span style={{ color: c.gr }}>{icons.search}</span>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un titre, un genre, un auteur…"
@@ -3184,7 +3193,7 @@ export default function JabrApp() {
           </div>
 
           {/* Filters */}
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2 flex-wrap">
             <select value={filterGenre || ''} onChange={e => setFilterGenre(e.target.value || null)}
               className="text-[11px] px-2.5 py-1.5 rounded-lg border-none outline-none cursor-pointer font-medium"
               style={{ background: filterGenre ? 'rgba(200,149,46,0.1)' : c.ft, color: filterGenre ? c.or : c.gr }}>
@@ -3236,7 +3245,7 @@ export default function JabrApp() {
             <NotifPanel open={notifOpen} onClose={() => setNotifOpen(false)} projects={projects} />
           </div>
         </div>
-        <div className="flex-1 p-7 overflow-y-auto" onClick={() => notifOpen && setNotifOpen(false)}>{renderContent()}</div>
+        <div className="flex-1 p-4 lg:p-7 overflow-y-auto" onClick={() => notifOpen && setNotifOpen(false)}>{renderContent()}</div>
       </div>
       <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={handleAdd} />
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
