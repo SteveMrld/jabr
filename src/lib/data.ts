@@ -56,6 +56,8 @@ export interface Project {
   status: 'published' | 'in-progress' | 'draft';
   pages: number;
   cover: string;
+  coverImage?: string;
+  backCover?: string;
   diag: Record<string, boolean>;
   corrections: string[];
   manuscriptStatus?: ManuscriptStatus;
@@ -66,7 +68,7 @@ export interface Project {
 export const PROJECTS: Project[] = [
   {
     id: 1, title: "Mon Petit Livre Anti-Stress", author: "Steve Moradel", illustrator: "Allison Moradel",
-    genre: "Jeunesse", collection: "Étincelles", score: 7, maxScore: 7, status: "in-progress", pages: 136, cover: "🌅",
+    genre: "Jeunesse", collection: "Étincelles", score: 7, maxScore: 7, status: "in-progress", pages: 136, cover: "🌅", coverImage: "/covers/anti-stress.jpg",
     editions: [
       { format: 'broché', isbn: '978-2-488647-00-7', price: '18,90€', status: 'in-progress' },
       { format: 'epub', isbn: '978-2-488647-01-4', status: 'planned' },
@@ -76,7 +78,7 @@ export const PROJECTS: Project[] = [
   },
   {
     id: 2, title: "Sur les hauteurs des chutes du Niagara", author: "Steve Moradel",
-    genre: "Roman", score: 4, maxScore: 7, status: "draft", pages: 280, cover: "🏔️",
+    genre: "Roman", score: 4, maxScore: 7, status: "draft", pages: 280, cover: "🏔️", coverImage: "/covers/niagara.jpg",
     editions: [
       { format: 'broché', isbn: '978-2-488647-03-8', status: 'planned' },
       { format: 'poche', isbn: '978-2-488647-04-5', status: 'planned' },
@@ -87,7 +89,7 @@ export const PROJECTS: Project[] = [
   },
   {
     id: 3, title: "Du Chaos Naît une Étoile", author: "Steve Moradel",
-    genre: "Essai", score: 3, maxScore: 7, status: "draft", pages: 220, cover: "⭐",
+    genre: "Essai", score: 3, maxScore: 7, status: "draft", pages: 220, cover: "⭐", coverImage: "/covers/chaos.jpg",
     editions: [
       { format: 'broché', isbn: '978-2-488647-07-6', status: 'planned' },
       { format: 'epub', isbn: '978-2-488647-08-3', status: 'planned' },
@@ -97,7 +99,7 @@ export const PROJECTS: Project[] = [
   },
   {
     id: 4, title: "Dans les Failles du Siècle", author: "Steve Moradel",
-    genre: "Essai", score: 4, maxScore: 7, status: "draft", pages: 310, cover: "🌍",
+    genre: "Essai", score: 4, maxScore: 7, status: "draft", pages: 310, cover: "🌍", coverImage: "/covers/failles.jpg",
     editions: [
       { format: 'broché', isbn: '978-2-488647-10-6', status: 'planned' },
       { format: 'poche', isbn: '978-2-488647-11-3', status: 'planned' },
@@ -108,7 +110,7 @@ export const PROJECTS: Project[] = [
   },
   {
     id: 5, title: "Aurora", author: "Steve Moradel",
-    genre: "Roman", score: 4, maxScore: 7, status: "in-progress", pages: 350, cover: "❄️",
+    genre: "Roman", score: 4, maxScore: 7, status: "in-progress", pages: 350, cover: "❄️", coverImage: "/covers/aurora.jpg",
     editions: [
       { format: 'broché', isbn: '978-2-488647-13-7', status: 'in-progress' },
       { format: 'poche', isbn: '978-2-488647-14-4', status: 'planned' },
@@ -120,7 +122,7 @@ export const PROJECTS: Project[] = [
   },
   {
     id: 6, title: "Le Trône de Cendre", subtitle: "Tome I – Le Lion Déchu", author: "Steve Moradel",
-    genre: "Roman historique", score: 3, maxScore: 7, status: "in-progress", pages: 420, cover: "🏛️",
+    genre: "Roman historique", score: 3, maxScore: 7, status: "in-progress", pages: 420, cover: "🏛️", coverImage: "/covers/trone-de-cendre.jpg",
     editions: [
       { format: 'broché', isbn: '978-2-488647-17-5', status: 'in-progress' },
       { format: 'relié', isbn: '978-2-488647-18-2', status: 'planned' },
@@ -132,7 +134,7 @@ export const PROJECTS: Project[] = [
   },
   {
     id: 7, title: "À l'Ombre des Oliviers", author: "Steve Moradel",
-    genre: "Roman", score: 4, maxScore: 7, status: "draft", pages: 290, cover: "🫒",
+    genre: "Roman", score: 4, maxScore: 7, status: "draft", pages: 290, cover: "🫒", coverImage: "/covers/oliviers.jpg",
     editions: [
       { format: 'broché', isbn: '978-2-488647-21-2', status: 'planned' },
       { format: 'poche', isbn: '978-2-488647-22-9', status: 'planned' },
@@ -143,7 +145,7 @@ export const PROJECTS: Project[] = [
   },
   {
     id: 8, title: "Les Mémoires Reliées", author: "Steve Moradel",
-    genre: "Roman", score: 4, maxScore: 7, status: "draft", pages: 330, cover: "🔗",
+    genre: "Roman", score: 4, maxScore: 7, status: "draft", pages: 330, cover: "🔗", coverImage: "/covers/memoires-reliees.jpg",
     editions: [
       { format: 'broché', isbn: '978-2-488647-25-0', status: 'planned' },
       { format: 'epub', isbn: '978-2-488647-26-7', status: 'planned' },
@@ -153,7 +155,7 @@ export const PROJECTS: Project[] = [
   },
   {
     id: 9, title: "Le Temps des Étincelles", author: "Steve et Allison Moradel",
-    genre: "BD", collection: "Étincelles", score: 3, maxScore: 7, status: "in-progress", pages: 64, cover: "✨",
+    genre: "BD", collection: "Étincelles", score: 3, maxScore: 7, status: "in-progress", pages: 64, cover: "✨", coverImage: "/covers/etincelles.jpg",
     editions: [
       { format: 'broché', isbn: '978-2-488647-29-8', status: 'in-progress' },
       { format: 'epub', isbn: '978-2-488647-30-4', status: 'planned' },
@@ -163,14 +165,14 @@ export const PROJECTS: Project[] = [
   },
   {
     id: 10, title: "Les Réparatrices", author: "Steve Moradel",
-    genre: "Essai", score: 2, maxScore: 7, status: "draft", pages: 240, cover: "🧵",
+    genre: "Essai", score: 2, maxScore: 7, status: "draft", pages: 240, cover: "🧵", coverImage: "/covers/reparatrices.jpg",
     editions: [
       { format: 'broché', isbn: '978-2-488647-31-1', status: 'planned' },
       { format: 'epub', isbn: '978-2-488647-32-8', status: 'planned' },
       { format: 'audiobook', isbn: '978-2-488647-33-5', status: 'planned' },
     ],
-    diag: { ean: false, prix: false, isbn_txt: false, texte4e: false, typo: true, dos: false, logo: true },
-    corrections: ["Ajouter EAN-13", "Ajouter prix TTC", "Ajouter ISBN texte", "Fournir texte 4e", "Fournir 4e de couverture"]
+    diag: { ean: false, prix: false, isbn_txt: false, texte4e: true, typo: true, dos: false, logo: true },
+    corrections: ["Ajouter EAN-13", "Ajouter prix TTC", "Ajouter ISBN texte", "Fournir 4e de couverture"]
   },
 ];
 
@@ -198,6 +200,192 @@ export const DISTRIBUTION_CHANNELS = [
   { name: "Spotify / Audible", desc: "Audiobook", status: "Phase 2", color: "#5B3E8A" },
 ];
 
+// ═══════════════════════════════════
+// COVER SPECIFICATIONS — KDP & IMPRIMEUR FR
+// ═══════════════════════════════════
+
+export type TrimSizeKey = '5x8' | '5.25x8' | '5.5x8.5' | '6x9' | '6.14x9.21' | '6.69x9.61' | '7x10' | '7.44x9.69' | '7.5x9.25' | '8x10' | '8.25x6' | '8.25x8.25' | '8.5x8.5' | '8.5x11';
+
+export interface TrimSize {
+  key: TrimSizeKey;
+  label: string;
+  widthIn: number;
+  heightIn: number;
+  widthMm: number;
+  heightMm: number;
+  minPages: number;
+  maxPages: number;
+  recommended?: string[];
+}
+
+export const KDP_TRIM_SIZES: TrimSize[] = [
+  { key: '5x8', label: '5" × 8"', widthIn: 5, heightIn: 8, widthMm: 127, heightMm: 203.2, minPages: 24, maxPages: 828, recommended: ['Roman', 'Fiction'] },
+  { key: '5.25x8', label: '5,25" × 8"', widthIn: 5.25, heightIn: 8, widthMm: 133.4, heightMm: 203.2, minPages: 24, maxPages: 828 },
+  { key: '5.5x8.5', label: '5,5" × 8,5"', widthIn: 5.5, heightIn: 8.5, widthMm: 139.7, heightMm: 215.9, minPages: 24, maxPages: 828, recommended: ['Roman', 'Essai'] },
+  { key: '6x9', label: '6" × 9"', widthIn: 6, heightIn: 9, widthMm: 152.4, heightMm: 228.6, minPages: 24, maxPages: 828, recommended: ['Essai', 'Non-fiction'] },
+  { key: '6.14x9.21', label: '6,14" × 9,21"', widthIn: 6.14, heightIn: 9.21, widthMm: 156, heightMm: 234, minPages: 24, maxPages: 828, recommended: ['Roman', 'Essai'] },
+  { key: '6.69x9.61', label: '6,69" × 9,61"', widthIn: 6.69, heightIn: 9.61, widthMm: 170, heightMm: 244, minPages: 24, maxPages: 828 },
+  { key: '7x10', label: '7" × 10"', widthIn: 7, heightIn: 10, widthMm: 177.8, heightMm: 254, minPages: 24, maxPages: 828, recommended: ['BD', 'Illustré'] },
+  { key: '7.44x9.69', label: '7,44" × 9,69"', widthIn: 7.44, heightIn: 9.69, widthMm: 189, heightMm: 246, minPages: 24, maxPages: 828 },
+  { key: '7.5x9.25', label: '7,5" × 9,25"', widthIn: 7.5, heightIn: 9.25, widthMm: 190.5, heightMm: 235, minPages: 24, maxPages: 828 },
+  { key: '8x10', label: '8" × 10"', widthIn: 8, heightIn: 10, widthMm: 203.2, heightMm: 254, minPages: 24, maxPages: 590 },
+  { key: '8.25x6', label: '8,25" × 6"', widthIn: 8.25, heightIn: 6, widthMm: 209.6, heightMm: 152.4, minPages: 24, maxPages: 590 },
+  { key: '8.25x8.25', label: '8,25" × 8,25"', widthIn: 8.25, heightIn: 8.25, widthMm: 209.6, heightMm: 209.6, minPages: 24, maxPages: 590 },
+  { key: '8.5x8.5', label: '8,5" × 8,5"', widthIn: 8.5, heightIn: 8.5, widthMm: 215.9, heightMm: 215.9, minPages: 24, maxPages: 590 },
+  { key: '8.5x11', label: '8,5" × 11"', widthIn: 8.5, heightIn: 11, widthMm: 215.9, heightMm: 279.4, minPages: 24, maxPages: 590, recommended: ['Jeunesse', 'Cahier'] },
+];
+
+export type PaperType = 'white' | 'cream' | 'color' | 'color-standard';
+
+export interface PaperSpec {
+  type: PaperType;
+  label: string;
+  thicknessPerPage: number; // inches
+  gsm: number;
+}
+
+export const KDP_PAPER_TYPES: PaperSpec[] = [
+  { type: 'white', label: 'Blanc (N&B)', thicknessPerPage: 0.002252, gsm: 75 },
+  { type: 'cream', label: 'Crème (N&B)', thicknessPerPage: 0.0025, gsm: 80 },
+  { type: 'color', label: 'Couleur premium', thicknessPerPage: 0.002252, gsm: 75 },
+  { type: 'color-standard', label: 'Couleur standard', thicknessPerPage: 0.0032, gsm: 106 },
+];
+
+export const KDP_CONSTANTS = {
+  bleedIn: 0.125,            // 3.2 mm
+  bleedMm: 3.2,
+  safeMarginIn: 0.25,        // 6.4 mm
+  safeMarginMm: 6.4,
+  coverThicknessIn: 0.06,    // ajout couverture
+  minPagesForSpineText: 79,
+  spineMarginIn: 0.0625,     // 1.6 mm
+  spineMarginMm: 1.6,
+  barcodeWidthMm: 50.8,      // 2" barcode zone
+  barcodeHeightMm: 30.5,
+  dpi: 300,
+  maxFileSizeMb: 650,
+  coverFinish: ['Brillant', 'Mat'] as const,
+};
+
+// French printing standards (Imprimeur FR / Pollen distribution)
+export const FR_PRINT_CONSTANTS = {
+  bleedMm: 2.5,              // fonds perdus standard FR
+  safeMarginMm: 6,           // marge de sécurité
+  rainingMm: 7,              // rainage d'aisance
+  dpi: 300,
+  colorSpace: 'CMJN',
+  barcodeZoneMm: { w: 30, h: 20 },
+  coverPaperGsm: 300,        // couverture standard
+  finishes: ['Pelliculé brillant', 'Pelliculé mat', 'Soft touch', 'Vernis 3D', 'Dorure', 'Argenture'] as const,
+};
+
+export interface CoverSpecs {
+  channel: 'kdp' | 'fr';
+  trimSize: TrimSize;
+  paperType: PaperSpec;
+  pages: number;
+  spineWidthIn: number;
+  spineWidthMm: number;
+  totalWidthIn: number;
+  totalHeightIn: number;
+  totalWidthMm: number;
+  totalHeightMm: number;
+  frontCoverMm: { w: number; h: number };
+  backCoverMm: { w: number; h: number };
+  canHaveSpineText: boolean;
+  pixelWidth: number;
+  pixelHeight: number;
+}
+
+// KDP Cover calculator
+export function calcKDPCover(trimKey: TrimSizeKey, pages: number, paperType: PaperType = 'white'): CoverSpecs {
+  const trim = KDP_TRIM_SIZES.find(t => t.key === trimKey) || KDP_TRIM_SIZES[3]; // default 6x9
+  const paper = KDP_PAPER_TYPES.find(p => p.type === paperType) || KDP_PAPER_TYPES[0];
+
+  const spineIn = (pages * paper.thicknessPerPage) + KDP_CONSTANTS.coverThicknessIn;
+  const spineMm = spineIn * 25.4;
+
+  const totalWidthIn = KDP_CONSTANTS.bleedIn + trim.widthIn + spineIn + trim.widthIn + KDP_CONSTANTS.bleedIn;
+  const totalHeightIn = KDP_CONSTANTS.bleedIn + trim.heightIn + KDP_CONSTANTS.bleedIn;
+
+  const totalWidthMm = totalWidthIn * 25.4;
+  const totalHeightMm = totalHeightIn * 25.4;
+
+  return {
+    channel: 'kdp',
+    trimSize: trim,
+    paperType: paper,
+    pages,
+    spineWidthIn: Math.round(spineIn * 10000) / 10000,
+    spineWidthMm: Math.round(spineMm * 100) / 100,
+    totalWidthIn: Math.round(totalWidthIn * 10000) / 10000,
+    totalHeightIn: Math.round(totalHeightIn * 10000) / 10000,
+    totalWidthMm: Math.round(totalWidthMm * 100) / 100,
+    totalHeightMm: Math.round(totalHeightMm * 100) / 100,
+    frontCoverMm: { w: trim.widthMm, h: trim.heightMm },
+    backCoverMm: { w: trim.widthMm, h: trim.heightMm },
+    canHaveSpineText: pages >= KDP_CONSTANTS.minPagesForSpineText,
+    pixelWidth: Math.ceil(totalWidthIn * KDP_CONSTANTS.dpi),
+    pixelHeight: Math.ceil(totalHeightIn * KDP_CONSTANTS.dpi),
+  };
+}
+
+// French imprimeur cover calculator (format A5 = 148×210 default)
+export type FrTrimKey = 'A5' | 'A5+' | 'roman' | 'BD' | 'A4';
+
+export const FR_TRIM_SIZES: Record<FrTrimKey, { label: string; wMm: number; hMm: number }> = {
+  'A5': { label: 'A5 (148 × 210 mm)', wMm: 148, hMm: 210 },
+  'A5+': { label: '152 × 229 mm', wMm: 152, hMm: 229 },
+  'roman': { label: 'Roman (140 × 216 mm)', wMm: 140, hMm: 216 },
+  'BD': { label: 'BD (195 × 265 mm)', wMm: 195, hMm: 265 },
+  'A4': { label: 'A4 (210 × 297 mm)', wMm: 210, hMm: 297 },
+};
+
+export function calcFRCover(trimKey: FrTrimKey, pages: number, paperGsm: number = 80): CoverSpecs {
+  const trim = FR_TRIM_SIZES[trimKey];
+  // Spine: PPI depends on paper weight. ~80gsm offset = ~0.074mm per feuille
+  const ppiCoeff = paperGsm <= 80 ? 0.074 : paperGsm <= 90 ? 0.080 : paperGsm <= 100 ? 0.089 : 0.100;
+  const spineMm = (pages / 2) * ppiCoeff + 1; // +1mm rainage
+  const spineIn = spineMm / 25.4;
+
+  const bleed = FR_PRINT_CONSTANTS.bleedMm;
+  const totalWidthMm = bleed + trim.wMm + spineMm + trim.wMm + bleed;
+  const totalHeightMm = bleed + trim.hMm + bleed;
+
+  const totalWidthIn = totalWidthMm / 25.4;
+  const totalHeightIn = totalHeightMm / 25.4;
+
+  const trimSizeObj: TrimSize = {
+    key: '6x9' as TrimSizeKey,
+    label: trim.label,
+    widthIn: trim.wMm / 25.4,
+    heightIn: trim.hMm / 25.4,
+    widthMm: trim.wMm,
+    heightMm: trim.hMm,
+    minPages: 24,
+    maxPages: 1000,
+  };
+
+  return {
+    channel: 'fr',
+    trimSize: trimSizeObj,
+    paperType: { type: 'white', label: `Offset ${paperGsm}g`, thicknessPerPage: ppiCoeff / 25.4, gsm: paperGsm },
+    pages,
+    spineWidthIn: Math.round(spineIn * 10000) / 10000,
+    spineWidthMm: Math.round(spineMm * 100) / 100,
+    totalWidthIn: Math.round(totalWidthIn * 100) / 100,
+    totalHeightIn: Math.round(totalHeightIn * 100) / 100,
+    totalWidthMm: Math.round(totalWidthMm * 100) / 100,
+    totalHeightMm: Math.round(totalHeightMm * 100) / 100,
+    frontCoverMm: { w: trim.wMm, h: trim.hMm },
+    backCoverMm: { w: trim.wMm, h: trim.hMm },
+    canHaveSpineText: spineMm >= 5,
+    pixelWidth: Math.ceil((totalWidthMm / 25.4) * FR_PRINT_CONSTANTS.dpi),
+    pixelHeight: Math.ceil((totalHeightMm / 25.4) * FR_PRINT_CONSTANTS.dpi),
+  };
+}
+
+// Manuscript data (applied to PROJECTS)
 // Helpers
 export const countISBN = (projects: Project[]) => projects.reduce((s, p) => s + p.editions.length, 0);
 export const primaryISBN = (p: Project) => p.editions[0]?.isbn || '—';
@@ -238,4 +426,24 @@ PROJECTS.forEach(p => {
     p.manuscriptFile = md.file;
     p.analysis = md.analysis;
   }
+});
+
+// 4e de couverture texts
+const BACK_COVER_TEXTS: Record<number, string> = {
+  1: `Il y a des jours où tout déborde.\nDes jours où l'on ne comprend pas ce qui se passe à l'intérieur de soi.\nCe livre est né pour ces moments-là.\n\nÀ travers des histoires douces, des exercices simples et des images qui apaisent, Mon petit livre anti-stress accompagne l'enfant pas à pas pour reconnaître ses émotions, les apprivoiser et retrouver le calme.\n\nRespirer. Écouter. Exprimer. Se relever.\n\nUn livre à lire, à garder près de soi, à ouvrir chaque fois que l'on en a besoin.\nComme une présence rassurante qui ne disparaît jamais.\n\nUn ouvrage pour grandir avec ses émotions — en confiance.`,
+  2: '', // À compléter
+  3: `Il arrive un moment où tout s'effondre. Où les certitudes vacillent, où les masques tombent, où l'ancien monde ne nous porte plus. Ce moment-là, nous le redoutons. Et pourtant, c'est peut-être le plus précieux de tous.\n\nDans cet essai philosophique profondément humain, Steve Moradel explore les territoires intimes de la transformation. Loin des méthodes miracle et des raccourcis faciles, il nous invite à un voyage au cœur de nos effondrements pour y découvrir cette vérité bouleversante : du chaos naît une étoile.\n\nÀ travers des récits touchants, des réflexions profondes et une prose d'une rare beauté, ce livre accompagne ceux qui traversent les tempêtes de l'existence. Il révèle comment nos crises les plus douloureuses peuvent devenir les matrices de notre renaissance.`,
+  4: `Nous avons cru que la mondialisation abolirait les frontières, qu'Internet rapprocherait les peuples, que la technologie rendrait le monde plus juste. Pourtant, ces promesses ont souvent aggravé les fractures qu'elles prétendaient guérir.\n\nDes câbles sous-marins aux maîtres invisibles de la finance, du crédit social chinois aux dérives de l'intelligence artificielle, Steve Moradel révèle comment les fractures géopolitiques se répercutent jusqu'dans nos vies intimes.\n\nCar tout est lié. Une décision prise dans un bureau de BlackRock influence l'emploi de millions de personnes. Un câble sectionné paralyse des continents entiers.\n\nMais dans ces failles, il ne s'agit pas seulement de décrire ce qui vacille. Il s'agit d'entrevoir ce qui peut tenir. Car les fractures sont aussi des ouvertures où la lumière passe.\n\nUn diagnostic lucide de notre époque et une invitation à repenser l'avenir.`,
+  5: `Dans les tréfonds glacés de l'Antarctique, la frontière entre légende et réalité s'effondre.\nSous des kilomètres de glace, une découverte bouleverse l'ordre établi : un sanctuaire oublié, témoin d'un savoir perdu et d'ambitions inimaginables. Aurora n'est pas qu'un lieu : c'est une promesse. Celle d'un avenir façonné par des secrets trop longtemps dissimulés.\n\nMais tout progrès a son prix, et ce qui sommeille dans les silences d'Aurora pourrait bien redéfinir la place de l'humanité dans l'univers. Entre vérités enfouies et visions d'un monde nouveau, une question demeure : sommes-nous prêts pour ce qui nous attend ?`,
+  6: `Il y a vingt ans, un roi a fait un choix.\n\nUn enfant est né dans le silence. Sa mère est morte en lui donnant la vie. Et parce que ses yeux semblaient voir trop loin, on a décidé qu'il ne régnerait jamais.\n\nOn a inversé l'ordre des naissances. On a réécrit les registres. On a enterré la vérité.\n\nAspelta a grandi dans l'ombre de son frère, ignorant ce qu'on lui avait volé. Jusqu'au jour où, lors d'un rituel sacré, la terre elle-même a refusé de mentir.\n\nDans l'empire de Kush, au cœur de l'Afrique ancienne, le pouvoir repose sur la pierre — et la pierre se souvient.\n\nJusqu'où ira-t-on pour maintenir un mensonge ?\nEt quel prix paiera-t-on quand il s'effondrera ?\n\nLa terre n'oublie jamais. Elle attend.`,
+  7: `Sous le ciel brûlé de promesses déchues, deux destins se croisent et s'affrontent sur une terre où l'espoir et le désespoir dansent une valse tragique. Liora, fille d'un kibboutz marqué par la résilience de ses ancêtres, et Rayane, jeune homme épris de la terre de Gaza, découvrent que leurs vies, comme les branches noueuses des oliviers millénaires, sont profondément enracinées dans l'histoire de leurs peuples.\n\nChaque pierre, chaque souffle d'air, porte le poids des luttes et des rêves, dans un récit qui interroge la mémoire, la transmission et la possibilité fragile d'un futur apaisé. Une fresque humaine et universelle, un voyage au cœur des blessures et des résistances, où la douleur des pertes laisse parfois entrevoir la force de l'espoir.`,
+  8: `Et si nos douleurs n'étaient que les échos d'histoires oubliées ?\n\nGabriel, Élise, Sophie, Cécile… Ils vivent séparés, mais une souffrance inexplicable les unit. Une douleur qui dépasse le corps, une vibration qui semble venir d'ailleurs. À mesure qu'ils explorent leurs passés, un mystère émerge : et si ces maux invisibles étaient les fragments d'une mémoire partagée ?\n\nAu croisement du réel et du mystique, Les Mémoires Reliées nous plonge dans une quête bouleversante, où chaque douleur révèle un lien, chaque rencontre éclaire un chemin. Un récit puissant et lumineux sur ce qui nous unit au-delà de nous-mêmes.`,
+  9: `Et si les idées voyageaient comme des étincelles ?\nJade a 15 ans, une curiosité vive, des questions plein les poches… et une soif d'apprendre que rien n'arrête.\n\nEn explorant les souvenirs de sa famille, les objets du quotidien, ou les traces laissées par les inventions humaines, elle découvre peu à peu le fil invisible qui relie l'histoire de la technologie à celle des émotions, des rêves et des transmissions.\n\nEntre poésie et réflexion, Le Temps d'une Étincelle est une bande dessinée hybride, sensible et lumineuse. Elle traverse les âges et les idées, mêle l'intime au collectif, et propose une autre manière de comprendre notre monde : non pas comme une suite de révolutions, mais comme un tissu fragile et merveilleux de gestes, de mémoires et de choix.\n\nÀ hauteur d'adolescente, avec justesse et humanité, cette œuvre invite petits et grands à ouvrir les mains… pour laisser passer la lumière.`,
+  10: `Elles n'ont pas renversé le monde. Elles l'ont recousu.\n\nTreize femmes. Trois continents. Deux siècles de fractures.\n\nTubman guidait des fugitifs dans la nuit. Parks est restée assise quand tout lui ordonnait de se lever. Curie a ouvert aux femmes les portes d'une science qui ne voulait pas d'elles. Angelou a transformé le silence d'une enfant brisée en une voix universelle.\n\nLà où la révolutionnaire fait table rase, la réparatrice fait table de résurrection. Elle ne détruit pas l'ancien monde — elle identifie dans les décombres ce qui mérite d'être sauvé, puis tisse, patiemment, ce qui permettra à cette parcelle de beauté de survivre.\n\nLes Réparatrices révèle une vérité méconnue : les solutions aux crises de notre époque naissent souvent là où personne ne regarde.`,
+};
+
+// Apply back cover texts
+PROJECTS.forEach(p => {
+  const text = BACK_COVER_TEXTS[p.id];
+  if (text) p.backCover = text;
 });
