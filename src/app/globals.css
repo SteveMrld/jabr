@@ -29,3 +29,39 @@ h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--gris-clair); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gris); }
+
+/* ═══ JABR UX POLISH ═══ */
+
+/* Page transition */
+@keyframes pageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.page-enter { animation: pageIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* Skeleton shimmer */
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.skeleton { background: linear-gradient(90deg, #F5F3EF 25%, #E8E4DF 50%, #F5F3EF 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+
+/* Card elevation on hover */
+.card-elevate { transition: box-shadow 0.3s, transform 0.3s, border-color 0.3s; }
+.card-elevate:hover { box-shadow: 0 8px 30px rgba(45, 27, 78, 0.08); transform: translateY(-1px); }
+
+/* Button press */
+.btn-press { transition: transform 0.15s, box-shadow 0.15s; }
+.btn-press:active { transform: scale(0.97); }
+
+/* Toast slide */
+@keyframes toastIn { from { opacity: 0; transform: translateY(16px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes toastOut { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(16px) scale(0.95); } }
+
+/* Kanban drag */
+.kanban-card { transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s; }
+.kanban-card:active { transform: scale(1.02) rotate(1deg); box-shadow: 0 12px 40px rgba(45, 27, 78, 0.15); }
+
+/* Badge pulse for notifications */
+@keyframes pulse-dot { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+.notif-pulse { animation: pulse-dot 2s ease-in-out infinite; }
+
+/* Smooth focus ring */
+input:focus, select:focus, textarea:focus { outline: none; box-shadow: 0 0 0 2px rgba(200, 149, 46, 0.25); }
+
+/* Status transitions */
+.status-transition { transition: background-color 0.4s, color 0.4s; }

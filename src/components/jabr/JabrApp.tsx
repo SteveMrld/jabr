@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { PROJECTS, PIPELINE_STEPS, COLLECTIONS, DIAG_LABELS, DISTRIBUTION_CHANNELS, FORMAT_LABELS, EDITION_STATUS_LABELS, MANUSCRIPT_STATUS_LABELS, countISBN, primaryISBN, primaryPrice, KDP_TRIM_SIZES, KDP_PAPER_TYPES, KDP_CONSTANTS, FR_PRINT_CONSTANTS, FR_TRIM_SIZES, calcKDPCover, calcFRCover, type Project, type Edition, type EditionFormat, type ManuscriptStatus, type AnalysisResult, type TrimSizeKey, type PaperType, type FrTrimKey, type CoverSpecs } from '@/lib/data';
 import { useProjects, useDistributionChecks, useCalendarResults } from '@/lib/useProjects';
 
@@ -118,7 +118,7 @@ const StatCard = ({ value, label, accent }: { value: string | number; label: str
 );
 
 const Card = ({ children, className = '', hover = true, onClick, style }: { children: React.ReactNode; className?: string; hover?: boolean; onClick?: () => void; style?: React.CSSProperties }) => (
-  <div onClick={onClick} className={`bg-white rounded-xl border overflow-hidden transition-colors ${hover ? 'hover:border-[#C8952E]' : ''} ${className}`} style={{ borderColor: c.gc, ...style }}>
+  <div onClick={onClick} className={`bg-white rounded-xl border overflow-hidden ${hover ? 'card-elevate hover:border-[#C8952E]' : ''} ${className}`} style={{ borderColor: c.gc, ...style }}>
     {children}
   </div>
 );
@@ -144,7 +144,7 @@ const CoverThumb = ({ emoji, coverImage, size = 'md' }: { emoji: string; coverIm
 
 const Btn = ({ children, variant = 'primary', onClick, className = '' }: { children: React.ReactNode; variant?: 'primary' | 'secondary'; onClick?: () => void; className?: string }) => (
   <button onClick={onClick}
-    className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-semibold text-[13px] transition-colors cursor-pointer ${variant === 'primary' ? 'text-white hover:bg-[#E8B84B]' : 'border hover:bg-gray-50'} ${className}`}
+    className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-semibold text-[13px] transition-colors cursor-pointer btn-press ${variant === 'primary' ? 'text-white hover:bg-[#E8B84B]' : 'border hover:bg-gray-50'} ${className}`}
     style={variant === 'primary' ? { background: c.or } : { borderColor: c.vm, color: c.vm }}>
     {children}
   </button>
@@ -3771,13 +3771,28 @@ const MarketingView = ({ projects }: { projects: Project[] }) => {
 // TOAST
 // ═══════════════════════════════════
 const Toast = ({ message, onClose }: { message: string; onClose: () => void }) => {
-  const [visible, setVisible] = useState(false);
-  useState(() => { setTimeout(() => setVisible(true), 10); setTimeout(() => { setVisible(false); setTimeout(onClose, 300); }, 3000); });
+  const [phase, setPhase] = useState<'in' | 'out'>('in');
+  const isError = message.toLowerCase().includes('erreur');
+
+  useEffect(() => {
+    const t = setTimeout(() => { setPhase('out'); setTimeout(onClose, 400); }, 3000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg transition-all duration-300"
-      style={{ background: c.mv, color: 'white', opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(10px)' }}>
-      <span className="flex" style={{ color: c.oc }}>{icons.check}</span>
-      <span className="text-[13px]">{message}</span>
+    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl"
+      style={{
+        background: isError ? '#2D1B4E' : c.mv, color: 'white',
+        animation: phase === 'in' ? 'toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)' : 'toastOut 0.4s ease-in forwards',
+        border: `1px solid ${isError ? 'rgba(217,68,82,0.3)' : 'rgba(200,149,46,0.2)'}`,
+      }}>
+      <span className="flex shrink-0" style={{ color: isError ? '#E8616D' : c.oc }}>
+        {isError ? icons.warn : icons.check}
+      </span>
+      <span className="text-[13px] font-medium">{message}</span>
+      <button onClick={() => { setPhase('out'); setTimeout(onClose, 400); }}
+        className="ml-1 cursor-pointer bg-transparent border-none opacity-50 hover:opacity-100 transition-opacity"
+        style={{ color: 'white' }}>{icons.close}</button>
     </div>
   );
 };
@@ -3785,6 +3800,301 @@ const Toast = ({ message, onClose }: { message: string; onClose: () => void }) =
 // ═══════════════════════════════════
 // NOTIFICATION PANEL
 // ═══════════════════════════════════
+
+// ═══════════════════════════════════
+// COMMAND PALETTE — Ctrl+K
+// ═══════════════════════════════════
+
+type CmdResult = { type: 'project' | 'isbn' | 'module' | 'collection' | 'action' | 'note' | 'correction'; label: string; sub: string; icon: string; action: () => void; matchField?: string };
+
+const highlightMatch = (text: string, query: string) => {
+  if (!query || query.length < 2) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return <>{text.slice(0, idx)}<mark style={{ background: 'rgba(200,149,46,0.2)', color: 'inherit', padding: '0 1px', borderRadius: 2 }}>{text.slice(idx, idx + query.length)}</mark>{text.slice(idx + query.length)}</>;
+};
+
+const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
+  open: boolean; onClose: () => void; projects: Project[];
+  onProject: (p: Project) => void; onNav: (id: string) => void;
+}) => {
+  const [q, setQ] = useState('');
+  const inputRef = { current: null as HTMLInputElement | null };
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
+  // Focus input when opening
+  useEffect(() => {
+    if (open) {
+      setQ('');
+      setSelectedIdx(0);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  const query = q.toLowerCase().trim();
+
+  const results: CmdResult[] = [];
+
+  if (query.length > 0) {
+    // Search projects (title, author, genre, subtitle)
+    projects.forEach(p => {
+      const fields: [string, string][] = [
+        [p.title, 'titre'], [p.author, 'auteur'], [p.genre, 'genre'],
+        [p.subtitle || '', 'sous-titre'], [p.collection || '', 'collection'],
+      ];
+      const match = fields.find(([val]) => val.toLowerCase().includes(query));
+      if (match) {
+        results.push({
+          type: 'project', label: p.title, sub: `${p.genre} · ${p.author} · ${p.pages}p`,
+          icon: p.cover, action: () => { onProject(p); onClose(); }, matchField: match[1]
+        });
+      }
+    });
+
+    // Search in back cover text
+    projects.forEach(p => {
+      if (p.backCover && p.backCover.toLowerCase().includes(query) && !results.find(r => r.type === 'project' && r.label === p.title)) {
+        const idx = p.backCover.toLowerCase().indexOf(query);
+        const snippet = '…' + p.backCover.slice(Math.max(0, idx - 20), idx + query.length + 30) + '…';
+        results.push({
+          type: 'note', label: p.title, sub: snippet,
+          icon: '📄', action: () => { onProject(p); onClose(); }, matchField: '4e de couverture'
+        });
+      }
+    });
+
+    // Search in notes
+    projects.forEach(p => {
+      if (p.notes && p.notes.toLowerCase().includes(query)) {
+        const idx = p.notes.toLowerCase().indexOf(query);
+        const snippet = '…' + p.notes.slice(Math.max(0, idx - 20), idx + query.length + 30) + '…';
+        results.push({
+          type: 'note', label: p.title, sub: snippet,
+          icon: '📝', action: () => { onProject(p); onClose(); }, matchField: 'notes'
+        });
+      }
+    });
+
+    // Search corrections
+    projects.forEach(p => {
+      p.corrections.forEach(corr => {
+        if (corr.toLowerCase().includes(query)) {
+          results.push({
+            type: 'correction', label: corr, sub: p.title,
+            icon: '⚠️', action: () => { onProject(p); onClose(); }, matchField: 'correction'
+          });
+        }
+      });
+    });
+
+    // Search ISBN
+    projects.forEach(p => {
+      p.editions.forEach(e => {
+        if (e.isbn.toLowerCase().includes(query)) {
+          results.push({
+            type: 'isbn', label: e.isbn, sub: `${p.title} · ${FORMAT_LABELS[e.format]?.label || e.format}`,
+            icon: '🔢', action: () => { onProject(p); onClose(); }
+          });
+        }
+      });
+    });
+
+    // Search collections
+    const matchedColls = new Set<string>();
+    COLLECTIONS.forEach(col => {
+      if (col.name.toLowerCase().includes(query) || col.desc.toLowerCase().includes(query)) {
+        if (!matchedColls.has(col.name)) {
+          matchedColls.add(col.name);
+          results.push({
+            type: 'collection', label: col.name, sub: col.desc,
+            icon: '📚', action: () => { onNav('collections'); onClose(); }
+          });
+        }
+      }
+    });
+
+    // Search modules / pages
+    const modules: [string, string, string][] = [
+      ['dashboard', 'Dashboard', 'Vue d\'ensemble, KPIs, catalogue, Kanban'],
+      ['projets', 'Projets', 'Catalogue complet, Kanban, filtres, tri'],
+      ['manuscrits', 'Manuscrits', 'Pipeline manuscrit, upload, statuts'],
+      ['analyse', 'Analyse IA', 'Scanner 6D, détection patterns, score IA'],
+      ['calibrage', 'Calibrage', 'Gabarit couverture, dos, format Jabrilia'],
+      ['couvertures', 'Couvertures', 'Diagnostic, corrections, gabarit'],
+      ['audiobooks', 'Audiobooks', 'Pipeline audio, voix, chapitres'],
+      ['distribution', 'Distribution', 'KDP, Pollen, IngramSpark, Apple, Kobo, Spotify'],
+      ['marketing', 'Marketing', 'Kit réseaux sociaux, fiches produit'],
+      ['presse', 'Dossier Presse', 'Communiqué, bio auteur, extraits'],
+      ['calendrier', 'Calendrier Éditorial', 'Fenêtre de sortie IA, plan média'],
+      ['analytics', 'Analytics', 'Readiness, revenus, finances, ROI'],
+      ['isbn', 'ISBN', 'Attribution, export CSV, ONIX 3.0'],
+      ['collections', 'Collections', 'Regroupement par série ou thématique'],
+      ['settings', 'Paramètres', 'Éditeur, import CSV, thème sombre'],
+    ];
+    modules.forEach(([id, label, desc]) => {
+      if (label.toLowerCase().includes(query) || desc.toLowerCase().includes(query) || id.includes(query)) {
+        results.push({
+          type: 'module', label, sub: desc,
+          icon: '📂', action: () => { onNav(id); onClose(); }
+        });
+      }
+    });
+
+    // Actions
+    const actions: [string, string, string, () => void][] = [
+      ['Nouveau projet', 'Créer un nouveau titre dans le catalogue', '➕', () => { onNav('projets'); onClose(); }],
+      ['Export ONIX', 'Exporter le catalogue au format ONIX 3.0', '📤', () => { onNav('isbn'); onClose(); }],
+      ['Export PDF', 'Exporter une fiche projet en PDF', '📑', () => { onNav('projets'); onClose(); }],
+      ['Mode sombre', 'Basculer le thème clair/sombre', '🌙', () => { onNav('settings'); onClose(); }],
+      ['Import CSV', 'Importer un catalogue depuis un fichier CSV', '📂', () => { onNav('settings'); onClose(); }],
+      ['Calendrier IA', 'Analyser les fenêtres de sortie', '📅', () => { onNav('calendrier'); onClose(); }],
+      ['Plan média', 'Générer un plan média par titre', '📡', () => { onNav('calendrier'); onClose(); }],
+    ];
+    actions.forEach(([label, desc, icon, action]) => {
+      if (label.toLowerCase().includes(query) || desc.toLowerCase().includes(query)) {
+        results.push({ type: 'action', label, sub: desc, icon, action });
+      }
+    });
+  } else {
+    // Default suggestions when empty
+    results.push({ type: 'action', label: 'Nouveau projet', sub: 'Créer un titre', icon: '➕', action: () => { onNav('projets'); onClose(); } });
+    projects.slice(0, 4).forEach(p => {
+      results.push({
+        type: 'project', label: p.title, sub: `${p.genre} · ${p.author}`,
+        icon: p.cover, action: () => { onProject(p); onClose(); }
+      });
+    });
+    results.push({ type: 'module', label: 'Calendrier Éditorial', sub: 'Fenêtre de sortie + plan média IA', icon: '📅', action: () => { onNav('calendrier'); onClose(); } });
+    results.push({ type: 'module', label: 'Analytics', sub: 'Finances, readiness, ROI', icon: '📈', action: () => { onNav('analytics'); onClose(); } });
+    results.push({ type: 'module', label: 'Distribution', sub: 'KDP, Pollen, IngramSpark…', icon: '🚚', action: () => { onNav('distribution'); onClose(); } });
+  }
+
+  // Clamp selection
+  const clampedIdx = Math.min(selectedIdx, results.length - 1);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, results.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter' && results[clampedIdx]) { results[clampedIdx].action(); }
+    else if (e.key === 'Escape') { onClose(); }
+  };
+
+  const typeLabels: Record<CmdResult['type'], string> = { project: 'Titre', isbn: 'ISBN', module: 'Module', collection: 'Collection', action: 'Action', note: 'Contenu', correction: 'Correction' };
+  const typeColors: Record<CmdResult['type'], { bg: string; color: string }> = {
+    project: { bg: '#E8E0F0', color: '#5B3E8A' },
+    isbn: { bg: '#FDE8D0', color: '#E07A2F' },
+    module: { bg: '#D4F0E0', color: '#2EAE6D' },
+    collection: { bg: '#E0ECFF', color: '#3B6DC6' },
+    action: { bg: '#F5F3EF', color: '#9E9689' },
+    note: { bg: '#FFF8E0', color: '#C8952E' },
+    correction: { bg: '#FFE0E3', color: '#D94452' },
+  };
+
+  // Group results by type for headers
+  const grouped: { type: CmdResult['type']; items: (CmdResult & { globalIdx: number })[] }[] = [];
+  let globalIdx = 0;
+  const typeOrder: CmdResult['type'][] = ['action', 'project', 'note', 'correction', 'isbn', 'collection', 'module'];
+  typeOrder.forEach(type => {
+    const items = results
+      .map((r, i) => ({ ...r, globalIdx: i }))
+      .filter(r => r.type === type);
+    if (items.length > 0) grouped.push({ type, items });
+  });
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-[100] bg-black bg-opacity-40 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Palette */}
+      <div className="fixed top-[12%] left-1/2 -translate-x-1/2 z-[101] w-[92vw] max-w-[580px]"
+        style={{ animation: 'cmdSlide 0.2s ease-out' }}>
+        <style>{`@keyframes cmdSlide { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }`}</style>
+
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden" style={{ border: `1px solid ${c.gc}` }}>
+          {/* Search input */}
+          <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <span style={{ color: c.or }}>{icons.search}</span>
+            <input ref={el => { inputRef.current = el; }} value={q} onChange={e => { setQ(e.target.value); setSelectedIdx(0); }}
+              onKeyDown={handleKeyDown}
+              placeholder="Rechercher un titre, ISBN, module, contenu, action…"
+              className="flex-1 bg-transparent border-none outline-none text-[15px]"
+              style={{ color: c.mv, fontFamily: "'Inter', sans-serif" }} />
+            <kbd className="px-2 py-0.5 rounded text-[10px] font-semibold" style={{ background: c.ft, color: c.gr, border: `1px solid ${c.gc}` }}>ESC</kbd>
+          </div>
+
+          {/* Results grouped */}
+          <div className="max-h-[400px] overflow-y-auto">
+            {results.length === 0 && q.length > 0 && (
+              <div className="px-5 py-8 text-center">
+                <div className="text-[24px] mb-2">🔍</div>
+                <div className="text-[13px] font-semibold" style={{ color: c.mv }}>Aucun résultat pour « {q} »</div>
+                <div className="text-[11px] mt-1" style={{ color: c.gr }}>Essayez un titre, auteur, ISBN, genre ou mot-clé</div>
+              </div>
+            )}
+            {grouped.map(group => (
+              <div key={group.type}>
+                {query.length > 0 && (
+                  <div className="px-5 pt-3 pb-1">
+                    <span className="text-[9px] uppercase tracking-widest font-bold" style={{ color: typeColors[group.type].color }}>
+                      {typeLabels[group.type]}s ({group.items.length})
+                    </span>
+                  </div>
+                )}
+                {group.items.map(r => {
+                  const tc = typeColors[r.type];
+                  const i = r.globalIdx;
+                  return (
+                    <div key={`${r.type}-${r.label}-${i}`}
+                      onClick={r.action}
+                      onMouseEnter={() => setSelectedIdx(i)}
+                      className="flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors"
+                      style={{ background: i === clampedIdx ? 'rgba(200,149,46,0.06)' : 'transparent', borderLeft: i === clampedIdx ? `3px solid ${c.or}` : '3px solid transparent' }}>
+                      <span className="text-base shrink-0">{r.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-semibold truncate" style={{ color: c.mv }}>
+                          {query ? highlightMatch(r.label, query) : r.label}
+                        </div>
+                        <div className="text-[11px] truncate" style={{ color: c.gr }}>
+                          {query ? highlightMatch(r.sub, query) : r.sub}
+                        </div>
+                      </div>
+                      {r.matchField && (
+                        <span className="text-[8px] px-1.5 py-0.5 rounded font-semibold shrink-0" style={{ background: c.ft, color: c.gr }}>
+                          {r.matchField}
+                        </span>
+                      )}
+                      <span className="text-[9px] px-2 py-0.5 rounded-full font-bold shrink-0" style={{ background: tc.bg, color: tc.color }}>
+                        {typeLabels[r.type]}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Footer hints */}
+          <div className="flex items-center gap-4 px-5 py-2.5" style={{ borderTop: `1px solid ${c.ft}`, background: c.ft }}>
+            <span className="flex items-center gap-1 text-[10px]" style={{ color: c.gr }}>
+              <kbd className="px-1.5 py-0.5 rounded" style={{ background: 'white', border: `1px solid ${c.gc}`, fontSize: 9 }}>↑↓</kbd> naviguer
+            </span>
+            <span className="flex items-center gap-1 text-[10px]" style={{ color: c.gr }}>
+              <kbd className="px-1.5 py-0.5 rounded" style={{ background: 'white', border: `1px solid ${c.gc}`, fontSize: 9 }}>↵</kbd> ouvrir
+            </span>
+            <span className="flex items-center gap-1 text-[10px]" style={{ color: c.gr }}>
+              <kbd className="px-1.5 py-0.5 rounded" style={{ background: 'white', border: `1px solid ${c.gc}`, fontSize: 9 }}>esc</kbd> fermer
+            </span>
+            <span className="ml-auto text-[10px] font-semibold" style={{ color: c.or }}>{results.length} résultat{results.length > 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
 type Notif = { type: 'error' | 'warning' | 'info' | 'success'; title: string; desc: string; icon?: string };
 
 const generateNotifs = (projects: Project[]): Notif[] => {
@@ -3909,6 +4219,16 @@ export default function JabrApp() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [toast, setToast] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
+
+  // Ctrl+K global shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setCmdOpen(o => !o); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
   const [dark, setDark] = useState(() => {
     try { return localStorage.getItem('jabr-dark') === 'true'; } catch { return false; }
   });
@@ -3966,9 +4286,23 @@ export default function JabrApp() {
 
   const renderContent = () => {
     if (loading) return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mb-4" style={{ borderColor: c.or, borderTopColor: 'transparent' }} />
-        <p className="text-sm" style={{ color: c.gr }}>Chargement du catalogue…</p>
+      <div className="page-enter">
+        {/* Skeleton KPIs */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+          {[...Array(6)].map((_, i) => <div key={i} className="skeleton h-20 rounded-xl" />)}
+        </div>
+        {/* Skeleton cards */}
+        <div className="skeleton h-10 rounded-xl mb-3 w-48" />
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="flex gap-3 mb-3 items-center">
+            <div className="skeleton w-10 h-14 rounded-lg shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="skeleton h-4 rounded w-3/4" />
+              <div className="skeleton h-3 rounded w-1/2" />
+            </div>
+            <div className="skeleton w-20 h-6 rounded" />
+          </div>
+        ))}
       </div>
     );
     if (project) return <DetailView project={project} onBack={() => navigate('dashboard')} onUpdate={handleUpdate} onToast={showToast} onDelete={handleDelete} allProjects={projects} />;
@@ -4016,6 +4350,10 @@ export default function JabrApp() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un titre, un genre, un auteur…"
               className="bg-transparent outline-none text-sm flex-1" style={{ color: c.nr }} />
             {(search || hasFilters) && <button onClick={clearFilters} className="cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>{icons.close}</button>}
+            <button onClick={() => setCmdOpen(true)} className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded cursor-pointer bg-transparent"
+              style={{ border: `1px solid ${c.gc}`, color: c.gr, fontSize: 10, fontWeight: 600 }}>
+              ⌘K
+            </button>
           </div>
 
           {/* Filters */}
@@ -4071,10 +4409,13 @@ export default function JabrApp() {
             <NotifPanel open={notifOpen} onClose={() => setNotifOpen(false)} projects={projects} />
           </div>
         </div>
-        <div className="flex-1 p-4 md:p-7 overflow-y-auto" onClick={() => notifOpen && setNotifOpen(false)}>{renderContent()}</div>
+        <div className="flex-1 p-4 md:p-7 overflow-y-auto" onClick={() => notifOpen && setNotifOpen(false)}>
+          <div key={project ? `p-${project.id}` : page} className="page-enter">{renderContent()}</div>
+        </div>
       </div>
       <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={handleAdd} />
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} projects={projects} onProject={openProject} onNav={navigate} />
     </div>
   );
 }
