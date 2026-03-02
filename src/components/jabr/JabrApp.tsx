@@ -1141,7 +1141,7 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
 };
 
 // --- ISBN ---
-const ISBNView = ({ projects }: { projects: Project[] }) => {
+const ISBNView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
   const totalISBN = countISBN(projects);
   const exportCSV = () => {
     const rows = [['ISBN', 'Titre', 'Format', 'Prix', 'Statut édition', 'Statut projet', 'Genre'].join(';')];
@@ -1150,6 +1150,13 @@ const ISBNView = ({ projects }: { projects: Project[] }) => {
     }));
     const blob = new Blob(['\uFEFF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `jabr-isbn-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    onToast('ISBN exportés en CSV');
+  };
+  const exportONIX = () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">\n  <Header>\n    <Sender><SenderName>Jabrilia Éditions</SenderName></Sender>\n    <SentDateTime>${new Date().toISOString().slice(0, 10).replace(/-/g, '')}</SentDateTime>\n  </Header>\n${projects.map(p => p.editions.map(ed => `  <Product>\n    <RecordReference>${ed.isbn.replace(/-/g, '')}</RecordReference>\n    <NotificationType>03</NotificationType>\n    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${ed.isbn.replace(/-/g, '')}</IDValue></ProductIdentifier>\n    <DescriptiveDetail>\n      <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>${p.title}</TitleText></TitleElement></TitleDetail>\n      <Contributor><ContributorRole>A01</ContributorRole><PersonName>Steve Moradel</PersonName></Contributor>\n      <Language><LanguageRole>01</LanguageRole><LanguageCode>fre</LanguageCode></Language>\n      <Extent><ExtentType>00</ExtentType><ExtentValue>${p.pages}</ExtentValue><ExtentUnit>03</ExtentUnit></Extent>\n    </DescriptiveDetail>\n    <PublishingDetail>\n      <Imprint><ImprintName>Jabrilia Éditions</ImprintName></Imprint>\n      <PublishingStatus>04</PublishingStatus>\n    </PublishingDetail>\n    ${ed.price ? `<ProductSupply><SupplyDetail><Price><PriceType>02</PriceType><PriceAmount>${ed.price.replace('€', '').trim()}</PriceAmount><CurrencyCode>EUR</CurrencyCode></Price></SupplyDetail></ProductSupply>` : ''}\n  </Product>`).join('\n')).join('\n')}\n</ONIXMessage>`;
+    const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `jabr-onix-${new Date().toISOString().slice(0, 10)}.xml`; a.click();
+    onToast(`ONIX 3.0 exporté — ${totalISBN} produits`);
   };
   return (
   <div>
@@ -1157,7 +1164,8 @@ const ISBNView = ({ projects }: { projects: Project[] }) => {
       <div><h2 className="text-2xl" style={{ color: c.mv }}>Registre ISBN</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Préfixe éditeur : 978-2-488647 · Stock : 100 · 1 ISBN par format</p></div>
       <div className="flex gap-2">
         <Btn variant="secondary" onClick={exportCSV}>{icons.download} Export CSV</Btn>
-        <Btn>{icons.plus} Attribuer ISBN</Btn>
+        <Btn variant="secondary" onClick={exportONIX}>{icons.download} Export ONIX</Btn>
+        <Btn onClick={() => onToast('Attribution ISBN : ouvrir la fiche projet → ajouter une édition')}>{icons.plus} Attribuer ISBN</Btn>
       </div>
     </div>
     <div className="flex gap-3.5 mb-6"><StatCard value={totalISBN} label="Attribués" accent={c.or} /><StatCard value={100 - totalISBN} label="Disponibles" accent={c.ok} /><StatCard value={projects.length} label="Titres" accent={c.mv} /></div>
@@ -1872,7 +1880,7 @@ const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[];
           <h2 className="text-2xl" style={{ color: c.mv }}>Manuscrits</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Import, analyse et injection ISBN dans vos fichiers .docx</p>
         </div>
-        <Btn>{icons.upload} Importer un manuscrit</Btn>
+        <Btn onClick={() => onToast('Importer un manuscrit : ouvrir la fiche projet → glisser un fichier .docx')}>{icons.upload} Importer un manuscrit</Btn>
       </div>
 
       <div className="flex gap-3.5 mb-6 flex-wrap">
@@ -1954,7 +1962,7 @@ const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[];
 // ═══════════════════════════════════
 // ANALYSE VIEW (Scanner IA + Qualité)
 // ═══════════════════════════════════
-const AnalyseView = ({ projects, onProject }: { projects: Project[]; onProject: (p: Project) => void }) => {
+const AnalyseView = ({ projects, onProject, onToast }: { projects: Project[]; onProject: (p: Project) => void; onToast: (msg: string) => void }) => {
   const analyzed = projects.filter(p => p.analysis);
   const avgIa = analyzed.length > 0 ? Math.round(analyzed.reduce((s, p) => s + (p.analysis?.iaScore || 0), 0) / analyzed.length) : 0;
   const totalFlags = analyzed.reduce((s, p) => s + (p.analysis?.flaggedPatterns.length || 0), 0);
@@ -1982,7 +1990,7 @@ const AnalyseView = ({ projects, onProject }: { projects: Project[]; onProject: 
           <h2 className="text-2xl" style={{ color: c.mv }}>Analyse</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Diagnostic 6 dimensions Moradel — Scanner intégré</p>
         </div>
-        <Btn>{icons.analyse} Lancer une analyse</Btn>
+        <Btn onClick={() => onToast('Lancer une analyse : ouvrir la fiche projet → cliquer Analyser')}>{icons.analyse} Lancer une analyse</Btn>
       </div>
 
       <div className="flex gap-3.5 mb-6 flex-wrap">
@@ -2140,7 +2148,7 @@ const AnalyseView = ({ projects, onProject }: { projects: Project[]; onProject: 
 // ═══════════════════════════════════
 // DOSSIER DE PRESSE VIEW
 // ═══════════════════════════════════
-const PresseView = ({ projects, onProject }: { projects: Project[]; onProject: (p: Project) => void }) => {
+const PresseView = ({ projects, onProject, onToast }: { projects: Project[]; onProject: (p: Project) => void; onToast: (msg: string) => void }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const sections = [
@@ -2163,7 +2171,12 @@ const PresseView = ({ projects, onProject }: { projects: Project[]; onProject: (
         </div>
         <div className="flex gap-2">
           <Btn variant="secondary">{icons.presse} Dossier global</Btn>
-          <Btn>{icons.download} Exporter PDF</Btn>
+          <Btn onClick={() => {
+            const text = `DOSSIER DE PRESSE\nJabrilia Éditions\n${'='.repeat(40)}\n\n${projects.map(p => `${p.title}\nGenre: ${p.genre} · ${p.pages} pages\n${p.backCover || ''}\n`).join('\n---\n\n')}`;
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8;' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `jabrilia-dossier-presse-${new Date().toISOString().slice(0, 10)}.txt`; a.click();
+            onToast('Dossier de presse exporté');
+          }}>{icons.download} Exporter PDF</Btn>
         </div>
       </div>
 
@@ -2305,7 +2318,15 @@ const PresseView = ({ projects, onProject }: { projects: Project[]; onProject: (
               </div>
               <div className="flex gap-2">
                 <Btn variant="secondary">{icons.share} Lien partageable</Btn>
-                <Btn>{icons.download} Télécharger PDF</Btn>
+                <Btn onClick={() => {
+                  const sp = selectedProject;
+                  const text = sp
+                    ? `DOSSIER DE PRESSE\n${sp.title} — Steve Moradel\n${'='.repeat(40)}\n\nGenre: ${sp.genre}\nPages: ${sp.pages}\nISBN: ${sp.editions.map(e => e.isbn).join(', ')}\n\n${sp.backCover || 'Résumé non renseigné'}\n\nÀ PROPOS DE L'AUTEUR\nSteve Moradel est écrivain, stratège et enseignant.\nChevalier de l'Ordre National du Mérite.\nPrix de l'Africanité 2024.\n\nCONTACT\nJabrilia Éditions — contact@jabrilia.com`
+                    : `DOSSIER DE PRESSE\nJabrilia Éditions\n${'='.repeat(40)}\n\n${projects.length} titres au catalogue\n\n${projects.map(p => `• ${p.title} (${p.genre}, ${p.pages}p)`).join('\n')}`;
+                  const blob = new Blob([text], { type: 'text/plain;charset=utf-8;' });
+                  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `presse-${sp ? sp.title.toLowerCase().replace(/\s+/g, '-') : 'jabrilia'}.txt`; a.click();
+                  onToast(`Dossier exporté${sp ? ` — ${sp.title}` : ''}`);
+                }}>{icons.download} Télécharger PDF</Btn>
               </div>
             </div>
           </Card>
@@ -2318,74 +2339,101 @@ const PresseView = ({ projects, onProject }: { projects: Project[]; onProject: (
 // ═══════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════
-const SettingsView = () => {
-  const [editeur, setEditeur] = useState('Jabrilia Éditions');
-  const [auteur, setAuteur] = useState('Steve Moradel');
-  const [prefixe, setPrefixe] = useState('978-2-488647');
-  const [format, setFormat] = useState('15,2 × 22,9 cm');
+const SettingsView = ({ onToast }: { onToast: (msg: string) => void }) => {
+  const loadSettings = () => {
+    try { const s = localStorage.getItem('jabr-settings'); return s ? JSON.parse(s) : null; } catch { return null; }
+  };
+  const defaults: Record<string, string> = { editeur: 'Jabrilia Éditions', auteur: 'Steve Moradel', prefixe: '978-2-488647', format: '13,5 × 21 cm', email: 'contact@jabrilia.com', site: 'jabrilia.com', policeCorps: 'Garamond 11,5pt', interligne: '15pt', margesInt: '2,30', margesExt: '1,90', margesHaut: '1,80', margesBas: '2,70', alinea: '4,5 mm', separateur: '∗ ∗ ∗', ttsVoice: 'adam-fr', ttsCost: '0.30', distributor: 'KDP + Pollen' };
+  const init = loadSettings() || defaults;
+  const [s, setS] = useState<Record<string, string>>(init);
   const [saved, setSaved] = useState(false);
-  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+
+  const update = (key: string, val: string) => setS(prev => ({ ...prev, [key]: val }));
+  const handleSave = () => {
+    try { localStorage.setItem('jabr-settings', JSON.stringify(s)); } catch { /* silent */ }
+    setSaved(true); onToast('Paramètres enregistrés'); setTimeout(() => setSaved(false), 2000);
+  };
+  const handleReset = () => { setS(defaults); onToast('Valeurs par défaut restaurées'); };
+  const handleExport = () => {
+    const blob = new Blob([JSON.stringify(s, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'jabr-settings.json'; a.click();
+    onToast('Configuration exportée');
+  };
+
+  const Field = ({ label, k, mono }: { label: string; k: string; mono?: boolean }) => (
+    <div className="mb-3.5">
+      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>{label}</label>
+      <input value={s[k] || ''} onChange={e => update(k, e.target.value)}
+        className="w-full px-3 py-2 rounded-lg border text-[13px] outline-none focus:border-[#C8952E] transition-colors"
+        style={{ borderColor: c.gc, fontFamily: mono ? "'JetBrains Mono', monospace" : undefined }} />
+    </div>
+  );
 
   return (
     <div>
       <div className="flex justify-between items-end mb-5">
-        <div><h2 className="text-2xl" style={{ color: c.mv }}>Paramètres</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Configuration de Jabrilia Éditions</p></div>
-        <Btn onClick={handleSave}>{saved ? icons.check : icons.edit} {saved ? 'Enregistré ✓' : 'Enregistrer'}</Btn>
+        <div><h2 className="text-2xl" style={{ color: c.mv }}>Paramètres</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Configuration Jabrilia · Persistée localement</p></div>
+        <div className="flex gap-2">
+          <Btn variant="secondary" onClick={handleExport}>{icons.download} Exporter</Btn>
+          <Btn variant="secondary" onClick={handleReset}>Réinitialiser</Btn>
+          <Btn onClick={handleSave}>{saved ? icons.check : icons.edit} {saved ? 'Enregistré ✓' : 'Enregistrer'}</Btn>
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-5">
-        <Card hover={false} className="p-6">
-          <h3 className="text-lg mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Maison d&apos;édition</h3>
-          <div className="mb-4">
-            <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: c.gr }}>Nom</label>
-            <input value={editeur} onChange={e => setEditeur(e.target.value)} className="w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
-          </div>
-          <div className="mb-4">
-            <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: c.gr }}>Auteur principal</label>
-            <input value={auteur} onChange={e => setAuteur(e.target.value)} className="w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
-          </div>
-          <div className="mb-4">
-            <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: c.gr }}>Préfixe ISBN</label>
-            <input value={prefixe} onChange={e => setPrefixe(e.target.value)} className="w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none focus:border-[#C8952E]" style={{ borderColor: c.gc, fontFamily: "'JetBrains Mono', monospace" }} />
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: c.gr }}>Format standard</label>
-            <input value={format} onChange={e => setFormat(e.target.value)} className="w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
-          </div>
+      <div className="grid grid-cols-3 gap-5">
+        <Card hover={false} className="p-5">
+          <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Maison d&apos;édition</h3>
+          <Field label="Nom" k="editeur" />
+          <Field label="Auteur principal" k="auteur" />
+          <Field label="Préfixe ISBN" k="prefixe" mono />
+          <Field label="Email" k="email" />
+          <Field label="Site web" k="site" />
+          <Field label="Distributeur principal" k="distributor" />
         </Card>
-        <Card hover={false} className="p-6">
-          <h3 className="text-lg mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Charte graphique</h3>
-          <div className="grid grid-cols-4 gap-3 mb-5">
-            {[{ n: 'Or', c: '#C8952E' }, { n: 'Mauve', c: '#2D1B4E' }, { n: 'Orange', c: '#E07A2F' }, { n: 'Blanc cassé', c: '#FAF7F2' }].map(s => (
-              <div key={s.n} className="text-center">
-                <div className="w-12 h-12 rounded-lg mx-auto mb-1.5" style={{ background: s.c, border: s.c === '#FAF7F2' ? `1px solid ${c.gc}` : 'none' }} />
-                <div style={{ fontSize: 10, color: c.gr }}>{s.n}</div>
-                <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: c.gr }}>{s.c}</div>
-              </div>
-            ))}
-          </div>
-          <h3 className="text-lg mb-4 mt-6" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Typographie</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2" style={{ borderBottom: `1px solid ${c.ft}` }}>
-              <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, color: c.mv }}>Playfair Display</span>
-              <span style={{ fontSize: 11, color: c.gr }}>Titres · H1 · H2</span>
-            </div>
-            <div className="flex justify-between items-center py-2" style={{ borderBottom: `1px solid ${c.ft}` }}>
-              <span style={{ fontSize: 16, color: c.mv }}>Inter</span>
-              <span style={{ fontSize: 11, color: c.gr }}>Corps · UI · Boutons</span>
-            </div>
-            <div className="flex justify-between items-center py-2" style={{ borderBottom: `1px solid ${c.ft}` }}>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, color: c.mv }}>JetBrains Mono</span>
-              <span style={{ fontSize: 11, color: c.gr }}>ISBN · Code · Données</span>
-            </div>
-          </div>
+        <Card hover={false} className="p-5">
+          <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Spécifications intérieur</h3>
+          <Field label="Format (L × H)" k="format" />
+          <Field label="Police corps" k="policeCorps" />
+          <Field label="Interligne" k="interligne" />
+          <Field label="Marge intérieure (cm)" k="margesInt" mono />
+          <Field label="Marge extérieure (cm)" k="margesExt" mono />
+          <Field label="Marge haut (cm)" k="margesHaut" mono />
+          <Field label="Marge bas (cm)" k="margesBas" mono />
+          <Field label="Alinéa" k="alinea" mono />
+          <Field label="Séparateur sections" k="separateur" />
         </Card>
+        <div className="flex flex-col gap-5">
+          <Card hover={false} className="p-5">
+            <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Charte graphique</h3>
+            <div className="grid grid-cols-4 gap-2.5 mb-4">
+              {[{ n: 'Or', c: '#C8952E' }, { n: 'Mauve', c: '#2D1B4E' }, { n: 'Orange', c: '#E07A2F' }, { n: 'Blanc cassé', c: '#FAF7F2' }].map(col => (
+                <div key={col.n} className="text-center">
+                  <div className="w-10 h-10 rounded-lg mx-auto mb-1" style={{ background: col.c, border: col.c === '#FAF7F2' ? `1px solid ${c.gc}` : 'none' }} />
+                  <div style={{ fontSize: 9, color: c.gr }}>{col.n}</div>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-1.5">
+              {[{ font: "'Playfair Display', serif", name: 'Playfair', usage: 'Titres' }, { font: "'Inter', sans-serif", name: 'Inter', usage: 'Corps' }, { font: "'JetBrains Mono', monospace", name: 'JetBrains', usage: 'Code' }].map(f => (
+                <div key={f.name} className="flex justify-between items-center py-1" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                  <span style={{ fontFamily: f.font, fontSize: 13, color: c.mv }}>{f.name}</span>
+                  <span style={{ fontSize: 9, color: c.gr }}>{f.usage}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card hover={false} className="p-5">
+            <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Production audio</h3>
+            <Field label="Voix TTS par défaut" k="ttsVoice" />
+            <Field label="Coût estimé €/min" k="ttsCost" mono />
+          </Card>
+        </div>
       </div>
     </div>
   );
 };
 
 // --- AUDIOBOOKS VIEW ---
-const AudiobooksView = ({ projects }: { projects: Project[] }) => {
+const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
   const withAudio = projects.filter(p => p.editions.some(e => e.format === 'audiobook'));
   const withoutAudio = projects.filter(p => p.genre !== 'BD' && !p.editions.some(e => e.format === 'audiobook'));
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -2421,7 +2469,7 @@ const AudiobooksView = ({ projects }: { projects: Project[] }) => {
     <div>
       <div className="flex justify-between items-end mb-5">
         <div><h2 className="text-2xl" style={{ color: c.mv }}>Audiobooks</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Production vocale IA — ElevenLabs TTS · Pipeline automatisé</p></div>
-        <Btn>{icons.plus} Lancer une production</Btn>
+        <Btn onClick={() => onToast('Production audiobook : sélectionner un titre avec manuscrit validé')}>{icons.plus} Lancer une production</Btn>
       </div>
       <div className="flex gap-3.5 mb-6 flex-wrap">
         <StatCard value={withAudio.length} label="Avec audiobook" accent={c.ok} />
@@ -2888,17 +2936,17 @@ export default function JabrApp() {
     switch (page) {
       case 'projets': return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} />;
       case 'couvertures': return <CouverturesView onProject={openProject} projects={filtered} />;
-      case 'isbn': return <ISBNView projects={filtered} />;
+      case 'isbn': return <ISBNView projects={filtered} onToast={showToast} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
       case 'marketing': return <MarketingView projects={projects} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
       case 'distribution': return <DistributionView projects={projects} />;
       case 'calibrage': return <CalibrageView projects={projects} />;
       case 'manuscrits': return <ManuscritsView projects={projects} onProject={openProject} onToast={showToast} />;
-      case 'analyse': return <AnalyseView projects={projects} onProject={openProject} />;
-      case 'audiobooks': return <AudiobooksView projects={projects} />;
-      case 'presse': return <PresseView projects={projects} onProject={openProject} />;
-      case 'settings': return <SettingsView />;
+      case 'analyse': return <AnalyseView projects={projects} onProject={openProject} onToast={showToast} />;
+      case 'audiobooks': return <AudiobooksView projects={projects} onToast={showToast} />;
+      case 'presse': return <PresseView projects={projects} onProject={openProject} onToast={showToast} />;
+      case 'settings': return <SettingsView onToast={showToast} />;
       default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} />;
     }
   };
