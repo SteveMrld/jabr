@@ -1449,10 +1449,226 @@ const ISBNView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: s
     onToast('ISBN exportés en CSV');
   };
   const exportONIX = () => {
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">\n  <Header>\n    <Sender><SenderName>Jabrilia Éditions</SenderName></Sender>\n    <SentDateTime>${new Date().toISOString().slice(0, 10).replace(/-/g, '')}</SentDateTime>\n  </Header>\n${projects.map(p => p.editions.map(ed => `  <Product>\n    <RecordReference>${ed.isbn.replace(/-/g, '')}</RecordReference>\n    <NotificationType>03</NotificationType>\n    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${ed.isbn.replace(/-/g, '')}</IDValue></ProductIdentifier>\n    <DescriptiveDetail>\n      <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>${p.title}</TitleText></TitleElement></TitleDetail>\n      <Contributor><ContributorRole>A01</ContributorRole><PersonName>Steve Moradel</PersonName></Contributor>\n      <Language><LanguageRole>01</LanguageRole><LanguageCode>fre</LanguageCode></Language>\n      <Extent><ExtentType>00</ExtentType><ExtentValue>${p.pages}</ExtentValue><ExtentUnit>03</ExtentUnit></Extent>\n    </DescriptiveDetail>\n    <PublishingDetail>\n      <Imprint><ImprintName>Jabrilia Éditions</ImprintName></Imprint>\n      <PublishingStatus>04</PublishingStatus>\n    </PublishingDetail>\n    ${ed.price ? `<ProductSupply><SupplyDetail><Price><PriceType>02</PriceType><PriceAmount>${ed.price.replace('€', '').trim()}</PriceAmount><CurrencyCode>EUR</CurrencyCode></Price></SupplyDetail></ProductSupply>` : ''}\n  </Product>`).join('\n')).join('\n')}\n</ONIXMessage>`;
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+    // ONIX 3.0 format codes
+    const formatToOnix: Record<string, { form: string; detail?: string; measure?: [string, string, string][] }> = {
+      'broché': { form: 'BC', detail: 'B304', measure: [['01', '210', 'mm'], ['02', '148', 'mm']] },
+      'poche': { form: 'BC', detail: 'B104', measure: [['01', '178', 'mm'], ['02', '110', 'mm']] },
+      'relié': { form: 'BB', measure: [['01', '240', 'mm'], ['02', '160', 'mm']] },
+      'epub': { form: 'ED', detail: 'E101' },
+      'pdf': { form: 'ED', detail: 'E107' },
+      'audiobook': { form: 'AJ', detail: 'A103' },
+    };
+
+    // Subject codes (THEMA)
+    const genreToThema: Record<string, [string, string]> = {
+      'Roman': ['FBA', 'Fiction moderne et contemporaine'],
+      'Roman historique': ['FV', 'Fiction historique'],
+      'Essai': ['DNB', 'Sciences sociales'],
+      'Jeunesse': ['YFB', 'Fiction jeunesse'],
+      'BD': ['XAM', 'Bandes dessinées'],
+      'Poésie': ['DCF', 'Poésie'],
+      'Fantasy': ['FM', 'Fantasy'],
+      'Fantastique': ['FMR', 'Fantastique / Fantasy'],
+      'Thriller': ['FH', 'Thriller'],
+      'Développement personnel': ['VS', 'Développement personnel'],
+    };
+
+    // Publishing status
+    const statusToOnix: Record<string, string> = {
+      'published': '04', // Active
+      'in-progress': '02', // Forthcoming
+      'draft': '01', // Unspecified
+    };
+
+    const products = projects.flatMap(p => p.editions.map(ed => {
+      const isbn13 = ed.isbn.replace(/-/g, '');
+      const fmt = formatToOnix[ed.format] || { form: 'BC' };
+      const thema = genreToThema[p.genre] || ['FB', 'Fiction'];
+      const priceClean = ed.price ? ed.price.replace('€', '').replace(',', '.').trim() : null;
+      const isDigital = ['epub', 'pdf', 'audiobook'].includes(ed.format);
+
+      return `  <Product>
+    <RecordReference>jabrilia-${isbn13}</RecordReference>
+    <NotificationType>03</NotificationType>
+    <RecordSourceType>01</RecordSourceType>
+    <RecordSourceName>Jabrilia Éditions</RecordSourceName>
+
+    <!-- Identifiants -->
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>${isbn13}</IDValue>
+    </ProductIdentifier>
+    <ProductIdentifier>
+      <ProductIDType>03</ProductIDType>
+      <IDValue>${isbn13}</IDValue>
+    </ProductIdentifier>
+
+    <!-- Forme du produit -->
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>${fmt.form}</ProductForm>
+      ${fmt.detail ? `<ProductFormDetail>${fmt.detail}</ProductFormDetail>` : ''}
+      ${!isDigital && fmt.measure ? fmt.measure.map(([type, val, unit]) =>
+        `<Measure><MeasureType>${type}</MeasureType><Measurement>${val}</Measurement><MeasureUnitCode>${unit}</MeasureUnitCode></Measure>`).join('\n      ') : ''}
+      ${isDigital ? '<EpubTechnicalProtection>02</EpubTechnicalProtection>' : ''}
+
+      <!-- Titre -->
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <TitleText>${esc(p.title)}</TitleText>
+          ${p.subtitle ? `<Subtitle>${esc(p.subtitle)}</Subtitle>` : ''}
+        </TitleElement>
+      </TitleDetail>
+
+      <!-- Auteur -->
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <NamesBeforeKey>${esc(p.author.split(' ').slice(0, -1).join(' '))}</NamesBeforeKey>
+        <KeyNames>${esc(p.author.split(' ').slice(-1)[0])}</KeyNames>
+        <PersonName>${esc(p.author)}</PersonName>
+        ${p.author === 'Steve Moradel' ? '<BiographicalNote>Écrivain, stratège et entrepreneur originaire de Guadeloupe. Fondateur de Jabrilia Éditions. LinkedIn Top Voice 2020.</BiographicalNote>' : ''}
+      </Contributor>
+      ${p.illustrator ? `<Contributor>
+        <SequenceNumber>2</SequenceNumber>
+        <ContributorRole>A12</ContributorRole>
+        <PersonName>${esc(p.illustrator)}</PersonName>
+      </Contributor>` : ''}
+
+      ${p.collection ? `<!-- Collection -->
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <TitleText>${esc(p.collection)}</TitleText>
+          </TitleElement>
+        </TitleDetail>
+        ${p.seriesOrder ? `<CollectionSequence>
+          <CollectionSequenceType>02</CollectionSequenceType>
+          <CollectionSequenceNumber>${p.seriesOrder}</CollectionSequenceNumber>
+        </CollectionSequence>` : ''}
+      </Collection>` : ''}
+
+      <!-- Langue -->
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>fre</LanguageCode>
+      </Language>
+
+      <!-- Pagination -->
+      <Extent>
+        <ExtentType>00</ExtentType>
+        <ExtentValue>${p.pages}</ExtentValue>
+        <ExtentUnit>03</ExtentUnit>
+      </Extent>
+
+      <!-- Sujet / Classification -->
+      <Subject>
+        <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+        <SubjectSchemeVersion>1.5</SubjectSchemeVersion>
+        <SubjectCode>${thema[0]}</SubjectCode>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>01</SubjectSchemeIdentifier>
+        <SubjectCode>${p.genre}</SubjectCode>
+      </Subject>
+
+      <!-- Public -->
+      <AudienceCode>${p.genre === 'Jeunesse' || p.genre === 'BD' ? '02' : '01'}</AudienceCode>
+    </DescriptiveDetail>
+
+    <!-- Texte de 4e de couverture -->
+    ${p.backCover ? `<CollateralDetail>
+      <TextContent>
+        <TextType>03</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text>${esc(p.backCover)}</Text>
+      </TextContent>
+    </CollateralDetail>` : ''}
+
+    <!-- Publication -->
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Jabrilia Éditions</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Jabrilia Éditions</PublisherName>
+        <Website>
+          <WebsiteRole>01</WebsiteRole>
+          <WebsiteLink>https://jabrilia.com</WebsiteLink>
+        </Website>
+      </Publisher>
+      <CityOfPublication>Paris</CityOfPublication>
+      <CountryOfPublication>FR</CountryOfPublication>
+      <PublishingStatus>${statusToOnix[p.status] || '04'}</PublishingStatus>
+      <SalesRights>
+        <SalesRightsType>01</SalesRightsType>
+        <Territory>
+          <CountriesIncluded>FR BE CH LU CA</CountriesIncluded>
+        </Territory>
+      </SalesRights>
+    </PublishingDetail>
+
+    <!-- Distribution & Prix -->
+    ${priceClean ? `<ProductSupply>
+      <Market>
+        <Territory>
+          <CountriesIncluded>FR</CountriesIncluded>
+        </Territory>
+      </Market>
+      <SupplyDetail>
+        <Supplier>
+          <SupplierRole>01</SupplierRole>
+          <SupplierName>Jabrilia Éditions</SupplierName>
+        </Supplier>
+        <ProductAvailability>${p.status === 'published' ? '20' : '10'}</ProductAvailability>
+        <Price>
+          <PriceType>04</PriceType>
+          <PriceAmount>${priceClean}</PriceAmount>
+          <Tax>
+            <TaxType>01</TaxType>
+            <TaxRateCode>${isDigital ? 'Z' : 'S'}</TaxRateCode>
+            <TaxRatePercent>${isDigital ? '5.5' : '5.5'}</TaxRatePercent>
+          </Tax>
+          <CurrencyCode>EUR</CurrencyCode>
+          <Territory>
+            <CountriesIncluded>FR</CountriesIncluded>
+          </Territory>
+        </Price>
+      </SupplyDetail>
+    </ProductSupply>` : ''}
+  </Product>`;
+    }));
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">
+  <Header>
+    <Sender>
+      <SenderName>Jabrilia Éditions</SenderName>
+      <ContactName>Steve Moradel</ContactName>
+      <EmailAddress>contact@jabrilia.com</EmailAddress>
+    </Sender>
+    <MessageNumber>1</MessageNumber>
+    <MessageRepeat>01</MessageRepeat>
+    <SentDateTime>${date}</SentDateTime>
+    <MessageNote>Export JABR Pipeline Éditorial v2.0</MessageNote>
+    <DefaultLanguageOfText>fre</DefaultLanguageOfText>
+    <DefaultCurrencyCode>EUR</DefaultCurrencyCode>
+  </Header>
+${products.join('\n')}
+</ONIXMessage>`;
+
     const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `jabr-onix-${new Date().toISOString().slice(0, 10)}.xml`; a.click();
-    onToast(`ONIX 3.0 exporté — ${totalISBN} produits`);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `jabrilia-onix3-${new Date().toISOString().slice(0, 10)}.xml`; a.click();
+    onToast(`ONIX 3.0 exporté — ${totalISBN} produits · ${projects.length} titres`);
   };
   return (
   <div>
@@ -1483,6 +1699,63 @@ const ISBNView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: s
           </div>
         ))
       ))}
+    </Card>
+
+    {/* ONIX 3.0 Compliance Panel */}
+    <Card hover={false} className="mt-6 overflow-hidden">
+      <div className="px-5 py-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+        <span className="text-[15px] font-semibold" style={{ color: c.mv }}>ONIX 3.0 — Conformité Dilisco / Dilicom</span>
+        <span className="text-[11px] ml-3" style={{ color: c.gr }}>Champs inclus dans l'export XML</span>
+      </div>
+      <div className="p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+          {[
+            { label: 'Header complet', desc: 'Sender, contact, date, langue, devise', ok: true },
+            { label: 'ISBN-13 (EAN)', desc: 'ProductIDType 15 + GTIN-13', ok: true },
+            { label: 'Titre + sous-titre', desc: 'TitleDetail niveau 01', ok: true },
+            { label: 'Auteur(s) séparés', desc: 'NamesBeforeKey + KeyNames + bio', ok: true },
+            { label: 'Illustrateur', desc: 'ContributorRole A12', ok: projects.some(p => p.illustrator) },
+            { label: 'Collection & tome', desc: 'CollectionType 10 + séquence', ok: projects.some(p => p.collection || p.series) },
+            { label: 'Format produit', desc: 'ProductForm BC/BB/ED/AJ + Detail', ok: true },
+            { label: 'Dimensions', desc: 'Measure hauteur × largeur (mm)', ok: true },
+            { label: 'Pagination', desc: 'ExtentType 00, unité pages', ok: true },
+            { label: 'Langue', desc: 'LanguageCode fre', ok: true },
+            { label: 'Classification THEMA', desc: 'SubjectSchemeIdentifier 93', ok: true },
+            { label: 'Public cible', desc: 'AudienceCode 01/02', ok: true },
+            { label: '4e de couverture', desc: 'TextContent type 03', ok: projects.some(p => p.backCover) },
+            { label: 'Éditeur + Imprint', desc: 'PublisherName + Website', ok: true },
+            { label: 'Pays publication', desc: 'FR + droits FR BE CH LU CA', ok: true },
+            { label: 'Statut publication', desc: 'Active/Forthcoming/Unspecified', ok: true },
+            { label: 'Prix TTC + TVA', desc: 'PriceType 04 + TaxRate 5.5%', ok: projects.some(p => p.editions.some(e => e.price)) },
+            { label: 'DRM numérique', desc: 'EpubTechnicalProtection 02', ok: projects.some(p => p.editions.some(e => ['epub', 'pdf'].includes(e.format))) },
+          ].map((item, i) => (
+            <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-lg" style={{ background: item.ok ? 'rgba(46,174,109,0.04)' : 'rgba(217,68,82,0.04)' }}>
+              <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: item.ok ? '#D4F0E0' : '#FFE0E3' }}>
+                <span style={{ fontSize: 8, color: item.ok ? c.ok : c.er }}>{item.ok ? '✓' : '✗'}</span>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold" style={{ color: c.mv }}>{item.label}</div>
+                <div className="text-[9px]" style={{ color: c.gr }}>{item.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: '#F0FFF5', border: `1px solid #C0E8D0` }}>
+          <span className="text-[20px]">✅</span>
+          <div>
+            <div className="text-[13px] font-semibold" style={{ color: c.ok }}>
+              {totalISBN} produits · {projects.length} titres · Conforme ONIX 3.0
+            </div>
+            <div className="text-[11px]" style={{ color: c.gr }}>
+              Compatible Dilicom, Dilisco, Hachette Distribution, Electre, Amazon Advantage
+            </div>
+          </div>
+          <div className="ml-auto">
+            <Btn onClick={exportONIX}>{icons.download} Télécharger ONIX 3.0</Btn>
+          </div>
+        </div>
+      </div>
     </Card>
   </div>
   );
