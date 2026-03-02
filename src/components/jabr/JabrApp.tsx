@@ -250,7 +250,7 @@ const Sidebar = ({ active, onNav, projects, persisted, open, onToggle }: { activ
 // ═══════════════════════════════════
 
 // --- DASHBOARD ---
-const DashboardView = ({ onProject, onNew, projects, allProjects, onNav }: { onProject: (p: Project) => void; onNew: () => void; projects: Project[]; allProjects: Project[]; onNav?: (id: string) => void }) => {
+const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdateProject }: { onProject: (p: Project) => void; onNew: () => void; projects: Project[]; allProjects: Project[]; onNav?: (id: string) => void; onUpdateProject?: (p: Project) => void }) => {
   const pub = allProjects.filter(p => p.status === 'published').length;
   const prog = allProjects.filter(p => p.status === 'in-progress').length;
   const corr = allProjects.reduce((s, p) => s + p.corrections.length, 0);
@@ -263,6 +263,8 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav }: { onP
 
   const [sort, setSort] = useState<'title' | 'score' | 'status' | 'editions'>('title');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [dragId, setDragId] = useState<number | null>(null);
 
   const toggleSort = (key: typeof sort) => {
     if (sort === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -402,16 +404,28 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav }: { onP
       {/* Catalogue */}
       <Card hover={false}>
         <div className="flex justify-between items-center px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
-          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Catalogue</span>
+          <div className="flex items-center gap-3">
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Catalogue</span>
+            {/* View toggle */}
+            <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${c.gc}` }}>
+              <button onClick={() => setViewMode('list')} className="px-2.5 py-1 cursor-pointer border-none text-[10px] font-semibold"
+                style={{ background: viewMode === 'list' ? c.or : 'white', color: viewMode === 'list' ? 'white' : c.gr }}>
+                ☰ Liste
+              </button>
+              <button onClick={() => setViewMode('kanban')} className="px-2.5 py-1 cursor-pointer border-none text-[10px] font-semibold"
+                style={{ background: viewMode === 'kanban' ? c.or : 'white', color: viewMode === 'kanban' ? 'white' : c.gr, borderLeft: `1px solid ${c.gc}` }}>
+                ▣ Kanban
+              </button>
+            </div>
+          </div>
           <div className="flex items-center gap-4">
-            <SortBtn label="Titre" k="title" />
-            <SortBtn label="Score" k="score" />
-            <SortBtn label="Statut" k="status" />
-            <SortBtn label="Éditions" k="editions" />
-            <span className="ml-2" style={{ fontSize: 11, color: c.gr }}>{projects.length} titre{projects.length > 1 ? 's' : ''}</span>
+            {viewMode === 'list' && <><SortBtn label="Titre" k="title" /><SortBtn label="Score" k="score" /><SortBtn label="Statut" k="status" /><SortBtn label="Éditions" k="editions" /></>}
+            <span style={{ fontSize: 11, color: c.gr }}>{projects.length} titre{projects.length > 1 ? 's' : ''}</span>
           </div>
         </div>
-        {sorted.map(p => (
+
+        {/* LIST VIEW */}
+        {viewMode === 'list' && sorted.map(p => (
           <div key={p.id} onClick={() => onProject(p)}
             className="flex items-center gap-3.5 px-5 py-3 cursor-pointer transition-colors hover:bg-[#FAF7F2]"
             style={{ borderBottom: `1px solid ${c.ft}` }}>
@@ -438,6 +452,82 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav }: { onP
             <div style={{ color: c.gr }}>{icons.chevR}</div>
           </div>
         ))}
+
+        {/* KANBAN VIEW */}
+        {viewMode === 'kanban' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 p-4" style={{ minHeight: 300 }}>
+            {([
+              { status: 'draft' as const, label: 'Brouillon', color: c.gr, bg: '#F5F3EF' },
+              { status: 'in-progress' as const, label: 'En cours', color: c.og, bg: '#FFF8F0' },
+              { status: 'published' as const, label: 'Publié', color: c.ok, bg: '#F0FFF5' },
+            ]).map(col => {
+              const colProjects = projects.filter(p => p.status === col.status);
+              return (
+                <div key={col.status} className="px-2"
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.style.outline = `2px dashed ${col.color}`; e.currentTarget.style.outlineOffset = '-2px'; }}
+                  onDragLeave={e => { e.currentTarget.style.outline = 'none'; }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    e.currentTarget.style.outline = 'none';
+                    if (dragId && onUpdateProject) {
+                      const proj = allProjects.find(p => p.id === dragId);
+                      if (proj && proj.status !== col.status) {
+                        onUpdateProject({ ...proj, status: col.status });
+                      }
+                    }
+                    setDragId(null);
+                  }}>
+                  <div className="flex items-center justify-between mb-3 px-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: col.color }} />
+                      <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: col.color }}>{col.label}</span>
+                    </div>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: col.bg, color: col.color }}>
+                      {colProjects.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2 min-h-[200px] p-2 rounded-xl transition-colors" style={{ background: col.bg }}>
+                    {colProjects.map(p => (
+                      <div key={p.id} draggable
+                        onDragStart={() => setDragId(p.id)}
+                        onDragEnd={() => setDragId(null)}
+                        onClick={() => onProject(p)}
+                        className="bg-white p-3 rounded-xl cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow"
+                        style={{ border: `1px solid ${c.gc}`, opacity: dragId === p.id ? 0.5 : 1 }}>
+                        <div className="flex items-center gap-2.5">
+                          <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[12px] font-semibold truncate" style={{ color: c.mv }}>{p.title}</div>
+                            <div className="text-[10px]" style={{ color: c.gr }}>{p.genre} · {p.pages}p</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: `1px solid ${c.ft}` }}>
+                          <div className="flex gap-1">
+                            {p.editions.slice(0, 3).map((e, i) => (
+                              <span key={i} className="text-[8px] px-1.5 py-0.5 rounded" style={{ background: c.ft, color: c.vm }}>{FORMAT_LABELS[e.format]?.icon}</span>
+                            ))}
+                            {p.editions.length > 3 && <span className="text-[8px] px-1 py-0.5" style={{ color: c.gr }}>+{p.editions.length - 3}</span>}
+                          </div>
+                          <ScoreBar score={p.score} max={p.maxScore} />
+                        </div>
+                        {p.corrections.length > 0 && (
+                          <div className="mt-1.5 text-[9px] font-semibold" style={{ color: c.er }}>
+                            {p.corrections.length} correction{p.corrections.length > 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {colProjects.length === 0 && (
+                      <div className="text-center py-8 text-[11px]" style={{ color: c.gr }}>
+                        Glissez un titre ici
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
     </div>
   );
@@ -3081,7 +3171,7 @@ Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (r
   );
 };
 
-const SettingsView = ({ onToast, dark, toggleDark }: { onToast: (msg: string) => void; dark: boolean; toggleDark: () => void }) => {
+const SettingsView = ({ onToast, dark, toggleDark, onImport }: { onToast: (msg: string) => void; dark: boolean; toggleDark: () => void; onImport?: (projects: Project[]) => void }) => {
   const loadSettings = () => {
     try { const s = localStorage.getItem('jabr-settings'); return s ? JSON.parse(s) : null; } catch { return null; }
   };
@@ -3184,6 +3274,104 @@ const SettingsView = ({ onToast, dark, toggleDark }: { onToast: (msg: string) =>
             <div className="flex items-center gap-2 mt-3 p-2.5 rounded-lg" style={{ background: c.ft }}>
               <span className="text-lg">{dark ? '🌙' : '☀️'}</span>
               <span className="text-[11px] font-semibold" style={{ color: c.gr }}>{dark ? 'Thème sombre activé' : 'Thème clair (défaut)'}</span>
+            </div>
+          </Card>
+
+          {/* Import CSV */}
+          <Card hover={false} className="p-6">
+            <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Import catalogue</h3>
+            <p className="text-[12px] mb-4" style={{ color: c.gr }}>Importez un catalogue existant depuis un fichier CSV</p>
+
+            <div className="p-4 rounded-xl mb-3" style={{ background: c.ft }}>
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.or }}>Format CSV attendu</div>
+              <div className="text-[11px] font-mono leading-relaxed" style={{ color: c.vm }}>
+                title,author,genre,pages,status,isbn_broche,prix_broche,isbn_epub
+              </div>
+              <div className="text-[10px] mt-2" style={{ color: c.gr }}>
+                Colonnes : title (requis), author, genre, pages, status (draft/in-progress/published), isbn_broche, prix_broche, isbn_epub, isbn_poche, isbn_relie, isbn_audiobook, isbn_pdf, collection, subtitle
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <label className="flex-1">
+                <input type="file" accept=".csv,.tsv,.txt" className="hidden" onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file || !onImport) return;
+                  const reader = new FileReader();
+                  reader.onload = ev => {
+                    try {
+                      const text = ev.target?.result as string;
+                      const lines = text.trim().split('\n');
+                      if (lines.length < 2) { onToast('Fichier vide ou invalide'); return; }
+                      const headers = lines[0].split(/[,;\t]/).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+                      const titleIdx = headers.indexOf('title');
+                      if (titleIdx === -1) { onToast('Colonne "title" requise'); return; }
+
+                      const getCol = (row: string[], name: string) => {
+                        const idx = headers.indexOf(name);
+                        return idx >= 0 ? (row[idx] || '').trim().replace(/"/g, '') : '';
+                      };
+
+                      const imported: Project[] = [];
+                      for (let i = 1; i < lines.length; i++) {
+                        const cols = lines[i].split(/[,;\t]/).map(c => c.trim());
+                        const title = getCol(cols, 'title');
+                        if (!title) continue;
+
+                        const editions: Edition[] = [];
+                        const addEd = (fmt: EditionFormat, isbnCol: string, priceCol?: string) => {
+                          const isbn = getCol(cols, isbnCol);
+                          if (isbn) editions.push({ format: fmt, isbn, price: priceCol ? getCol(cols, priceCol) || undefined : undefined, status: 'planned' });
+                        };
+                        addEd('broché', 'isbn_broche', 'prix_broche');
+                        addEd('epub', 'isbn_epub');
+                        addEd('poche', 'isbn_poche');
+                        addEd('relié', 'isbn_relie');
+                        addEd('audiobook', 'isbn_audiobook');
+                        addEd('pdf', 'isbn_pdf');
+
+                        const statusRaw = getCol(cols, 'status');
+                        const status = (['draft', 'in-progress', 'published'] as const).includes(statusRaw as Project['status']) ? statusRaw as Project['status'] : 'draft';
+
+                        imported.push({
+                          id: Date.now() + i,
+                          title,
+                          subtitle: getCol(cols, 'subtitle') || undefined,
+                          author: getCol(cols, 'author') || 'Inconnu',
+                          genre: getCol(cols, 'genre') || 'Non classé',
+                          collection: getCol(cols, 'collection') || undefined,
+                          pages: parseInt(getCol(cols, 'pages')) || 200,
+                          status,
+                          editions,
+                          score: 0, maxScore: 7, cover: '📖',
+                          diag: { ean: false, prix: false, isbn_txt: false, texte4e: false, typo: false, dos: false, logo: false },
+                          corrections: [],
+                        });
+                      }
+                      if (imported.length > 0) {
+                        onImport(imported);
+                        onToast(`${imported.length} titre${imported.length > 1 ? 's' : ''} importé${imported.length > 1 ? 's' : ''}`);
+                      } else {
+                        onToast('Aucun titre valide trouvé');
+                      }
+                    } catch (err) {
+                      onToast('Erreur de parsing CSV');
+                    }
+                  };
+                  reader.readAsText(file);
+                  e.target.value = '';
+                }} />
+                <div className="px-4 py-3 rounded-lg text-center cursor-pointer text-[13px] font-semibold transition-colors hover:bg-[#FAF7F2]"
+                  style={{ border: `2px dashed ${c.gc}`, color: c.vm }}>
+                  📂 Sélectionner un fichier CSV
+                </div>
+              </label>
+              <Btn variant="secondary" onClick={() => {
+                const csv = `title,author,genre,pages,status,isbn_broche,prix_broche,isbn_epub,collection,subtitle\n"Exemple","Auteur","Roman",300,"draft","978-2-488647-XX-X","14,90€","978-2-488647-XX-X","Ma Collection","Mon sous-titre"`;
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'jabr-template.csv'; a.click();
+                onToast('Template CSV téléchargé');
+              }}>{icons.download} Template</Btn>
             </div>
           </Card>
         </div>
@@ -3795,7 +3983,7 @@ export default function JabrApp() {
       </div>
     );
     switch (page) {
-      case 'projets': return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} />;
+      case 'projets': return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} onUpdateProject={handleUpdate} />;
       case 'couvertures': return <CouverturesView onProject={openProject} projects={filtered} />;
       case 'isbn': return <ISBNView projects={filtered} onToast={showToast} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
@@ -3808,8 +3996,8 @@ export default function JabrApp() {
       case 'audiobooks': return <AudiobooksView projects={projects} onToast={showToast} />;
       case 'presse': return <PresseView projects={projects} onProject={openProject} onToast={showToast} />;
       case 'calendrier': return <CalendrierView projects={projects} onToast={showToast} calStore={calStore} />;
-      case 'settings': return <SettingsView onToast={showToast} dark={dark} toggleDark={toggleDark} />;
-      default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} />;
+      case 'settings': return <SettingsView onToast={showToast} dark={dark} toggleDark={toggleDark} onImport={(imported) => imported.forEach(p => addProject(p))} />;
+      default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} onUpdateProject={handleUpdate} />;
     }
   };
 
