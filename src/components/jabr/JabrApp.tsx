@@ -45,6 +45,7 @@ const icons: Record<string, React.ReactNode> = {
   collections: sv(<><rect x="4" y="6" width="5" height="12" rx="1" /><rect x="10" y="6" width="5" height="12" rx="1" /><rect x="16" y="6" width="4" height="12" rx="1" /></>),
   droits: sv(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></>),
   benchmark: sv(<><path d="M18 20V10M12 20V4M6 20v-6" /></>),
+  lecteurs: sv(<><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></>),
   settings: sv(<><circle cx="12" cy="12" r="3" /><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></>),
   bell: sv(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></>),
   plus: sv(<><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>, 18),
@@ -205,6 +206,7 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['collections', 'Collections', 'collections'],
   ['droits', 'Droits', 'droits'],
   ['benchmark', 'Benchmark', 'benchmark'],
+  ['lecteurs', 'Lecteurs', 'lecteurs'],
   ['settings', 'Paramètres', 'settings'],
 ];
 
@@ -424,6 +426,17 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
               if (w) { w.document.write(html); w.document.close(); }
             } catch {}
           }}>{icons.download} Catalogue PDF</Btn>
+          <Btn variant="secondary" onClick={async () => {
+            try {
+              const res = await fetch('/api/pitch-deck', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projects: allProjects }),
+              });
+              const html = await res.text();
+              const w = window.open('', '_blank');
+              if (w) { w.document.write(html); w.document.close(); }
+            } catch {}
+          }}>🎬 Pitch Deck</Btn>
           <Btn onClick={onNew}>{icons.plus} Nouveau projet</Btn>
         </div>
       </div>
@@ -2299,6 +2312,110 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
       </Card>
 
       {/* ═══════════════════════════════════ */}
+      {/* COMPARATIF ÉDITIONS */}
+      {/* ═══════════════════════════════════ */}
+      <Card hover={false} className="mt-6 overflow-hidden">
+        <div className="px-5 py-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+          <span className="text-[15px] font-semibold" style={{ color: c.mv }}>📊 Comparatif éditions — Marges par format</span>
+          <span className="text-[11px] ml-3" style={{ color: c.gr }}>Rentabilité, coûts, recommandations</span>
+        </div>
+        <div className="p-5">
+          {(() => {
+            // Format economics data
+            const formats: { format: string; icon: string; printCost: number; retailPrice: number; platformFee: number; royaltyRate: number; margin: number; color: string }[] = [
+              { format: 'Broché', icon: '📖', printCost: 5.20, retailPrice: 18.90, platformFee: 0.40, royaltyRate: 0.60, margin: 0, color: c.or },
+              { format: 'Poche', icon: '📕', printCost: 3.10, retailPrice: 8.90, platformFee: 0.40, royaltyRate: 0.60, margin: 0, color: c.og },
+              { format: 'Relié', icon: '📗', printCost: 9.50, retailPrice: 29.90, platformFee: 0.40, royaltyRate: 0.60, margin: 0, color: c.mv },
+              { format: 'ePub', icon: '📱', printCost: 0, retailPrice: 9.99, platformFee: 0.30, royaltyRate: 0.70, margin: 0, color: c.ok },
+              { format: 'PDF', icon: '💻', printCost: 0, retailPrice: 7.99, platformFee: 0.30, royaltyRate: 0.70, margin: 0, color: '#3B6DC6' },
+              { format: 'Audiobook', icon: '🎧', printCost: 1200, retailPrice: 14.99, platformFee: 0.25, royaltyRate: 0.40, margin: 0, color: c.vm },
+            ];
+            formats.forEach(f => {
+              if (f.format === 'Audiobook') {
+                // Per-unit margin assuming 200 sales
+                f.margin = (f.retailPrice * f.royaltyRate) - (f.printCost / 200);
+              } else {
+                f.margin = f.printCost > 0
+                  ? (f.retailPrice * f.royaltyRate) - f.printCost - (f.retailPrice * f.platformFee)
+                  : (f.retailPrice * f.royaltyRate) - (f.retailPrice * f.platformFee);
+              }
+            });
+            const maxMargin = Math.max(...formats.map(f => f.margin));
+
+            // Count editions by format across all projects
+            const editionCounts: Record<string, number> = {};
+            projects.forEach(p => p.editions.forEach(e => {
+              const key = e.format.charAt(0).toUpperCase() + e.format.slice(1);
+              editionCounts[key] = (editionCounts[key] || 0) + 1;
+            }));
+
+            return (
+              <>
+                {/* Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr style={{ background: c.ft }}>
+                        {['Format', 'Coût prod.', 'Prix vente', 'Commission', 'Royalty', 'Marge nette', 'Rentabilité', 'Éditions'].map(h => (
+                          <th key={h} className="text-left px-3 py-2.5 font-bold uppercase tracking-wider" style={{ color: c.gr, fontSize: 9 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formats.map((f, i) => (
+                        <tr key={i} style={{ borderBottom: `1px solid ${c.ft}` }}>
+                          <td className="px-3 py-3">
+                            <span className="text-[14px] mr-1.5">{f.icon}</span>
+                            <span className="font-semibold" style={{ color: c.mv }}>{f.format}</span>
+                          </td>
+                          <td className="px-3 py-3" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.er }}>
+                            {f.format === 'Audiobook' ? `${f.printCost.toLocaleString()}€ studio` : f.printCost > 0 ? `${f.printCost.toFixed(2)}€` : '0€'}
+                          </td>
+                          <td className="px-3 py-3 font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.mv }}>
+                            {f.retailPrice.toFixed(2)}€
+                          </td>
+                          <td className="px-3 py-3" style={{ color: c.gr }}>{(f.platformFee * 100).toFixed(0)}%</td>
+                          <td className="px-3 py-3" style={{ color: c.ok }}>{(f.royaltyRate * 100).toFixed(0)}%</td>
+                          <td className="px-3 py-3">
+                            <span className="font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: f.margin > 3 ? c.ok : f.margin > 1 ? c.og : c.er }}>
+                              {f.margin.toFixed(2)}€
+                            </span>
+                          </td>
+                          <td className="px-3 py-3" style={{ width: 120 }}>
+                            <div className="h-2 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                              <div className="h-full rounded-full" style={{ width: `${Math.max(5, (f.margin / maxMargin) * 100)}%`, background: f.color, transition: 'width 0.8s ease' }} />
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <Badge bg={c.ft} color={c.mv}>{editionCounts[f.format] || 0}</Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Recommendations */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+                  {[
+                    { icon: '🏆', title: 'Meilleure marge', text: (() => { const best = [...formats].sort((a, b) => b.margin - a.margin)[0]; return `${best.icon} ${best.format} : ${best.margin.toFixed(2)}€/unité net`; })() },
+                    { icon: '📈', title: 'Volume recommandé', text: `Le format poche (${formats[1].margin.toFixed(2)}€) optimise volume × marge. Idéal pour la diffusion large.` },
+                    { icon: '💎', title: 'Digital = levier', text: `ePub + PDF : 0€ de coût prod., ${((formats[3].margin + formats[4].margin) / 2).toFixed(2)}€ marge moy. Le plus rentable à l'échelle.` },
+                  ].map((r, i) => (
+                    <div key={i} className="p-3.5 rounded-xl" style={{ background: c.ft }}>
+                      <div className="text-lg mb-1">{r.icon}</div>
+                      <div className="text-[11px] font-semibold mb-1" style={{ color: c.mv }}>{r.title}</div>
+                      <div className="text-[10px] leading-relaxed" style={{ color: c.gr }}>{r.text}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </Card>
+
+      {/* ═══════════════════════════════════ */}
       {/* TABLEAU DE BORD AUTEUR */}
       {/* ═══════════════════════════════════ */}
       <Card hover={false} className="mt-6 overflow-hidden">
@@ -3565,6 +3682,189 @@ Ce communiqué a été généré par JABR Pipeline Éditorial.`;
               )}
             </div>
           </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
+// MODULE LECTEURS
+// ═══════════════════════════════════
+
+const LecteursView = ({ projects, onProject, onToast }: { projects: Project[]; onProject: (p: Project) => void; onToast: (msg: string) => void }) => {
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const selected = selectedId !== null ? projects.find(p => p.id === selectedId) || null : null;
+
+  // Simulated reader data per project
+  const readerData: Record<number, { reviews: { name: string; rating: number; date: string; text: string }[]; citations: string[]; audience: { label: string; pct: number }[]; avgRating: number; totalReviews: number }> = {};
+  projects.forEach(p => {
+    const isJeunesse = p.genre === 'Jeunesse' || p.genre === 'BD';
+    const isPub = p.status === 'published';
+    const seed = p.id * 7;
+    readerData[p.id] = {
+      avgRating: isPub ? 3.5 + (seed % 15) / 10 : 0,
+      totalReviews: isPub ? 8 + (seed % 30) : 0,
+      reviews: isPub ? [
+        { name: 'Marie L.', rating: 5, date: '12 fév. 2026', text: `Une lecture captivante. ${p.title} m'a transporté(e) du début à la fin.` },
+        { name: 'Thomas D.', rating: 4, date: '28 jan. 2026', text: 'Bien écrit, une plume singulière. Quelques longueurs au milieu mais la fin rattrape tout.' },
+        { name: 'Sophie K.', rating: 4, date: '15 jan. 2026', text: `J'ai découvert ${p.author} avec ce livre. Belle surprise, j'attends le prochain.` },
+        { name: 'Antoine R.', rating: 3, date: '03 jan. 2026', text: 'Intéressant mais pas mon genre habituellement. La qualité d\'édition est irréprochable.' },
+      ] : [],
+      citations: isPub ? [
+        `« ${p.title.split(' ').slice(0, 3).join(' ')}... une voix qui compte dans le paysage littéraire. »`,
+        `« ${p.author} signe ici un texte à la fois intime et universel. »`,
+        `« Une édition soignée, à la hauteur du texte. Jabrilia fait du beau travail. »`,
+      ] : [],
+      audience: isJeunesse
+        ? [{ label: '6-10 ans', pct: 35 }, { label: '10-14 ans', pct: 40 }, { label: 'Parents', pct: 20 }, { label: 'Enseignants', pct: 5 }]
+        : [{ label: '25-34 ans', pct: 30 }, { label: '35-49 ans', pct: 35 }, { label: '50+ ans', pct: 20 }, { label: '18-24 ans', pct: 15 }],
+    };
+  });
+
+  const totalReviews = Object.values(readerData).reduce((s, d) => s + d.totalReviews, 0);
+  const avgAll = projects.filter(p => p.status === 'published').length > 0
+    ? (Object.values(readerData).filter(d => d.avgRating > 0).reduce((s, d) => s + d.avgRating, 0) / Object.values(readerData).filter(d => d.avgRating > 0).length).toFixed(1)
+    : '—';
+
+  const renderStars = (rating: number) => (
+    <span className="text-[12px]">{Array.from({ length: 5 }, (_, i) => (
+      <span key={i} style={{ color: i < Math.round(rating) ? '#C8952E' : c.gc }}>★</span>
+    ))}</span>
+  );
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Lecteurs & Réception</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Avis, notes, citations presse, lectorat cible</p>
+        </div>
+      </div>
+
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={totalReviews} label="Avis total" accent={c.or} />
+        <StatCard value={avgAll} label="Note moyenne" accent={c.ok} />
+        <StatCard value={projects.filter(p => p.status === 'published').length} label="Titres évalués" accent={c.mv} />
+        <StatCard value={projects.reduce((s, p) => s + (readerData[p.id]?.citations.length || 0), 0)} label="Citations" accent={c.vm} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Left: project selector */}
+        <div className="space-y-2">
+          <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Sélectionner un titre</div>
+          {projects.map(p => {
+            const rd = readerData[p.id];
+            return (
+              <div key={p.id} className="flex items-center gap-2.5 p-3 rounded-xl cursor-pointer transition-all"
+                onClick={() => setSelectedId(p.id)}
+                style={{ background: selectedId === p.id ? `${c.or}10` : 'white', border: `1.5px solid ${selectedId === p.id ? c.or : c.gc}` }}>
+                <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-semibold truncate" style={{ color: c.mv }}>{p.title}</div>
+                  <div className="text-[9px]" style={{ color: c.gr }}>{p.genre}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  {rd.avgRating > 0 ? renderStars(rd.avgRating) : <span className="text-[9px]" style={{ color: c.gr }}>Pas d'avis</span>}
+                  <div className="text-[8px]" style={{ color: c.gr }}>{rd.totalReviews} avis</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Right: detail */}
+        <div className="lg:col-span-2 space-y-5">
+          {!selected ? (
+            <Card hover={false} className="p-12 text-center">
+              <div className="text-[36px] mb-3">📚</div>
+              <div className="text-[14px] font-semibold" style={{ color: c.mv }}>Sélectionnez un titre</div>
+              <div className="text-[12px] mt-1" style={{ color: c.gr }}>pour voir les avis lecteurs et le profil de lectorat</div>
+            </Card>
+          ) : (() => {
+            const rd = readerData[selected.id];
+            return (
+              <>
+                {/* Header */}
+                <Card hover={false} className="p-5">
+                  <div className="flex items-center gap-4">
+                    <CoverThumb emoji={selected.cover} coverImage={selected.coverImage} size="md" />
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>{selected.title}</h3>
+                      <div className="text-[12px]" style={{ color: c.gr }}>{selected.author} · {selected.genre} · {selected.pages}p</div>
+                      <div className="flex items-center gap-3 mt-2">
+                        {renderStars(rd.avgRating)}
+                        <span className="text-[14px] font-bold" style={{ color: c.or }}>{rd.avgRating > 0 ? rd.avgRating.toFixed(1) : '—'}</span>
+                        <span className="text-[11px]" style={{ color: c.gr }}>({rd.totalReviews} avis)</span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Audience */}
+                <Card hover={false} className="overflow-hidden">
+                  <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                    <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>👥 Lectorat cible</span>
+                  </div>
+                  <div className="p-5">
+                    <div className="space-y-3">
+                      {rd.audience.map((a, i) => (
+                        <div key={i}>
+                          <div className="flex justify-between text-[11px] mb-1">
+                            <span style={{ color: c.vm }}>{a.label}</span>
+                            <span className="font-bold" style={{ color: c.or }}>{a.pct}%</span>
+                          </div>
+                          <div className="h-2 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                            <div className="h-full rounded-full" style={{ width: `${a.pct}%`, background: `linear-gradient(90deg, ${c.or}, ${c.og})`, transition: 'width 0.8s ease-out' }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Reviews */}
+                <Card hover={false} className="overflow-hidden">
+                  <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                    <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>⭐ Avis lecteurs</span>
+                  </div>
+                  <div className="divide-y" style={{ borderColor: c.ft }}>
+                    {rd.reviews.length > 0 ? rd.reviews.map((r, i) => (
+                      <div key={i} className="px-5 py-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ background: c.mv }}>{r.name[0]}</div>
+                            <span className="text-[12px] font-semibold" style={{ color: c.mv }}>{r.name}</span>
+                            {renderStars(r.rating)}
+                          </div>
+                          <span className="text-[10px]" style={{ color: c.gr }}>{r.date}</span>
+                        </div>
+                        <p className="text-[12px] leading-relaxed" style={{ color: c.vm }}>{r.text}</p>
+                      </div>
+                    )) : (
+                      <div className="p-8 text-center text-[12px]" style={{ color: c.gr }}>Pas encore d'avis pour ce titre</div>
+                    )}
+                  </div>
+                </Card>
+
+                {/* Citations */}
+                {rd.citations.length > 0 && (
+                  <Card hover={false} className="overflow-hidden">
+                    <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                      <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>💬 Citations presse</span>
+                    </div>
+                    <div className="p-5 space-y-3">
+                      {rd.citations.map((cit, i) => (
+                        <div key={i} className="p-4 rounded-xl" style={{ background: c.ft, borderLeft: `3px solid ${c.or}` }}>
+                          <p className="text-[12px] italic leading-relaxed" style={{ color: c.vm, fontFamily: "'Playfair Display', serif" }}>{cit}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -5105,6 +5405,7 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
       ['collections', 'Collections', 'Regroupement par série ou thématique'],
       ['droits', 'Droits & Contrats', 'Droits dérivés, adaptations, traductions, territoires, contrats'],
       ['benchmark', 'Benchmark Concurrence', 'Positionnement prix, concurrents par genre, tendances marché'],
+      ['lecteurs', 'Lecteurs & Réception', 'Avis, notes, citations presse, lectorat cible par titre'],
       ['settings', 'Paramètres', 'Éditeur, import CSV, thème sombre'],
     ];
     modules.forEach(([id, label, desc]) => {
@@ -5453,14 +5754,45 @@ export default function JabrApp() {
     try { localStorage.setItem('jabr-onboarded', 'true'); } catch {}
   }, []);
 
-  // Ctrl+K global shortcut
+  // Keyboard shortcuts
+  const [showShortcuts, setShowShortcuts] = useState(false);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setCmdOpen(o => !o); }
+      // Ignore when typing in inputs
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+
+      // Ctrl/Cmd combos
+      if (e.metaKey || e.ctrlKey) {
+        if (e.key === 'k') { e.preventDefault(); setCmdOpen(o => !o); }
+        else if (e.key === 'n') { e.preventDefault(); setModalOpen(true); }
+        else if (e.key === '/') { e.preventDefault(); setShowShortcuts(s => !s); }
+        else if (e.key === 'b') { e.preventDefault(); setSidebarOpen(s => !s); }
+        return;
+      }
+
+      // Alt + number: navigate to module
+      if (e.altKey) {
+        const navMap: Record<string, string> = {
+          '1': 'dashboard', '2': 'projets', '3': 'manuscrits', '4': 'analyse',
+          '5': 'distribution', '6': 'analytics', '7': 'isbn', '8': 'presse',
+          '9': 'calendrier', '0': 'settings',
+        };
+        if (navMap[e.key]) { e.preventDefault(); navigate(navMap[e.key]); }
+        return;
+      }
+
+      // Single key shortcuts (only when not in cmd palette)
+      if (!cmdOpen) {
+        if (e.key === '?') { e.preventDefault(); setShowShortcuts(s => !s); }
+        if (e.key === 'Escape') {
+          if (showShortcuts) setShowShortcuts(false);
+          else if (project) { setProject(null); setPage('dashboard'); }
+        }
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [cmdOpen, project, showShortcuts]);
   const [dark, setDark] = useState(() => {
     try { return localStorage.getItem('jabr-dark') === 'true'; } catch { return false; }
   });
@@ -5580,6 +5912,7 @@ export default function JabrApp() {
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
       case 'droits': return <DroitsView projects={projects} onToast={showToast} />;
       case 'benchmark': return <BenchmarkView projects={projects} />;
+      case 'lecteurs': return <LecteursView projects={projects} onProject={openProject} onToast={showToast} />;
       case 'marketing': return <MarketingView projects={projects} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
       case 'distribution': return <DistributionView projects={projects} onToast={showToast} distChecks={distChecks} />;
@@ -5674,6 +6007,43 @@ export default function JabrApp() {
       </div>
       <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={handleAdd} />
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      {showShortcuts && (
+        <div className="fixed inset-0 z-[190] flex items-center justify-center" style={{ background: 'rgba(45,27,78,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowShortcuts(false)}>
+          <div className="max-w-lg w-full mx-4 rounded-2xl overflow-hidden" style={{ background: 'white', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', animation: 'scaleIn 0.2s ease-out' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
+              <h3 className="text-lg font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>⌨️ Raccourcis clavier</h3>
+              <button onClick={() => setShowShortcuts(false)} className="text-[18px] cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>✕</button>
+            </div>
+            <div className="p-6 grid grid-cols-2 gap-x-6 gap-y-2">
+              {[
+                ['Ctrl + K', 'Recherche globale'],
+                ['Ctrl + N', 'Nouveau projet'],
+                ['Ctrl + B', 'Toggle sidebar'],
+                ['Ctrl + /', 'Raccourcis (cette fenêtre)'],
+                ['?', 'Raccourcis (cette fenêtre)'],
+                ['Esc', 'Fermer / Retour'],
+                ['Alt + 1', 'Dashboard'],
+                ['Alt + 2', 'Projets'],
+                ['Alt + 3', 'Manuscrits'],
+                ['Alt + 4', 'Analyse IA'],
+                ['Alt + 5', 'Distribution'],
+                ['Alt + 6', 'Analytics'],
+                ['Alt + 7', 'ISBN'],
+                ['Alt + 8', 'Presse'],
+                ['Alt + 9', 'Calendrier'],
+                ['Alt + 0', 'Paramètres'],
+              ].map(([key, label], i) => (
+                <div key={i} className="flex items-center justify-between py-1.5">
+                  <span className="text-[12px]" style={{ color: c.vm }}>{label}</span>
+                  <kbd className="px-2 py-0.5 rounded text-[10px] font-bold" style={{ background: c.ft, color: c.mv, border: `1px solid ${c.gc}` }}>{key}</kbd>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {onboardStep !== null && (
         <OnboardingOverlay step={onboardStep}
           onNext={() => { if (onboardStep >= ONBOARD_STEPS.length - 1) finishOnboard(); else setOnboardStep(onboardStep + 1); }}

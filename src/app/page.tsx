@@ -570,7 +570,7 @@ export default function Home() {
                 </div>
                 <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>Pour l'éditeur indépendant qui publie régulièrement.</p>
                 <div className="flex-1 space-y-3 mb-8">
-                  {['Titres illimités', '100 ISBN', 'Tous les 18 modules', 'ONIX 3.0 complet', 'Calendrier éditorial IA', 'Plan média IA', 'Export PDF', 'Import CSV', 'Kanban drag & drop', 'Ctrl+K recherche globale'].map((f, i) => (
+                  {['Titres illimités', '100 ISBN', 'Tous les 19 modules', 'ONIX 3.0 complet', 'Calendrier éditorial IA', 'Plan média IA', 'Export PDF', 'Import CSV', 'Kanban drag & drop', 'Ctrl+K recherche globale'].map((f, i) => (
                     <div key={i} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>
                       <span style={{ color: c.or }}>✓</span> {f}
                     </div>
@@ -769,7 +769,7 @@ export default function Home() {
             <div className="flex items-center gap-6" style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
               <span>Pipeline éditorial v2.1</span>
               <span>·</span>
-              <span>10 titres · 28 ISBN · 18 modules</span>
+              <span>10 titres · 28 ISBN · 19 modules</span>
               <span>·</span>
               <span>© 2026 Jabrilia Éditions</span>
             </div>
