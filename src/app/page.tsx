@@ -576,7 +576,7 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-                <Link href="/demo" className="block text-center py-3.5 rounded-xl font-semibold text-sm transition-all hover:scale-[1.02]"
+                <Link href="/pricing" className="block text-center py-3.5 rounded-xl font-semibold text-sm transition-all hover:scale-[1.02]"
                   style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})`, color: 'white', boxShadow: '0 8px 24px rgba(200,149,46,0.3)' }}>
                   Essai gratuit 14 jours
                 </Link>

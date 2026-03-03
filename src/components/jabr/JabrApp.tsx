@@ -2058,37 +2058,192 @@ ${products.join('\n')}
 };
 
 // --- COLLECTIONS ---
-const CollectionsView = ({ onProject, projects }: { onProject: (p: Project) => void; projects: Project[] }) => (
-  <div>
-    <h2 className="text-2xl mb-1" style={{ color: c.mv }}>Collections</h2>
-    <p className="mb-5" style={{ color: c.gr, fontSize: 13 }}>Organisation du catalogue par collections</p>
-    <div className="flex flex-col gap-5">
-      {COLLECTIONS.map(col => (
-        <Card key={col.name} hover={false}>
-          <div className="flex justify-between items-center px-6 py-4" style={{ borderBottom: `2px solid ${col.color}` }}>
-            <div>
-              <h3 className="text-xl" style={{ color: c.mv }}>{col.name}</h3>
-              <p className="text-xs mt-0.5" style={{ color: c.gr }}>{col.desc}</p>
-            </div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: col.color, fontFamily: "'Playfair Display', serif" }}>{col.bookIds.length}</div>
-          </div>
-          {col.bookIds.map(id => {
-            const p = projects.find(x => x.id === id);
-            if (!p) return null;
-            return (
-              <div key={id} onClick={() => onProject(p)} className="flex items-center gap-3 px-6 py-2.5 cursor-pointer transition-colors hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
-                <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
-                <span className="flex-1 text-[13px] font-medium">{p.title}</span>
-                <ScoreBar score={p.score} max={p.maxScore} />
-                <StatusBadge status={p.status} />
+const CollectionsView = ({ onProject, projects }: { onProject: (p: Project) => void; projects: Project[] }) => {
+  const [collections, setCollections] = useState(() => {
+    try { const s = localStorage.getItem('jabr-collections-v2'); if (s) return JSON.parse(s); } catch { /* noop */ }
+    return COLLECTIONS.map(c2 => ({ ...c2, id: c2.name.toLowerCase().replace(/\s/g, '-') }));
+  });
+
+  const persist = (cols: typeof collections) => { try { localStorage.setItem('jabr-collections-v2', JSON.stringify(cols)); } catch {} setCollections(cols); };
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [newName, setNewName] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newColor, setNewColor] = useState('#C8952E');
+  const [assignModal, setAssignModal] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const PALETTE = ['#C8952E', '#5B3E8A', '#E07A2F', '#2EAE6D', '#4ECDC4', '#D64545', '#3B82F6', '#F59E0B'];
+
+  const handleCreate = () => {
+    if (!newName.trim()) return;
+    const id = newName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    persist([...collections, { id, name: newName.trim(), desc: newDesc.trim(), color: newColor, bookIds: [] as number[] }]);
+    setNewName(''); setNewDesc(''); setNewColor('#C8952E'); setShowCreate(false);
+  };
+
+  const handleEdit = () => {
+    if (!editId || !newName.trim()) return;
+    persist(collections.map((col: { id: string }) => col.id === editId ? { ...col, name: newName.trim(), desc: newDesc.trim(), color: newColor } : col));
+    setEditId(null); setNewName(''); setNewDesc(''); setNewColor('#C8952E');
+  };
+
+  const handleDelete = (id: string) => { persist(collections.filter((col: { id: string }) => col.id !== id)); };
+
+  const handleAssign = (colId: string, projectId: number) => {
+    persist(collections.map((col: { id: string; bookIds: number[] }) => {
+      if (col.id === colId) {
+        const has = col.bookIds.includes(projectId);
+        return { ...col, bookIds: has ? col.bookIds.filter((b: number) => b !== projectId) : [...col.bookIds, projectId] };
+      }
+      return col;
+    }));
+  };
+
+  const totalAssigned = new Set(collections.flatMap((col: { bookIds: number[] }) => col.bookIds)).size;
+  const unassigned = projects.filter(p => !collections.some((col: { bookIds: number[] }) => col.bookIds.includes(p.id)));
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Collections</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Organisation du catalogue par collections éditoriales</p>
+        </div>
+        <Btn onClick={() => { setShowCreate(true); setEditId(null); setNewName(''); setNewDesc(''); setNewColor('#C8952E'); }}>{icons.plus} Nouvelle collection</Btn>
+      </div>
+
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={collections.length} label="Collections" accent={c.or} />
+        <StatCard value={totalAssigned} label="Titres classés" accent={c.ok} />
+        <StatCard value={unassigned.length} label="Non classés" accent={unassigned.length > 0 ? c.er : c.gr} />
+        <StatCard value={projects.length} label="Catalogue total" accent={c.vm} />
+      </div>
+
+      {/* Create / Edit modal */}
+      {(showCreate || editId) && (
+        <>
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }} onClick={() => { setShowCreate(false); setEditId(null); }} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[201] w-[90vw] max-w-[420px] rounded-2xl p-6" style={{ background: 'white', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h3 className="text-lg font-bold mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>{editId ? 'Modifier la collection' : 'Nouvelle collection'}</h3>
+            <div className="space-y-3">
+              <div><label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>Nom *</label><input value={newName} onChange={e => setNewName(e.target.value)} className="w-full mt-1 px-3 py-2.5 rounded-lg text-[13px] outline-none" style={{ border: `1.5px solid ${c.gc}`, color: c.nr }} placeholder="Ex : Saga historique" /></div>
+              <div><label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>Description</label><input value={newDesc} onChange={e => setNewDesc(e.target.value)} className="w-full mt-1 px-3 py-2.5 rounded-lg text-[13px] outline-none" style={{ border: `1.5px solid ${c.gc}`, color: c.nr }} placeholder="Courte description" /></div>
+              <div><label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>Couleur</label>
+                <div className="flex gap-2 mt-2">{PALETTE.map(clr => (
+                  <button key={clr} onClick={() => setNewColor(clr)} className="w-7 h-7 rounded-full cursor-pointer transition-transform" style={{ background: clr, border: newColor === clr ? '3px solid #0D0A14' : '2px solid transparent', transform: newColor === clr ? 'scale(1.15)' : 'scale(1)' }} />
+                ))}</div>
               </div>
-            );
-          })}
+            </div>
+            <div className="flex gap-3 mt-5 justify-end">
+              <Btn variant="secondary" onClick={() => { setShowCreate(false); setEditId(null); }}>Annuler</Btn>
+              <Btn onClick={editId ? handleEdit : handleCreate}>{editId ? 'Enregistrer' : 'Créer'}</Btn>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Assign modal */}
+      {assignModal && (
+        <>
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }} onClick={() => setAssignModal(null)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[201] w-[90vw] max-w-[480px] max-h-[70vh] rounded-2xl overflow-hidden" style={{ background: 'white', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+              <span className="font-semibold text-[13px]" style={{ color: c.mv }}>Assigner des titres à « {collections.find((col: { id: string }) => col.id === assignModal)?.name} »</span>
+            </div>
+            <div className="overflow-y-auto max-h-[55vh]">
+              {projects.map(p => {
+                const col = collections.find((col2: { id: string }) => col2.id === assignModal);
+                const isIn = col?.bookIds?.includes(p.id);
+                return (
+                  <div key={p.id} onClick={() => handleAssign(assignModal, p.id)} className="flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                    <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: isIn ? c.or : c.ft, color: isIn ? 'white' : c.gr, fontSize: 11, fontWeight: 700 }}>{isIn ? '✓' : ''}</div>
+                    <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                    <div className="flex-1"><div className="text-[13px] font-medium">{p.title}</div><div className="text-[10px]" style={{ color: c.gr }}>{p.author} · {p.genre}</div></div>
+                    <StatusBadge status={p.status} />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="px-5 py-3 text-right" style={{ borderTop: `1px solid ${c.ft}` }}>
+              <Btn variant="secondary" onClick={() => setAssignModal(null)}>Fermer</Btn>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Collection cards */}
+      <div className="flex flex-col gap-5">
+        {collections.map((col: { id: string; name: string; desc: string; color: string; bookIds: number[] }, ci: number) => {
+          const isExpanded = expandedId === col.id;
+          const colProjects = col.bookIds.map((bid: number) => projects.find(x => x.id === bid)).filter(Boolean) as Project[];
+          const pubCount = colProjects.filter(p => p.status === 'published').length;
+          const avgScore = colProjects.length > 0 ? Math.round(colProjects.reduce((s, p) => s + (p.maxScore ? (p.score / p.maxScore) * 100 : 0), 0) / colProjects.length) : 0;
+          const totalPages = colProjects.reduce((s, p) => s + p.pages, 0);
+          return (
+            <Card key={col.id} hover={false}>
+              <div className="flex justify-between items-center px-6 py-4 cursor-pointer" style={{ borderBottom: `2px solid ${col.color}` }} onClick={() => setExpandedId(isExpanded ? null : col.id)}>
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-8 rounded-full" style={{ background: col.color }} />
+                  <div>
+                    <h3 className="text-xl" style={{ color: c.mv }}>{col.name}</h3>
+                    <p className="text-xs mt-0.5" style={{ color: c.gr }}>{col.desc || 'Pas de description'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-3 text-[11px]" style={{ color: c.gr }}>
+                    <span><strong style={{ color: c.mv }}>{colProjects.length}</strong> titre{colProjects.length > 1 ? 's' : ''}</span>
+                    <span><strong style={{ color: c.ok }}>{pubCount}</strong> publié{pubCount > 1 ? 's' : ''}</span>
+                    <span><strong style={{ color: c.or }}>{avgScore}%</strong> readiness</span>
+                    <span><strong>{totalPages.toLocaleString()}</strong> pages</span>
+                  </div>
+                  <span style={{ color: c.gr, fontSize: 12, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : '' }}>▾</span>
+                </div>
+              </div>
+              {isExpanded && (
+                <>
+                  {colProjects.map(p => (
+                    <div key={p.id} onClick={() => onProject(p)} className="flex items-center gap-3 px-6 py-2.5 cursor-pointer transition-colors hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                      <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                      <span className="flex-1 text-[13px] font-medium">{p.title}</span>
+                      <GenreBadge genre={p.genre} />
+                      <ScoreBar score={p.score} max={p.maxScore} />
+                      <StatusBadge status={p.status} />
+                    </div>
+                  ))}
+                  {colProjects.length === 0 && <div className="px-6 py-6 text-center text-[12px]" style={{ color: c.gr }}>Aucun titre dans cette collection</div>}
+                  <div className="flex gap-2 px-6 py-3" style={{ background: 'rgba(200,149,46,0.02)' }}>
+                    <Btn variant="secondary" onClick={() => setAssignModal(col.id)}>+ Assigner des titres</Btn>
+                    <Btn variant="secondary" onClick={() => { setEditId(col.id); setNewName(col.name); setNewDesc(col.desc); setNewColor(col.color); }}>✎ Modifier</Btn>
+                    {ci >= COLLECTIONS.length && <Btn variant="secondary" onClick={() => handleDelete(col.id)}>🗑 Supprimer</Btn>}
+                  </div>
+                </>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Unassigned */}
+      {unassigned.length > 0 && (
+        <Card hover={false} className="mt-5">
+          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.er}` }}>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Titres non classés ({unassigned.length})</span>
+          </div>
+          {unassigned.map(p => (
+            <div key={p.id} onClick={() => onProject(p)} className="flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
+              <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+              <span className="flex-1 text-[13px] font-medium">{p.title}</span>
+              <GenreBadge genre={p.genre} />
+              <StatusBadge status={p.status} />
+            </div>
+          ))}
         </Card>
-      ))}
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 // --- ANALYTICS ---
 const AnalyticsView = ({ projects }: { projects: Project[] }) => {
@@ -3127,14 +3282,58 @@ const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[];
   const withoutMs = projects.filter(p => !p.manuscriptStatus || p.manuscriptStatus === 'none');
   const analyzed = projects.filter(p => p.analysis);
   const injected = projects.filter(p => p.manuscriptStatus === 'isbn-injected');
+  const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{ projectId: number; wordCount: number; paragraphs: number; preview: string } | null>(null);
+  const [assignProject, setAssignProject] = useState<number | null>(null);
+  const [filterStatus, setFilterStatus] = useState<ManuscriptStatus | 'all'>('all');
 
-  const statusSteps: { key: ManuscriptStatus; label: string; icon: string }[] = [
-    { key: 'uploaded', label: 'Upload', icon: '↑' },
-    { key: 'analyzed', label: 'Analyse', icon: '◉' },
-    { key: 'validated', label: 'Validé', icon: '✓' },
-    { key: 'isbn-injected', label: 'ISBN injecté', icon: '★' },
+  const statusSteps: { key: ManuscriptStatus; label: string; icon: string; desc: string }[] = [
+    { key: 'uploaded', label: 'Upload', icon: '↑', desc: 'Fichier reçu' },
+    { key: 'analyzed', label: 'Analyse', icon: '◉', desc: 'IA complétée' },
+    { key: 'validated', label: 'Validé', icon: '✓', desc: 'Prêt pour production' },
+    { key: 'isbn-injected', label: 'ISBN injecté', icon: '★', desc: 'Métadonnées insérées' },
   ];
   const statusOrder: ManuscriptStatus[] = ['none', 'uploaded', 'analyzed', 'validated', 'isbn-injected'];
+
+  const handleFile = async (file: File) => {
+    if (!file.name.endsWith('.docx') && !file.name.endsWith('.doc') && !file.name.endsWith('.odt')) {
+      onToast('Format non supporté. Utilisez .docx, .doc ou .odt');
+      return;
+    }
+    setUploading(true);
+    try {
+      const mammoth = (await import('mammoth')) as any;
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.convertToHtml({ arrayBuffer });
+      const text = result.value.replace(/<[^>]+>/g, '');
+      const words = text.split(/\s+/).filter(Boolean).length;
+      const paragraphs = text.split(/\n\n+/).filter(Boolean).length;
+      const preview = text.slice(0, 500) + (text.length > 500 ? '…' : '');
+      setUploadResult({ projectId: 0, wordCount: words, paragraphs, preview });
+      setAssignProject(null);
+      onToast(`✓ ${file.name} — ${words.toLocaleString()} mots, ${paragraphs} paragraphes`);
+    } catch {
+      onToast('Erreur de lecture du fichier. Vérifiez le format.');
+    }
+    setUploading(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  };
+
+  const handleAssignUpload = (projectId: number) => {
+    if (!uploadResult) return;
+    setAssignProject(projectId);
+    onProject(projects.find(p => p.id === projectId)!);
+    onToast(`Manuscrit assigné à « ${projects.find(p => p.id === projectId)?.title} » — ${uploadResult.wordCount.toLocaleString()} mots`);
+    setUploadResult(null);
+  };
+
+  const filtered = filterStatus === 'all' ? projects : projects.filter(p => (p.manuscriptStatus || 'none') === filterStatus);
 
   return (
     <div>
@@ -3143,7 +3342,10 @@ const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[];
           <h2 className="text-2xl" style={{ color: c.mv }}>Manuscrits</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Import, analyse et injection ISBN dans vos fichiers .docx</p>
         </div>
-        <Btn onClick={() => onToast('Importer un manuscrit : ouvrir la fiche projet → glisser un fichier .docx')}>{icons.upload} Importer un manuscrit</Btn>
+        <label className="cursor-pointer">
+          <input type="file" accept=".docx,.doc,.odt" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
+          <span className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all" style={{ background: `linear-gradient(135deg, ${c.or}, ${c.og})`, color: 'white', cursor: 'pointer' }}>{icons.upload} Importer un manuscrit</span>
+        </label>
       </div>
 
       <div className="flex gap-3.5 mb-6 flex-wrap">
@@ -3153,44 +3355,77 @@ const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[];
         <StatCard value={withoutMs.length} label="En attente" accent={c.er} />
       </div>
 
-      {/* Pipeline manuscrit */}
+      {/* Pipeline manuscrit interactif */}
       <Card hover={false} className="p-6 mb-6">
         <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Pipeline manuscrit</div>
         <div className="flex items-center gap-2 justify-between max-w-2xl">
-          {statusSteps.map((s, i) => (
-            <div key={s.key} className="flex items-center gap-2 flex-1">
-              <div className="flex flex-col items-center flex-1">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold" style={{ background: 'rgba(200,149,46,0.1)', color: c.or }}>{s.icon}</div>
-                <div className="text-[11px] mt-1.5 font-semibold text-center" style={{ color: c.mv }}>{s.label}</div>
-                <div className="text-[10px]" style={{ color: c.gr }}>{projects.filter(p => p.manuscriptStatus === s.key).length} titres</div>
+          {statusSteps.map((s, i) => {
+            const count = projects.filter(p => p.manuscriptStatus === s.key).length;
+            return (
+              <div key={s.key} className="flex items-center gap-2 flex-1">
+                <div className="flex flex-col items-center flex-1 cursor-pointer" onClick={() => setFilterStatus(filterStatus === s.key ? 'all' : s.key)}>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold transition-all" style={{ background: filterStatus === s.key ? c.or : 'rgba(200,149,46,0.1)', color: filterStatus === s.key ? 'white' : c.or, transform: filterStatus === s.key ? 'scale(1.1)' : 'scale(1)' }}>{s.icon}</div>
+                  <div className="text-[11px] mt-1.5 font-semibold text-center" style={{ color: filterStatus === s.key ? c.or : c.mv }}>{s.label}</div>
+                  <div className="text-[10px]" style={{ color: c.gr }}>{count} titre{count > 1 ? 's' : ''}</div>
+                  <div className="text-[9px]" style={{ color: c.gr }}>{s.desc}</div>
+                </div>
+                {i < statusSteps.length - 1 && <div className="w-8 h-px mt-[-24px]" style={{ background: c.gc }} />}
               </div>
-              {i < statusSteps.length - 1 && <div className="w-8 h-px mt-[-16px]" style={{ background: c.gc }} />}
-            </div>
-          ))}
+            );
+          })}
         </div>
+        {filterStatus !== 'all' && (
+          <button onClick={() => setFilterStatus('all')} className="mt-3 text-[11px] cursor-pointer bg-transparent border-none" style={{ color: c.or }}>✕ Réinitialiser le filtre</button>
+        )}
       </Card>
 
-      {/* Upload zone */}
+      {/* Upload zone with drag & drop */}
       <Card hover={false} className="mb-6">
-        <div className="p-8 text-center rounded-xl border-2 border-dashed cursor-pointer transition-colors hover:bg-[rgba(200,149,46,0.02)]"
-          style={{ borderColor: 'rgba(200,149,46,0.2)' }}>
-          <div className="text-4xl mb-3 opacity-40">📄</div>
-          <div className="text-sm font-semibold mb-1" style={{ color: c.mv }}>Glissez un fichier .docx ici</div>
-          <div className="text-[12px]" style={{ color: c.gr }}>ou cliquez pour parcourir — Le manuscrit sera associé au projet correspondant</div>
-          <div className="flex items-center justify-center gap-3 mt-4">
-            <Badge bg={c.ft} color={c.gr}>.docx</Badge>
-            <Badge bg={c.ft} color={c.gr}>.doc</Badge>
-            <Badge bg={c.ft} color={c.gr}>.odt</Badge>
-          </div>
+        <div className="p-8 text-center rounded-xl border-2 border-dashed transition-all"
+          style={{ borderColor: dragOver ? c.or : 'rgba(200,149,46,0.2)', background: dragOver ? 'rgba(200,149,46,0.05)' : 'transparent' }}
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}>
+          {uploading ? (
+            <div><div className="text-4xl mb-3 animate-pulse">⏳</div><div className="text-sm font-semibold" style={{ color: c.mv }}>Analyse en cours…</div></div>
+          ) : uploadResult ? (
+            <div>
+              <div className="text-4xl mb-3">✅</div>
+              <div className="text-sm font-semibold mb-1" style={{ color: c.ok }}>Manuscrit analysé — {uploadResult.wordCount.toLocaleString()} mots · {uploadResult.paragraphs} paragraphes</div>
+              <div className="text-[11px] mb-3 max-w-lg mx-auto p-3 rounded-lg text-left" style={{ background: c.ft, color: c.gr }}>{uploadResult.preview}</div>
+              <div className="text-[12px] font-semibold mb-2" style={{ color: c.mv }}>Assigner à un projet :</div>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {projects.map(p => (
+                  <button key={p.id} onClick={() => handleAssignUpload(p.id)} className="px-3 py-1.5 rounded-lg text-[11px] font-medium cursor-pointer transition-colors border-none" style={{ background: assignProject === p.id ? c.or : c.ft, color: assignProject === p.id ? 'white' : c.vm }}>{p.cover} {p.title}</button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="text-4xl mb-3 opacity-40">{dragOver ? '📥' : '📄'}</div>
+              <div className="text-sm font-semibold mb-1" style={{ color: c.mv }}>{dragOver ? 'Lâchez le fichier !' : 'Glissez un fichier .docx ici'}</div>
+              <div className="text-[12px]" style={{ color: c.gr }}>Analyse automatique : nombre de mots, paragraphes, aperçu du texte</div>
+              <div className="flex items-center justify-center gap-3 mt-4">
+                <Badge bg={c.ft} color={c.gr}>.docx</Badge>
+                <Badge bg={c.ft} color={c.gr}>.doc</Badge>
+                <Badge bg={c.ft} color={c.gr}>.odt</Badge>
+              </div>
+            </>
+          )}
         </div>
       </Card>
 
       {/* Table par projet */}
       <Card hover={false}>
-        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
-          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>État des manuscrits par titre</span>
+        <div className="px-5 py-3.5 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>État des manuscrits par titre ({filtered.length})</span>
+          <div className="flex gap-1">
+            {(['all', ...statusSteps.map(s => s.key)] as (ManuscriptStatus | 'all')[]).map(st => (
+              <button key={st} onClick={() => setFilterStatus(st)} className="px-2 py-1 rounded text-[9px] font-semibold cursor-pointer border-none transition-colors" style={{ background: filterStatus === st ? c.or : 'transparent', color: filterStatus === st ? 'white' : c.gr }}>{st === 'all' ? 'Tous' : statusSteps.find(s => s.key === st)?.label}</button>
+            ))}
+          </div>
         </div>
-        {projects.map(p => {
+        {filtered.map(p => {
           const ms = p.manuscriptStatus || 'none';
           const msLabel = MANUSCRIPT_STATUS_LABELS[ms];
           const stepIdx = statusOrder.indexOf(ms);
@@ -3209,7 +3444,7 @@ const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[];
               {/* Mini progress */}
               <div className="flex gap-1">
                 {statusSteps.map((s, i) => (
-                  <div key={s.key} className="w-5 h-1.5 rounded-full" style={{ background: i < stepIdx ? c.ok : i === stepIdx && ms !== 'none' ? c.or : c.gc }} />
+                  <div key={s.key} className="w-6 h-1.5 rounded-full transition-all" style={{ background: i < stepIdx ? c.ok : i === stepIdx && ms !== 'none' ? c.or : c.gc }} title={s.label} />
                 ))}
               </div>
               <Badge bg={msLabel.bg} color={msLabel.color}>{msLabel.icon} {msLabel.label}</Badge>
@@ -3217,6 +3452,7 @@ const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[];
             </div>
           );
         })}
+        {filtered.length === 0 && <div className="px-5 py-8 text-center text-[12px]" style={{ color: c.gr }}>Aucun titre avec ce filtre</div>}
       </Card>
     </div>
   );
@@ -4376,7 +4612,29 @@ const BenchmarkView = ({ projects }: { projects: Project[] }) => {
   const activeGenre = selectedGenre || genres[0] || 'Roman';
   const genreProjects = projects.filter(p => p.genre === activeGenre);
 
-  // Market data by genre (simulated realistic benchmarks)
+  // Custom competitors (persisted)
+  const [customCompetitors, setCustomCompetitors] = useState<Record<string, { name: string; price: string; pages: number; note: string }[]>>(() => {
+    try { const s = localStorage.getItem('jabr-benchmark-competitors'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  const persistCompetitors = (data: typeof customCompetitors) => { try { localStorage.setItem('jabr-benchmark-competitors', JSON.stringify(data)); } catch {} setCustomCompetitors(data); };
+
+  const [showAddComp, setShowAddComp] = useState(false);
+  const [compForm, setCompForm] = useState({ name: '', price: '', pages: '', note: '' });
+
+  const addCompetitor = () => {
+    if (!compForm.name.trim() || !compForm.price.trim()) return;
+    const existing = customCompetitors[activeGenre] || [];
+    persistCompetitors({ ...customCompetitors, [activeGenre]: [...existing, { name: compForm.name.trim(), price: compForm.price.trim(), pages: parseInt(compForm.pages) || 0, note: compForm.note.trim() }] });
+    setCompForm({ name: '', price: '', pages: '', note: '' });
+    setShowAddComp(false);
+  };
+
+  const removeCompetitor = (genre: string, idx: number) => {
+    const existing = customCompetitors[genre] || [];
+    persistCompetitors({ ...customCompetitors, [genre]: existing.filter((_: unknown, i: number) => i !== idx) });
+  };
+
+  // Market data by genre
   const marketData: Record<string, { avgPrice: number; avgPages: number; topPrice: number; lowPrice: number; avgPrint: number; marketSize: string; trend: string; competitors: { name: string; price: string; pages: number; note: string }[] }> = {
     'Roman': { avgPrice: 19.90, avgPages: 320, topPrice: 24.90, lowPrice: 7.90, avgPrint: 5.80, marketSize: '280M€', trend: '+2.1%', competitors: [
       { name: 'Gallimard — Blanche', price: '21,00€', pages: 280, note: 'Référence littéraire' },
@@ -4411,6 +4669,7 @@ const BenchmarkView = ({ projects }: { projects: Project[] }) => {
   };
 
   const market = marketData[activeGenre] || marketData['Roman'];
+  const allCompetitors = [...market.competitors, ...(customCompetitors[activeGenre] || [])];
   const jabrAvgPrice = genreProjects.length > 0
     ? genreProjects.reduce((s, p) => {
         const price = primaryPrice(p);
@@ -4458,25 +4717,17 @@ const BenchmarkView = ({ projects }: { projects: Project[] }) => {
             <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Positionnement prix</span>
           </div>
           <div className="p-5">
-            {/* Price bar visualization */}
             <div className="relative h-12 rounded-xl mb-6 overflow-hidden" style={{ background: c.ft }}>
               <div className="absolute top-0 left-0 h-full rounded-l-xl" style={{ width: '100%', background: `linear-gradient(90deg, ${c.ok}15, ${c.og}15, ${c.er}15)` }} />
-              {/* Low marker */}
               <div className="absolute top-0 h-full flex flex-col items-center justify-end pb-1" style={{ left: `${((market.lowPrice - 5) / 30) * 100}%` }}>
-                <div className="w-0.5 h-6" style={{ background: c.gr }} />
-                <span className="text-[8px] font-bold" style={{ color: c.gr }}>{market.lowPrice}€</span>
+                <div className="w-0.5 h-6" style={{ background: c.gr }} /><span className="text-[8px] font-bold" style={{ color: c.gr }}>{market.lowPrice}€</span>
               </div>
-              {/* Avg marker */}
               <div className="absolute top-0 h-full flex flex-col items-center justify-end pb-1" style={{ left: `${((market.avgPrice - 5) / 30) * 100}%` }}>
-                <div className="w-0.5 h-8" style={{ background: c.og }} />
-                <span className="text-[8px] font-bold" style={{ color: c.og }}>Moy. {market.avgPrice}€</span>
+                <div className="w-0.5 h-8" style={{ background: c.og }} /><span className="text-[8px] font-bold" style={{ color: c.og }}>Moy. {market.avgPrice}€</span>
               </div>
-              {/* Top marker */}
               <div className="absolute top-0 h-full flex flex-col items-center justify-end pb-1" style={{ left: `${Math.min(95, ((market.topPrice - 5) / 30) * 100)}%` }}>
-                <div className="w-0.5 h-6" style={{ background: c.er }} />
-                <span className="text-[8px] font-bold" style={{ color: c.er }}>{market.topPrice}€</span>
+                <div className="w-0.5 h-6" style={{ background: c.er }} /><span className="text-[8px] font-bold" style={{ color: c.er }}>{market.topPrice}€</span>
               </div>
-              {/* Jabrilia marker */}
               {jabrAvgPrice > 0 && (
                 <div className="absolute top-0 h-full flex flex-col items-center" style={{ left: `${((jabrAvgPrice - 5) / 30) * 100}%` }}>
                   <div className="px-1.5 py-0.5 rounded text-[8px] font-bold text-white mt-0.5" style={{ background: c.or }}>JABR {jabrAvgPrice.toFixed(1)}€</div>
@@ -4484,8 +4735,6 @@ const BenchmarkView = ({ projects }: { projects: Project[] }) => {
                 </div>
               )}
             </div>
-
-            {/* Jabrilia titles in this genre */}
             <div className="space-y-2">
               {genreProjects.map(p => {
                 const price = primaryPrice(p);
@@ -4514,34 +4763,49 @@ const BenchmarkView = ({ projects }: { projects: Project[] }) => {
           </div>
         </Card>
 
-        {/* Competitors */}
+        {/* Competitors — with add/remove */}
         <Card hover={false} className="overflow-hidden">
-          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
-            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Concurrents — {activeGenre}</span>
+          <div className="px-5 py-3.5 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Concurrents — {activeGenre} ({allCompetitors.length})</span>
+            <button onClick={() => setShowAddComp(!showAddComp)} className="text-[11px] font-semibold cursor-pointer bg-transparent border-none" style={{ color: c.or }}>{showAddComp ? '✕ Fermer' : '+ Ajouter'}</button>
           </div>
+          {showAddComp && (
+            <div className="px-5 py-3 flex gap-2 items-end flex-wrap" style={{ background: 'rgba(200,149,46,0.03)', borderBottom: `1px solid ${c.ft}` }}>
+              <div className="flex-1 min-w-[120px]"><label className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Éditeur *</label><input value={compForm.name} onChange={e => setCompForm({ ...compForm, name: e.target.value })} className="w-full px-2 py-1.5 rounded text-[12px] outline-none" style={{ border: `1px solid ${c.gc}` }} placeholder="Gallimard" /></div>
+              <div className="w-[80px]"><label className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Prix *</label><input value={compForm.price} onChange={e => setCompForm({ ...compForm, price: e.target.value })} className="w-full px-2 py-1.5 rounded text-[12px] outline-none" style={{ border: `1px solid ${c.gc}` }} placeholder="19,90€" /></div>
+              <div className="w-[60px]"><label className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Pages</label><input value={compForm.pages} onChange={e => setCompForm({ ...compForm, pages: e.target.value })} className="w-full px-2 py-1.5 rounded text-[12px] outline-none" style={{ border: `1px solid ${c.gc}` }} placeholder="300" /></div>
+              <div className="flex-1 min-w-[100px]"><label className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Note</label><input value={compForm.note} onChange={e => setCompForm({ ...compForm, note: e.target.value })} className="w-full px-2 py-1.5 rounded text-[12px] outline-none" style={{ border: `1px solid ${c.gc}` }} placeholder="Commentaire" /></div>
+              <Btn onClick={addCompetitor}>Ajouter</Btn>
+            </div>
+          )}
           <div className="divide-y" style={{ borderColor: c.ft }}>
-            {market.competitors.map((comp, i) => (
-              <div key={i} className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[rgba(200,149,46,0.02)]">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[14px] font-bold" style={{ background: c.ft, color: c.mv }}>
-                  {i + 1}
+            {allCompetitors.map((comp, i) => {
+              const isCustom = i >= market.competitors.length;
+              const customIdx = i - market.competitors.length;
+              return (
+                <div key={i} className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[rgba(200,149,46,0.02)]">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[14px] font-bold" style={{ background: isCustom ? 'rgba(200,149,46,0.1)' : c.ft, color: c.mv }}>
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{comp.name} {isCustom && <span className="text-[9px] font-normal" style={{ color: c.or }}>· perso</span>}</div>
+                    <div className="text-[10px]" style={{ color: c.gr }}>{comp.note}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-[12px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{comp.price}</div>
+                    {comp.pages > 0 && <div className="text-[9px]" style={{ color: c.gr }}>{comp.pages}p moy.</div>}
+                  </div>
+                  {isCustom && <button onClick={() => removeCompetitor(activeGenre, customIdx)} className="text-[11px] cursor-pointer bg-transparent border-none" style={{ color: c.er }}>✕</button>}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{comp.name}</div>
-                  <div className="text-[10px]" style={{ color: c.gr }}>{comp.note}</div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-[12px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{comp.price}</div>
-                  <div className="text-[9px]" style={{ color: c.gr }}>{comp.pages}p moy.</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       </div>
 
       {/* Recommendations */}
       <Card hover={false} className="mt-5 p-5">
-        <div className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: c.or }}>💡 Recommandations IA</div>
+        <div className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: c.or }}>💡 Recommandations</div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
             { icon: '💰', title: 'Prix', text: jabrAvgPrice > market.avgPrice ? `Vos prix sont ${((jabrAvgPrice - market.avgPrice) / market.avgPrice * 100).toFixed(0)}% au-dessus du marché. Envisagez un format poche pour compétitivité.` : jabrAvgPrice > 0 ? `Bon positionnement prix, ${((market.avgPrice - jabrAvgPrice) / market.avgPrice * 100).toFixed(0)}% sous la moyenne. Marge d'augmentation possible.` : `Définissez vos prix pour comparer avec le marché ${activeGenre}.` },
@@ -4574,11 +4838,57 @@ const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg:
     { id: 'merchandise', label: '🎁 Produits dérivés', desc: 'Goodies, illustrations, licences', territories: '—', status: 'disponible', color: c.og },
   ];
 
-  const contracts = [
-    { title: 'Contrat d\'édition', author: 'Steve Moradel', type: 'Cession de droits', start: '01/01/2025', end: '31/12/2030', titles: projects.filter(p => p.author === 'Steve Moradel').length, status: 'actif' },
-    { title: 'Distribution KDP', author: 'Jabrilia → Amazon', type: 'Distribution', start: '15/02/2025', end: 'Renouvelable', titles: projects.filter(p => p.editions.some(e => e.format === 'broché' || e.format === 'epub')).length, status: 'actif' },
-    { title: 'Illustratrice Anti-Stress', author: 'Allison Moradel', type: 'Commande illustration', start: '01/01/2025', end: '30/06/2025', titles: 1, status: 'terminé' },
+  const [contracts, setContracts] = useState(() => {
+    try { const s = localStorage.getItem('jabr-contracts-v2'); if (s) return JSON.parse(s); } catch { /* noop */ }
+    return [
+    { id: '1', title: 'Contrat d\'édition', author: 'Steve Moradel', type: 'Cession de droits', start: '2025-01-01', end: '2030-12-31', titles: projects.filter(p => p.author === 'Steve Moradel').length, status: 'actif', notes: '' },
+    { id: '2', title: 'Distribution KDP', author: 'Jabrilia → Amazon', type: 'Distribution', start: '2025-02-15', end: '', titles: projects.filter(p => p.editions.some(e => e.format === 'broché' || e.format === 'epub')).length, status: 'actif', notes: 'Renouvelable automatiquement' },
+    { id: '3', title: 'Illustratrice Anti-Stress', author: 'Allison Moradel', type: 'Commande illustration', start: '2025-01-01', end: '2025-06-30', titles: 1, status: 'terminé', notes: '' },
   ];
+  });
+
+  const persistContracts = (c2: typeof contracts) => { try { localStorage.setItem('jabr-contracts-v2', JSON.stringify(c2)); } catch {} setContracts(c2); };
+
+  // Rights matrix state
+  const [rightsMatrix, setRightsMatrix] = useState<Record<string, boolean>>(() => {
+    try { const s = localStorage.getItem('jabr-rights-matrix'); if (s) return JSON.parse(s); } catch {}
+    const m: Record<string, boolean> = {};
+    projects.forEach(p => {
+      m[`${p.id}-print`] = p.editions.some(e => ['broché', 'poche', 'relié'].includes(e.format));
+      m[`${p.id}-digital`] = p.editions.some(e => ['epub', 'pdf'].includes(e.format));
+      m[`${p.id}-audio`] = p.editions.some(e => e.format === 'audiobook');
+    });
+    return m;
+  });
+  const persistMatrix = (m: Record<string, boolean>) => { try { localStorage.setItem('jabr-rights-matrix', JSON.stringify(m)); } catch {} setRightsMatrix(m); };
+  const toggleRight = (key: string) => { persistMatrix({ ...rightsMatrix, [key]: !rightsMatrix[key] }); };
+
+  // Contract modal
+  const [showModal, setShowModal] = useState(false);
+  const [editContract, setEditContract] = useState<string | null>(null);
+  const [form, setForm] = useState({ title: '', author: '', type: 'Cession de droits', start: '', end: '', notes: '' });
+
+  const contractTypes = ['Cession de droits', 'Distribution', 'Commande illustration', 'Licence', 'Traduction', 'Adaptation', 'Autre'];
+
+  const openCreate = () => { setForm({ title: '', author: '', type: 'Cession de droits', start: '', end: '', notes: '' }); setEditContract(null); setShowModal(true); };
+  const openEdit = (ct: typeof contracts[0]) => { setForm({ title: ct.title, author: ct.author, type: ct.type, start: ct.start, end: ct.end, notes: ct.notes || '' }); setEditContract(ct.id); setShowModal(true); };
+
+  const handleSave = () => {
+    if (!form.title.trim() || !form.author.trim()) { onToast('Titre et auteur requis'); return; }
+    if (editContract) {
+      persistContracts(contracts.map((ct: { id: string }) => ct.id === editContract ? { ...ct, ...form } : ct));
+      onToast('Contrat modifié');
+    } else {
+      persistContracts([...contracts, { id: Date.now().toString(), ...form, titles: 0, status: 'actif' }]);
+      onToast('Contrat créé');
+    }
+    setShowModal(false);
+  };
+
+  const deleteContract = (id: string) => { persistContracts(contracts.filter((ct: { id: string }) => ct.id !== id)); onToast('Contrat supprimé'); };
+  const toggleContractStatus = (id: string) => {
+    persistContracts(contracts.map((ct: { id: string; status: string }) => ct.id === id ? { ...ct, status: ct.status === 'actif' ? 'terminé' : 'actif' } : ct));
+  };
 
   const territories = [
     { zone: '🇫🇷 France', rights: 'Tous droits', titles: projects.length, active: true },
@@ -4591,6 +4901,13 @@ const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg:
     { zone: '🇩🇪 Allemagne', rights: 'Non cédés', titles: 0, active: false },
   ];
 
+  const exportRights = () => {
+    const lines = ['JABR — Récapitulatif des droits', `Date : ${new Date().toLocaleDateString('fr-FR')}`, '', '== CONTRATS ==', ...contracts.map((ct: { title: string; author: string; type: string; start: string; end: string; status: string }) => `${ct.title} | ${ct.author} | ${ct.type} | ${ct.start} → ${ct.end || 'Renouvelable'} | ${ct.status}`), '', '== MATRICE DROITS ==', ...projects.map(p => `${p.title} | Print:${rightsMatrix[`${p.id}-print`] ? '✓' : '—'} Digital:${rightsMatrix[`${p.id}-digital`] ? '✓' : '—'} Audio:${rightsMatrix[`${p.id}-audio`] ? '✓' : '—'} Trad:${rightsMatrix[`${p.id}-translation`] ? '✓' : '—'} Adapt:${rightsMatrix[`${p.id}-adaptation`] ? '✓' : '—'} Dérivés:${rightsMatrix[`${p.id}-merchandise`] ? '✓' : '—'}`)];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'jabr-droits-export.txt'; a.click();
+    onToast('Export des droits téléchargé');
+  };
+
   return (
     <div>
       <div className="flex justify-between items-end mb-5">
@@ -4598,13 +4915,44 @@ const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg:
           <h2 className="text-2xl" style={{ color: c.mv }}>Droits & Contrats</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Gestion des droits dérivés, adaptations et territoires</p>
         </div>
-        <Btn variant="secondary" onClick={() => onToast('Export des droits en préparation')}>{icons.download} Export récapitulatif</Btn>
+        <div className="flex gap-2">
+          <Btn variant="secondary" onClick={exportRights}>{icons.download} Export</Btn>
+          <Btn onClick={openCreate}>{icons.plus} Nouveau contrat</Btn>
+        </div>
       </div>
+
+      {/* Contract modal */}
+      {showModal && (
+        <>
+          <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }} onClick={() => setShowModal(false)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[201] w-[90vw] max-w-[480px] rounded-2xl p-6" style={{ background: 'white', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h3 className="text-lg font-bold mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>{editContract ? 'Modifier le contrat' : 'Nouveau contrat'}</h3>
+            <div className="space-y-3">
+              <div><label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>Titre du contrat *</label><input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="w-full mt-1 px-3 py-2.5 rounded-lg text-[13px] outline-none" style={{ border: `1.5px solid ${c.gc}` }} placeholder="Ex : Contrat de traduction EN" /></div>
+              <div><label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>Parties *</label><input value={form.author} onChange={e => setForm({ ...form, author: e.target.value })} className="w-full mt-1 px-3 py-2.5 rounded-lg text-[13px] outline-none" style={{ border: `1.5px solid ${c.gc}` }} placeholder="Ex : Jabrilia → Penguin Books" /></div>
+              <div><label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>Type</label>
+                <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="w-full mt-1 px-3 py-2.5 rounded-lg text-[13px] outline-none cursor-pointer" style={{ border: `1.5px solid ${c.gc}` }}>
+                  {contractTypes.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1"><label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>Date début</label><input type="date" value={form.start} onChange={e => setForm({ ...form, start: e.target.value })} className="w-full mt-1 px-3 py-2.5 rounded-lg text-[13px] outline-none" style={{ border: `1.5px solid ${c.gc}` }} /></div>
+                <div className="flex-1"><label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>Date fin</label><input type="date" value={form.end} onChange={e => setForm({ ...form, end: e.target.value })} className="w-full mt-1 px-3 py-2.5 rounded-lg text-[13px] outline-none" style={{ border: `1.5px solid ${c.gc}` }} /></div>
+              </div>
+              <div><label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>Notes</label><textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full mt-1 px-3 py-2.5 rounded-lg text-[13px] outline-none resize-none" style={{ border: `1.5px solid ${c.gc}` }} placeholder="Notes optionnelles..." /></div>
+            </div>
+            <div className="flex gap-3 mt-5 justify-end">
+              <Btn variant="secondary" onClick={() => setShowModal(false)}>Annuler</Btn>
+              <Btn onClick={handleSave}>{editContract ? 'Enregistrer' : 'Créer'}</Btn>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="flex gap-3.5 mb-6 flex-wrap">
         <StatCard value={rightsTypes.filter(r => r.status === 'actif').length} label="Droits actifs" accent={c.ok} />
         <StatCard value={rightsTypes.filter(r => r.status === 'disponible').length} label="Disponibles" accent={c.og} />
-        <StatCard value={contracts.length} label="Contrats" accent={c.mv} />
+        <StatCard value={contracts.filter((ct: { status: string }) => ct.status === 'actif').length} label="Contrats actifs" accent={c.mv} />
         <StatCard value={territories.filter(t => t.active).length} label="Territoires" accent={c.or} />
       </div>
 
@@ -4651,46 +4999,50 @@ const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg:
         </Card>
       </div>
 
-      {/* Contrats */}
+      {/* Contrats CRUD */}
       <Card hover={false} className="mt-5 overflow-hidden">
-        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
-          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Contrats actifs</span>
-          <span className="text-[11px] ml-3" style={{ color: c.gr }}>{contracts.length} contrats</span>
+        <div className="px-5 py-3.5 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Contrats ({contracts.length})</span>
+          <Btn variant="secondary" onClick={openCreate}>{icons.plus} Ajouter</Btn>
         </div>
         <div className="divide-y" style={{ borderColor: c.ft }}>
-          {contracts.map((ct, i) => (
-            <div key={i} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[rgba(200,149,46,0.02)]">
+          {contracts.map((ct: { id: string; title: string; author: string; type: string; start: string; end: string; status: string; titles: number; notes?: string }) => (
+            <div key={ct.id} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[rgba(200,149,46,0.02)]">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: ct.status === 'actif' ? '#D4F0E0' : c.ft }}>
-                <span className="text-base">{ct.type === 'Distribution' ? '🚚' : ct.type === 'Commande illustration' ? '🎨' : '📜'}</span>
+                <span className="text-base">{ct.type === 'Distribution' ? '🚚' : ct.type === 'Commande illustration' ? '🎨' : ct.type === 'Traduction' ? '🌍' : ct.type === 'Adaptation' ? '🎬' : '📜'}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{ct.title}</div>
                 <div className="text-[11px]" style={{ color: c.gr }}>{ct.author} · {ct.type}</div>
+                {ct.notes && <div className="text-[10px] mt-0.5 italic" style={{ color: c.gr }}>{ct.notes}</div>}
               </div>
               <div className="text-right shrink-0">
-                <div className="text-[11px]" style={{ color: c.vm }}>{ct.start} → {ct.end}</div>
+                <div className="text-[11px]" style={{ color: c.vm }}>{ct.start ? new Date(ct.start).toLocaleDateString('fr-FR') : '—'} → {ct.end ? new Date(ct.end).toLocaleDateString('fr-FR') : 'Renouvelable'}</div>
                 <div className="text-[10px]" style={{ color: c.gr }}>{ct.titles} titre{ct.titles > 1 ? 's' : ''}</div>
               </div>
-              <Badge bg={ct.status === 'actif' ? '#D4F0E0' : c.ft} color={ct.status === 'actif' ? c.ok : c.gr}>
-                {ct.status === 'actif' ? '✓ Actif' : '○ Terminé'}
-              </Badge>
+              <div className="flex items-center gap-1">
+                <button onClick={() => toggleContractStatus(ct.id)} className="cursor-pointer bg-transparent border-none"><Badge bg={ct.status === 'actif' ? '#D4F0E0' : c.ft} color={ct.status === 'actif' ? c.ok : c.gr}>{ct.status === 'actif' ? '✓ Actif' : '○ Terminé'}</Badge></button>
+                <button onClick={() => openEdit(ct)} className="px-2 py-1 rounded cursor-pointer bg-transparent border-none text-[11px]" style={{ color: c.gr }}>✎</button>
+                <button onClick={() => deleteContract(ct.id)} className="px-2 py-1 rounded cursor-pointer bg-transparent border-none text-[11px]" style={{ color: c.er }}>✕</button>
+              </div>
             </div>
           ))}
         </div>
       </Card>
 
-      {/* Matrice droits × titres */}
+      {/* Matrice droits × titres — INTERACTIVE */}
       <Card hover={false} className="mt-5 overflow-hidden">
         <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Matrice Droits × Titres</span>
+          <span className="text-[10px] ml-2" style={{ color: c.gr }}>Cliquez pour modifier</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-[11px]">
             <thead>
               <tr style={{ background: c.ft }}>
                 <th className="text-left px-4 py-2.5 font-semibold" style={{ color: c.mv }}>Titre</th>
-                {['Print', 'Digital', 'Audio', 'Trad.', 'Adapt.', 'Dérivés'].map(h => (
-                  <th key={h} className="text-center px-2 py-2.5 font-semibold" style={{ color: c.gr }}>{h}</th>
+                {['print', 'digital', 'audio', 'translation', 'adaptation', 'merchandise'].map(h => (
+                  <th key={h} className="text-center px-2 py-2.5 font-semibold" style={{ color: c.gr }}>{h === 'print' ? 'Print' : h === 'digital' ? 'Digital' : h === 'audio' ? 'Audio' : h === 'translation' ? 'Trad.' : h === 'adaptation' ? 'Adapt.' : 'Dérivés'}</th>
                 ))}
               </tr>
             </thead>
@@ -4698,21 +5050,17 @@ const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg:
               {projects.map(p => (
                 <tr key={p.id} style={{ borderBottom: `1px solid ${c.ft}` }}>
                   <td className="px-4 py-2.5 font-semibold" style={{ color: c.mv }}>{p.title}</td>
-                  {[
-                    p.editions.some(e => ['broché', 'poche', 'relié'].includes(e.format)),
-                    p.editions.some(e => ['epub', 'pdf'].includes(e.format)),
-                    p.editions.some(e => e.format === 'audiobook'),
-                    false,
-                    false,
-                    false,
-                  ].map((active, j) => (
-                    <td key={j} className="text-center px-2 py-2.5">
-                      <div className="w-5 h-5 rounded-full mx-auto flex items-center justify-center"
-                        style={{ background: active ? '#D4F0E0' : c.ft }}>
-                        <span style={{ fontSize: 9, color: active ? c.ok : c.gr }}>{active ? '✓' : '—'}</span>
-                      </div>
-                    </td>
-                  ))}
+                  {['print', 'digital', 'audio', 'translation', 'adaptation', 'merchandise'].map(right => {
+                    const key = `${p.id}-${right}`;
+                    const active = !!rightsMatrix[key];
+                    return (
+                      <td key={right} className="text-center px-2 py-2.5">
+                        <button onClick={() => toggleRight(key)} className="w-6 h-6 rounded-full mx-auto flex items-center justify-center cursor-pointer transition-all border-none" style={{ background: active ? '#D4F0E0' : c.ft }}>
+                          <span style={{ fontSize: 10, color: active ? c.ok : c.gr }}>{active ? '✓' : '—'}</span>
+                        </button>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -5382,8 +5730,35 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
           {/* Compte */}
           {onSignOut && (
             <Card hover={false} className="p-6">
+              <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.or }}>
+                {lang === 'fr' ? 'Abonnement' : 'Subscription'}
+              </h3>
+              <p className="text-[12px] mb-4" style={{ color: c.gr }}>
+                {lang === 'fr' ? 'Gérez votre plan et votre facturation' : 'Manage your plan and billing'}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                <Btn variant="secondary" onClick={() => { window.location.href = '/pricing'; }}>
+                  💎 {lang === 'fr' ? 'Voir les plans' : 'View plans'}
+                </Btn>
+                <Btn variant="secondary" onClick={async () => {
+                  try {
+                    const res = await fetch('/api/stripe/portal', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                    const data = await res.json();
+                    if (data.url) window.location.href = data.url;
+                    else onToast(data.error || 'Portail non disponible');
+                  } catch { onToast('Erreur portail facturation'); }
+                }}>
+                  📋 {lang === 'fr' ? 'Portail facturation' : 'Billing portal'}
+                </Btn>
+              </div>
+            </Card>
+          )}
+
+          {/* Déconnexion */}
+          {onSignOut && (
+            <Card hover={false} className="p-6">
               <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: '#D64545' }}>
-                {lang === 'fr' ? 'Compte' : 'Account'}
+                {lang === 'fr' ? 'Déconnexion' : 'Sign out'}
               </h3>
               <p className="text-[12px] mb-4" style={{ color: c.gr }}>
                 {lang === 'fr' ? 'Déconnectez-vous de votre espace éditorial' : 'Sign out of your editorial workspace'}
@@ -5405,19 +5780,52 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
   const withoutAudio = projects.filter(p => p.genre !== 'BD' && !p.editions.some(e => e.format === 'audiobook'));
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
+  // Per-project pipeline state (persisted)
+  const [pipelineState, setPipelineState] = useState<Record<number, { step: number; voice: string; launched: boolean }>>(() => {
+    try { const s = localStorage.getItem('jabr-audiobook-pipeline'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  const persistPipeline = (state: typeof pipelineState) => { try { localStorage.setItem('jabr-audiobook-pipeline', JSON.stringify(state)); } catch {} setPipelineState(state); };
+
+  const advanceStep = (projectId: number) => {
+    const cur = pipelineState[projectId] || { step: 0, voice: 'adam-fr', launched: false };
+    if (cur.step < 6) {
+      persistPipeline({ ...pipelineState, [projectId]: { ...cur, step: cur.step + 1 } });
+      onToast(`✓ Étape ${cur.step + 1}/6 complétée`);
+    }
+  };
+
+  const resetPipeline = (projectId: number) => {
+    const newState = { ...pipelineState };
+    delete newState[projectId];
+    persistPipeline(newState);
+    onToast('Pipeline réinitialisé');
+  };
+
+  const setVoice = (projectId: number, voice: string) => {
+    const cur = pipelineState[projectId] || { step: 0, voice: 'adam-fr', launched: false };
+    persistPipeline({ ...pipelineState, [projectId]: { ...cur, voice } });
+  };
+
+  const launchProduction = (projectId: number) => {
+    const cur = pipelineState[projectId] || { step: 0, voice: 'adam-fr', launched: false };
+    persistPipeline({ ...pipelineState, [projectId]: { ...cur, launched: true, step: Math.max(cur.step, 1) } });
+    onToast('🎙️ Production lancée ! Étape 1 : Import en cours.');
+  };
+
   const pipeline = [
-    { icon: '📝', title: '1. Import', desc: 'Upload .docx · Découpe chapitres auto', status: 'ready' },
-    { icon: '🎙️', title: '2. Voix IA', desc: 'ElevenLabs TTS · Choix voix / clonage', status: 'ready' },
-    { icon: '🎛️', title: '3. Mastering', desc: 'Normalisation -14 LUFS · EQ · Compression', status: 'ready' },
-    { icon: '✅', title: '4. Validation', desc: 'Écoute chapitres · Corrections ponctuelles', status: 'manual' },
-    { icon: '📦', title: '5. Export', desc: 'MP3 320kbps par chapitre + fichier complet', status: 'ready' },
-    { icon: '🌐', title: '6. Distribution', desc: 'ACX/Audible · Spotify · Apple Books', status: 'phase2' },
+    { icon: '📝', title: '1. Import', desc: 'Upload .docx · Découpe chapitres' },
+    { icon: '🎙️', title: '2. Voix IA', desc: 'ElevenLabs TTS · Choix voix' },
+    { icon: '🎛️', title: '3. Mastering', desc: 'Normalisation -14 LUFS · EQ' },
+    { icon: '✅', title: '4. Validation', desc: 'Écoute · Corrections' },
+    { icon: '📦', title: '5. Export', desc: 'MP3 320kbps par chapitre' },
+    { icon: '🌐', title: '6. Distribution', desc: 'ACX/Audible · Spotify' },
   ];
 
   const voices = [
     { name: 'Narrateur FR — Masculin', id: 'adam-fr', desc: 'Voix grave, posée, littéraire', cost: '~0,30€/min' },
     { name: 'Narratrice FR — Féminin', id: 'bella-fr', desc: 'Voix claire, chaleureuse, expressive', cost: '~0,30€/min' },
-    { name: 'Clonage voix auteur', id: 'clone', desc: '3 min d\'échantillon requis · Voix personnalisée', cost: '~0,50€/min' },
+    { name: 'Clonage voix auteur', id: 'clone', desc: '3 min d\'échantillon requis', cost: '~0,50€/min' },
+    { name: 'Narrateur EN — English', id: 'adam-en', desc: 'Deep, literary, British accent', cost: '~0,30€/min' },
   ];
 
   const acxSpecs = [
@@ -5431,38 +5839,41 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
 
   const totalMinutes = projects.filter(p => p.genre !== 'BD').reduce((s, p) => s + Math.round(p.pages * 1.5), 0);
   const estimatedCost = Math.round(totalMinutes * 0.3);
+  const inProduction = Object.values(pipelineState).filter(s => s.launched).length;
 
   return (
     <div>
       <div className="flex justify-between items-end mb-5">
         <div><h2 className="text-2xl" style={{ color: c.mv }}>Audiobooks</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Production vocale IA — ElevenLabs TTS · Pipeline automatisé</p></div>
-        <Btn onClick={() => onToast('Production audiobook : sélectionner un titre avec manuscrit validé')}>{icons.plus} Lancer une production</Btn>
       </div>
       <div className="flex gap-3.5 mb-6 flex-wrap">
         <StatCard value={withAudio.length} label="Avec audiobook" accent={c.ok} />
-        <StatCard value={withoutAudio.length} label="Éligibles" accent={c.og} />
-        <StatCard value={`~${totalMinutes} min`} label="Durée totale est." accent={c.vm} />
-        <StatCard value={`~${estimatedCost}€`} label="Coût estimé TTS" accent={c.or} />
+        <StatCard value={inProduction} label="En production" accent={c.og} />
+        <StatCard value={withoutAudio.length} label="Éligibles" accent={c.vm} />
+        <StatCard value={`~${totalMinutes} min`} label="Durée totale est." accent={c.or} />
+        <StatCard value={`~${estimatedCost}€`} label="Coût estimé TTS" accent={c.er} />
       </div>
 
-      {/* Pipeline */}
+      {/* Global pipeline overview */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-6">
-        {pipeline.map((s, i) => (
-          <Card key={s.title} hover={false} className="p-4 text-center relative">
-            <div className="text-2xl mb-1.5">{s.icon}</div>
-            <div className="font-semibold text-[12px]" style={{ color: c.mv }}>{s.title}</div>
-            <div className="text-[10px] mt-1 leading-relaxed" style={{ color: c.gr }}>{s.desc}</div>
-            <div className="mt-2">
-              <Badge bg={s.status === 'ready' ? '#D4F0E0' : s.status === 'manual' ? '#FDE8D0' : '#E8E0F0'}
-                color={s.status === 'ready' ? c.ok : s.status === 'manual' ? c.og : c.vm}>
-                {s.status === 'ready' ? 'Auto' : s.status === 'manual' ? 'Manuel' : 'Phase 2'}
-              </Badge>
-            </div>
-            {i < pipeline.length - 1 && (
-              <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 text-[14px]" style={{ color: c.gc }}>→</div>
-            )}
-          </Card>
-        ))}
+        {pipeline.map((s, i) => {
+          const atStep = withAudio.filter(p => (pipelineState[p.id]?.step || 0) === i + 1).length;
+          const doneStep = withAudio.filter(p => (pipelineState[p.id]?.step || 0) > i + 1).length;
+          return (
+            <Card key={s.title} hover={false} className="p-4 text-center relative">
+              <div className="text-2xl mb-1.5">{s.icon}</div>
+              <div className="font-semibold text-[12px]" style={{ color: c.mv }}>{s.title}</div>
+              <div className="text-[10px] mt-1 leading-relaxed" style={{ color: c.gr }}>{s.desc}</div>
+              <div className="flex gap-1 justify-center mt-2">
+                {atStep > 0 && <Badge bg="#FDE8D0" color={c.og}>{atStep} en cours</Badge>}
+                {doneStep > 0 && <Badge bg="#D4F0E0" color={c.ok}>{doneStep} ✓</Badge>}
+              </div>
+              {i < pipeline.length - 1 && (
+                <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 text-[14px]" style={{ color: c.gc }}>→</div>
+              )}
+            </Card>
+          );
+        })}
       </div>
 
       {/* Voice selection + ACX specs */}
@@ -5494,11 +5905,11 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
         </Card>
       </div>
 
-      {/* Titles with audio */}
+      {/* Titles with audio — interactive pipeline */}
       {withAudio.length > 0 && (
         <Card hover={false} className="mb-5">
           <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.ok}` }}>
-            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Éditions audiobook planifiées</span>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Productions audiobook ({withAudio.length})</span>
           </div>
           {withAudio.map(p => {
             const audioEd = p.editions.find(e => e.format === 'audiobook')!;
@@ -5506,6 +5917,8 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
             const chapters = Math.round(p.pages / 20);
             const cost = Math.round(duration * 0.3);
             const isExpanded = expandedId === p.id;
+            const ps = pipelineState[p.id] || { step: 0, voice: 'adam-fr', launched: false };
+            const selectedVoice = voices.find(v => v.id === ps.voice) || voices[0];
             return (
               <div key={p.id}>
                 <div className="flex items-center gap-4 px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
@@ -5514,45 +5927,62 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
                   <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
                   <div className="flex-1">
                     <div className="text-[13px] font-semibold">{p.title}</div>
-                    <div style={{ fontSize: 11, color: c.gr }}>{p.pages} pages · ~{duration} min · ~{chapters} chapitres</div>
+                    <div style={{ fontSize: 11, color: c.gr }}>{p.pages} p · ~{duration} min · ~{chapters} ch.</div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-[11px] font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>~{cost}€</div>
-                    <div style={{ fontSize: 9, color: c.gr }}>coût TTS estimé</div>
+                  {/* Mini pipeline progress */}
+                  <div className="flex gap-0.5">
+                    {pipeline.map((_, i) => (
+                      <div key={i} className="w-4 h-2 rounded-sm transition-all" style={{ background: i < ps.step ? c.ok : i === ps.step && ps.launched ? c.og : c.gc }} />
+                    ))}
                   </div>
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: c.gr }}>{audioEd.isbn}</div>
-                  <Badge bg={EDITION_STATUS_LABELS[audioEd.status]?.bg || c.gc} color={EDITION_STATUS_LABELS[audioEd.status]?.color || c.gr}>
-                    {EDITION_STATUS_LABELS[audioEd.status]?.label}
-                  </Badge>
+                  <div className="text-[11px] font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>~{cost}€</div>
+                  <Badge bg={ps.launched ? '#D4F0E0' : c.ft} color={ps.launched ? c.ok : c.gr}>{ps.launched ? `${ps.step}/6` : 'Non lancé'}</Badge>
                   <span style={{ color: c.gr, fontSize: 12, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : '' }}>▾</span>
                 </div>
                 {isExpanded && (
-                  <div className="px-5 py-4 grid grid-cols-3 gap-4" style={{ background: '#FDFCFA', borderBottom: `1px solid ${c.ft}` }}>
-                    <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
-                      <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>Production</div>
-                      <div className="text-[10px] space-y-1" style={{ color: c.gr }}>
-                        <div>Chapitres estimés : ~{chapters}</div>
-                        <div>Durée totale : ~{duration} min ({Math.floor(duration / 60)}h{duration % 60 > 0 ? `${duration % 60}min` : ''})</div>
-                        <div>Voix : à sélectionner</div>
-                        <div>Statut : en attente de lancement</div>
-                      </div>
+                  <div className="px-5 py-4" style={{ background: '#FDFCFA', borderBottom: `1px solid ${c.ft}` }}>
+                    {/* Per-project pipeline */}
+                    <div className="flex items-center gap-1 mb-4">
+                      {pipeline.map((step, i) => (
+                        <div key={i} className="flex items-center gap-1 flex-1">
+                          <div className="flex flex-col items-center flex-1 cursor-pointer" onClick={e => { e.stopPropagation(); if (i === ps.step && ps.launched) advanceStep(p.id); }}>
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm transition-all" style={{ background: i < ps.step ? c.ok : i === ps.step && ps.launched ? c.og : c.gc, color: i <= ps.step && ps.launched ? 'white' : c.gr }}>{i < ps.step ? '✓' : step.icon}</div>
+                            <div className="text-[9px] mt-1 text-center font-semibold" style={{ color: i <= ps.step ? c.mv : c.gr }}>{step.title.split('. ')[1]}</div>
+                          </div>
+                          {i < pipeline.length - 1 && <div className="w-4 h-px" style={{ background: i < ps.step ? c.ok : c.gc }} />}
+                        </div>
+                      ))}
                     </div>
-                    <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
-                      <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>Export</div>
-                      <div className="text-[10px] space-y-1" style={{ color: c.gr }}>
-                        <div>Format : MP3 192kbps CBR mono</div>
-                        <div>Fichiers : {chapters} chapitres + Opening + Closing</div>
-                        <div>Couverture : 2400 × 2400 px</div>
-                        <div>Métadonnées ID3 : titre, auteur, chapitre</div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {/* Voice selector */}
+                      <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
+                        <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>🎙️ Voix sélectionnée</div>
+                        <select value={ps.voice} onChange={e => { e.stopPropagation(); setVoice(p.id, e.target.value); }} className="w-full text-[11px] p-2 rounded border-none cursor-pointer" style={{ background: c.ft, color: c.nr }}>
+                          {voices.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                        </select>
+                        <div className="text-[10px] mt-1" style={{ color: c.gr }}>{selectedVoice.desc} · {selectedVoice.cost}</div>
                       </div>
-                    </div>
-                    <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
-                      <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>Coût estimé</div>
-                      <div className="text-[10px] space-y-1" style={{ color: c.gr }}>
-                        <div>TTS ElevenLabs : ~{cost}€</div>
-                        <div>Mastering auto : inclus</div>
-                        <div>Distribution ACX : 0€ (commission sur ventes)</div>
-                        <div className="pt-1 font-semibold" style={{ color: c.or }}>Total : ~{cost}€</div>
+                      {/* Stats */}
+                      <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
+                        <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>📊 Estimation</div>
+                        <div className="text-[10px] space-y-1" style={{ color: c.gr }}>
+                          <div>Chapitres : ~{chapters}</div>
+                          <div>Durée : ~{duration} min ({Math.floor(duration / 60)}h{duration % 60 > 0 ? `${duration % 60}` : ''})</div>
+                          <div>ISBN : {audioEd.isbn}</div>
+                          <div className="font-semibold" style={{ color: c.or }}>Coût TTS : ~{cost}€</div>
+                        </div>
+                      </div>
+                      {/* Actions */}
+                      <div className="p-3 rounded-lg flex flex-col gap-2" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
+                        <div className="text-[11px] font-semibold mb-1" style={{ color: c.vm }}>⚡ Actions</div>
+                        {!ps.launched ? (
+                          <Btn onClick={() => { launchProduction(p.id); }}>🚀 Lancer la production</Btn>
+                        ) : ps.step < 6 ? (
+                          <Btn onClick={() => { advanceStep(p.id); }}>→ Valider étape {ps.step + 1}</Btn>
+                        ) : (
+                          <Badge bg="#D4F0E0" color={c.ok}>✓ Production terminée</Badge>
+                        )}
+                        {ps.launched && <Btn variant="secondary" onClick={() => { resetPipeline(p.id); }}>↺ Réinitialiser</Btn>}
                       </div>
                     </div>
                   </div>
