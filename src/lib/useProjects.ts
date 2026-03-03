@@ -85,7 +85,8 @@ const toProject = (row: DbProject, editions: DbEdition[]): Project => ({
   analysis: row.analysis || undefined,
 });
 
-const toDbRow = (p: Project) => ({
+const toDbRow = (p: Project, userId?: string) => ({
+  ...(userId ? { user_id: userId } : {}),
   title: p.title,
   subtitle: p.subtitle || null,
   author: p.author,
@@ -162,41 +163,70 @@ export function useCalendarResults() {
 }
 
 // ═══════════════════════════════════
-// MAIN PROJECTS HOOK
+// MAIN PROJECTS HOOK — Auth-aware
 // ═══════════════════════════════════
 
-export function useProjects() {
+export function useProjects(userId?: string | null) {
   const [projects, setProjects] = useState<Project[]>(STATIC_PROJECTS);
   const [loading, setLoading] = useState(true);
   const [persisted, setPersisted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Persist to localStorage on every change
   const persistLocal = useCallback((projs: Project[]) => {
     saveToLS(LS_PROJECTS_KEY, projs);
   }, []);
 
-  // Load on mount: Supabase first, then localStorage, then static
+  // Load on mount: Supabase (auth-aware) → localStorage → static
   useEffect(() => {
     const load = async () => {
-      // Try localStorage first (always available)
+      setLoading(true);
+      setError(null);
+
       const localData = loadFromLS<Project[]>(LS_PROJECTS_KEY);
 
-      if (isSupabaseConfigured()) {
+      if (isSupabaseConfigured() && userId) {
         try {
           const sb = getSupabase();
           if (sb) {
             const [{ data: rows, error: pErr }, { data: eds, error: eErr }] = await Promise.all([
-              sb.from('projects').select('*').order('id'),
-              sb.from('editions').select('*').order('project_id, id'),
+              sb.from('projects').select('*').eq('user_id', userId).order('id'),
+              sb.from('editions').select('*').eq('user_id', userId).order('project_id, id'),
             ]);
-            if (!pErr && !eErr && rows && rows.length > 0 && eds) {
-              const loaded = rows.map((r: DbProject) => toProject(r, eds as DbEdition[]));
-              setProjects(loaded);
-              persistLocal(loaded);
-              setPersisted(true);
-              setLoading(false);
-              return;
+            if (!pErr && !eErr && rows && eds) {
+              if (rows.length > 0) {
+                const loaded = rows.map((r: DbProject) => toProject(r, eds as DbEdition[]));
+                setProjects(loaded);
+                persistLocal(loaded);
+                setPersisted(true);
+                setLoading(false);
+                return;
+              }
+              // First time user — seed from static, push to Supabase
+              const seeded: Project[] = [];
+              for (const p of STATIC_PROJECTS) {
+                const { data: row, error: insErr } = await sb.from('projects').insert(toDbRow(p, userId)).select().single();
+                if (!insErr && row) {
+                  if (p.editions?.length > 0) {
+                    await sb.from('editions').insert(
+                      p.editions.map(e => ({
+                        project_id: row.id, user_id: userId,
+                        format: e.format, isbn: e.isbn, price: e.price || null, status: e.status,
+                      }))
+                    );
+                  }
+                  seeded.push({ ...p, id: row.id });
+                }
+              }
+              if (seeded.length > 0) {
+                setProjects(seeded);
+                persistLocal(seeded);
+                setPersisted(true);
+                setLoading(false);
+                return;
+              }
             }
+            if (pErr) setError(pErr.message);
           }
         } catch (err) {
           console.warn('Supabase non disponible:', err);
@@ -207,15 +237,13 @@ export function useProjects() {
       if (localData && localData.length > 0) {
         setProjects(localData);
         setPersisted(true);
-      }
-      // else: keep STATIC_PROJECTS and save them
-      else {
+      } else {
         persistLocal(STATIC_PROJECTS);
       }
       setLoading(false);
     };
     load();
-  }, [persistLocal]);
+  }, [persistLocal, userId]);
 
   // ADD
   const addProject = useCallback(async (p: Project) => {
@@ -223,13 +251,16 @@ export function useProjects() {
     setProjects(updated);
     persistLocal(updated);
 
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured() && userId) {
       try {
-        const { data: row, error } = await getSupabase()!.from('projects').insert(toDbRow(p)).select().single();
+        const { data: row, error } = await getSupabase()!.from('projects').insert(toDbRow(p, userId)).select().single();
         if (error) throw error;
-        if (p.editions.length > 0) {
+        if (p.editions?.length > 0) {
           await getSupabase()!.from('editions').insert(
-            p.editions.map(e => ({ project_id: row.id, format: e.format, isbn: e.isbn, price: e.price || null, status: e.status }))
+            p.editions.map(e => ({
+              project_id: row.id, user_id: userId,
+              format: e.format, isbn: e.isbn, price: e.price || null, status: e.status,
+            }))
           );
         }
         const withId = updated.map(proj => proj === p ? { ...proj, id: row.id } : proj);
@@ -237,9 +268,10 @@ export function useProjects() {
         persistLocal(withId);
       } catch (err) {
         console.error('Erreur ajout Supabase:', err);
+        setError(err instanceof Error ? err.message : 'Erreur ajout');
       }
     }
-  }, [projects, persistLocal]);
+  }, [projects, persistLocal, userId]);
 
   // UPDATE
   const updateProject = useCallback(async (updated: Project) => {
@@ -247,14 +279,16 @@ export function useProjects() {
     setProjects(next);
     persistLocal(next);
 
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured() && userId) {
       try {
-        await getSupabase()!.from('projects').update(toDbRow(updated)).eq('id', updated.id);
+        const { error } = await getSupabase()!.from('projects').update(toDbRow(updated)).eq('id', updated.id).eq('user_id', userId);
+        if (error) throw error;
       } catch (err) {
         console.error('Erreur update Supabase:', err);
+        setError(err instanceof Error ? err.message : 'Erreur update');
       }
     }
-  }, [projects, persistLocal]);
+  }, [projects, persistLocal, userId]);
 
   // DELETE
   const deleteProject = useCallback(async (id: number) => {
@@ -262,14 +296,19 @@ export function useProjects() {
     setProjects(next);
     persistLocal(next);
 
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured() && userId) {
       try {
-        await getSupabase()!.from('projects').delete().eq('id', id);
+        const { error } = await getSupabase()!.from('projects').delete().eq('id', id).eq('user_id', userId);
+        if (error) throw error;
       } catch (err) {
         console.error('Erreur delete Supabase:', err);
+        setError(err instanceof Error ? err.message : 'Erreur suppression');
       }
     }
-  }, [projects, persistLocal]);
+  }, [projects, persistLocal, userId]);
 
-  return { projects, loading, persisted: persisted || !!loadFromLS(LS_PROJECTS_KEY), addProject, updateProject, deleteProject };
+  return {
+    projects, loading, persisted: persisted || !!loadFromLS(LS_PROJECTS_KEY),
+    error, addProject, updateProject, deleteProject,
+  };
 }

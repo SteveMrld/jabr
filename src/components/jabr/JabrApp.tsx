@@ -5105,7 +5105,7 @@ Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (r
   );
 };
 
-const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, onRestartTour }: { onToast: (msg: string) => void; dark: boolean; toggleDark: () => void; onImport?: (projects: Project[]) => void; lang: Lang; toggleLang: () => void; onRestartTour?: () => void }) => {
+const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, onRestartTour, onSignOut }: { onToast: (msg: string) => void; dark: boolean; toggleDark: () => void; onImport?: (projects: Project[]) => void; lang: Lang; toggleLang: () => void; onRestartTour?: () => void; onSignOut?: () => void }) => {
   const loadSettings = () => {
     try { const s = localStorage.getItem('jabr-settings'); return s ? JSON.parse(s) : null; } catch { return null; }
   };
@@ -5378,6 +5378,21 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
               }}>{icons.download} Template</Btn>
             </div>
           </Card>
+
+          {/* Compte */}
+          {onSignOut && (
+            <Card hover={false} className="p-6">
+              <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: '#D64545' }}>
+                {lang === 'fr' ? 'Compte' : 'Account'}
+              </h3>
+              <p className="text-[12px] mb-4" style={{ color: c.gr }}>
+                {lang === 'fr' ? 'Déconnectez-vous de votre espace éditorial' : 'Sign out of your editorial workspace'}
+              </p>
+              <Btn variant="secondary" onClick={() => { onSignOut(); }}>
+                ⏻ {lang === 'fr' ? 'Se déconnecter' : 'Sign out'}
+              </Btn>
+            </Card>
+          )}
         </div>
       </div>
     </div>
@@ -6915,11 +6930,11 @@ const OnboardingOverlay = ({ step, onNext, onSkip }: { step: number; onNext: () 
   );
 };
 
-export default function JabrApp({ author, onSwitchAuthor }: { author?: Author; onSwitchAuthor?: () => void } = {}) {
+export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: { author?: Author; onSwitchAuthor?: () => void; userId?: string | null; onSignOut?: () => void } = {}) {
   const [page, setPage] = useState('dashboard');
   const [project, setProject] = useState<Project | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const { projects: allProjects, loading, persisted, addProject, updateProject, deleteProject } = useProjects();
+  const { projects: allProjects, loading, persisted, addProject, updateProject, deleteProject } = useProjects(userId);
   
   // Filter projects by author if one is selected
   const projects = useMemo(() => {
@@ -7155,7 +7170,7 @@ export default function JabrApp({ author, onSwitchAuthor }: { author?: Author; o
       case 'audiobooks': return <AudiobooksView projects={projects} onToast={showToast} />;
       case 'presse': return <PresseView projects={projects} onProject={openProject} onToast={showToast} />;
       case 'calendrier': return <CalendrierView projects={projects} onToast={showToast} calStore={calStore} />;
-      case 'settings': return <SettingsView onToast={showToast} dark={dark} toggleDark={toggleDark} onImport={(imported) => imported.forEach(p => addProject(p))} lang={lang} toggleLang={toggleLang} onRestartTour={() => { setOnboardStep(0); try { localStorage.removeItem('jabr-onboarded'); } catch {} }} />;
+      case 'settings': return <SettingsView onToast={showToast} dark={dark} toggleDark={toggleDark} onImport={(imported) => imported.forEach(p => addProject(p))} lang={lang} toggleLang={toggleLang} onRestartTour={() => { setOnboardStep(0); try { localStorage.removeItem('jabr-onboarded'); } catch {} }} onSignOut={onSignOut} />;
       default: return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} onUpdateProject={handleUpdate} />;
     }
   };

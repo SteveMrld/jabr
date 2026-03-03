@@ -2,7 +2,10 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuthors, getAuthorInitials, getAuthorGradient, type Author } from '@/lib/authors';
-import { PROJECTS, type Project } from '@/lib/data';
+import { useProjects } from '@/lib/useProjects';
+import { useAuth } from '@/lib/useAuth';
+import { type Project } from '@/lib/data';
+import { useRouter } from 'next/navigation';
 import JabrApp from '@/components/jabr/JabrApp';
 
 const HUB = {
@@ -330,23 +333,39 @@ function CreateAuthorModal({ onSave, onClose }: { onSave: (author: Author) => vo
 }
 
 export default function DemoPage() {
-  const { authors, activeAuthor, loaded, selectAuthor, clearSelection, addAuthor } = useAuthors();
+  const { user, loading: authLoading, isAuthenticated, isConfigured, signOut } = useAuth();
+  const router = useRouter();
+  const userId = user?.id || null;
+  const { authors, activeAuthor, loaded, selectAuthor, clearSelection, addAuthor } = useAuthors(userId);
+  const { projects } = useProjects(userId);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const handleSelect = useCallback((author: Author) => { selectAuthor(author.id); }, [selectAuthor]);
   const handleCreateNew = useCallback(() => { setShowCreateModal(true); }, []);
   const handleSaveAuthor = useCallback((author: Author) => { addAuthor(author); setShowCreateModal(false); selectAuthor(author.id); }, [addAuthor, selectAuthor]);
 
-  if (!loaded) return (
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+    router.push('/auth');
+  }, [signOut, router]);
+
+  // Redirect to auth if Supabase is configured but not logged in
+  useEffect(() => {
+    if (!authLoading && isConfigured && !isAuthenticated) {
+      router.push('/auth');
+    }
+  }, [authLoading, isConfigured, isAuthenticated, router]);
+
+  if (authLoading || !loaded) return (
     <div style={{ position: 'fixed', inset: 0, background: `radial-gradient(ellipse at 50% 30%, rgba(45,27,78,0.3) 0%, transparent 50%), ${HUB.bg}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '0.15em', fontFamily: "'Playfair Display', Georgia, serif", background: 'linear-gradient(135deg, #C8952E, #E8B84B, #F5DCA0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>JABR</div>
     </div>
   );
 
-  if (activeAuthor) return <JabrApp author={activeAuthor} onSwitchAuthor={clearSelection} />;
+  if (activeAuthor) return <JabrApp author={activeAuthor} onSwitchAuthor={clearSelection} userId={userId} onSignOut={handleSignOut} />;
 
   return (
     <>
-      <HubCentral authors={authors} projects={PROJECTS} onSelectAuthor={handleSelect} onCreateNew={handleCreateNew} />
+      <HubCentral authors={authors} projects={projects} onSelectAuthor={handleSelect} onCreateNew={handleCreateNew} />
       {showCreateModal && <CreateAuthorModal onSave={handleSaveAuthor} onClose={() => setShowCreateModal(false)} />}
     </>
   );
