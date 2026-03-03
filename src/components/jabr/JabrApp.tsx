@@ -46,6 +46,8 @@ const icons: Record<string, React.ReactNode> = {
   droits: sv(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></>),
   benchmark: sv(<><path d="M18 20V10M12 20V4M6 20v-6" /></>),
   lecteurs: sv(<><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></>),
+  traductions: sv(<><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" /></>),
+  editeur: sv(<><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></>),
   settings: sv(<><circle cx="12" cy="12" r="3" /><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></>),
   bell: sv(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></>),
   plus: sv(<><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>, 18),
@@ -207,6 +209,8 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['droits', 'Droits', 'droits'],
   ['benchmark', 'Benchmark', 'benchmark'],
   ['lecteurs', 'Lecteurs', 'lecteurs'],
+  ['traductions', 'Traductions', 'traductions'],
+  ['editeur', 'Éditeur', 'editeur'],
   ['settings', 'Paramètres', 'settings'],
 ];
 
@@ -3689,6 +3693,174 @@ Ce communiqué a été généré par JABR Pipeline Éditorial.`;
 };
 
 // ═══════════════════════════════════
+// MODULE TRADUCTIONS
+// ═══════════════════════════════════
+
+const TraductionsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+  const [filter, setFilter] = useState<string | null>(null);
+
+  const languages = [
+    { code: 'en', flag: '🇬🇧', name: 'Anglais', market: '4.8Md€', demand: 'Très forte' },
+    { code: 'es', flag: '🇪🇸', name: 'Espagnol', market: '3.1Md€', demand: 'Forte' },
+    { code: 'de', flag: '🇩🇪', name: 'Allemand', market: '2.4Md€', demand: 'Forte' },
+    { code: 'it', flag: '🇮🇹', name: 'Italien', market: '1.2Md€', demand: 'Moyenne' },
+    { code: 'pt', flag: '🇧🇷', name: 'Portugais (BR)', market: '900M€', demand: 'Moyenne' },
+    { code: 'ja', flag: '🇯🇵', name: 'Japonais', market: '2.1Md€', demand: 'Niche' },
+    { code: 'ko', flag: '🇰🇷', name: 'Coréen', market: '850M€', demand: 'Croissante' },
+    { code: 'ar', flag: '🇸🇦', name: 'Arabe', market: '400M€', demand: 'Émergente' },
+  ];
+
+  // Simulated translation projects
+  const translationProjects: { projectId: number; langCode: string; translator: string; status: 'prospect' | 'negotiation' | 'in-progress' | 'review' | 'published'; progress: number; deadline?: string; cost?: number }[] = [
+    { projectId: 1, langCode: 'en', translator: 'Sarah Mitchell', status: 'in-progress', progress: 45, deadline: '15 sept. 2026', cost: 3200 },
+    { projectId: 1, langCode: 'es', translator: 'Carlos Ruiz', status: 'negotiation', progress: 0, cost: 2800 },
+    { projectId: 2, langCode: 'en', translator: 'James Parker', status: 'prospect', progress: 0 },
+    { projectId: 3, langCode: 'en', translator: '', status: 'prospect', progress: 0 },
+    { projectId: 3, langCode: 'de', translator: 'Anna Schneider', status: 'review', progress: 90, deadline: '01 juil. 2026', cost: 3500 },
+    { projectId: 4, langCode: 'it', translator: 'Marco Bianchi', status: 'in-progress', progress: 60, deadline: '30 oct. 2026', cost: 2600 },
+  ];
+
+  const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
+    'prospect': { label: 'Prospect', color: c.gr, bg: c.ft },
+    'negotiation': { label: 'Négociation', color: c.og, bg: '#FFF3E0' },
+    'in-progress': { label: 'En cours', color: '#3B6DC6', bg: '#E0ECFF' },
+    'review': { label: 'Relecture', color: c.vm, bg: '#F0E6FF' },
+    'published': { label: 'Publié', color: c.ok, bg: '#D4F0E0' },
+  };
+
+  const filtered = filter ? translationProjects.filter(tp => tp.langCode === filter) : translationProjects;
+  const totalCost = translationProjects.reduce((s, tp) => s + (tp.cost || 0), 0);
+  const inProgressCount = translationProjects.filter(tp => tp.status === 'in-progress' || tp.status === 'review').length;
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Traductions</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Suivi des langues cibles, traducteurs et statuts</p>
+        </div>
+        <Btn variant="secondary" onClick={() => onToast('Export traductions en préparation')}>{icons.download} Export récapitulatif</Btn>
+      </div>
+
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={translationProjects.length} label="Projets traduction" accent={c.or} />
+        <StatCard value={inProgressCount} label="En cours" accent="#3B6DC6" />
+        <StatCard value={[...new Set(translationProjects.map(tp => tp.langCode))].length} label="Langues ciblées" accent={c.vm} />
+        <StatCard value={`${totalCost.toLocaleString()}€`} label="Budget total" accent={c.og} />
+      </div>
+
+      {/* Language filter */}
+      <div className="flex gap-2 mb-5 flex-wrap">
+        <button onClick={() => setFilter(null)} className="px-3 py-1.5 rounded-lg cursor-pointer text-[11px] font-semibold transition-all border-none"
+          style={{ background: !filter ? c.or : c.ft, color: !filter ? 'white' : c.gr }}>
+          Toutes ({translationProjects.length})
+        </button>
+        {languages.filter(l => translationProjects.some(tp => tp.langCode === l.code)).map(l => (
+          <button key={l.code} onClick={() => setFilter(filter === l.code ? null : l.code)}
+            className="px-3 py-1.5 rounded-lg cursor-pointer text-[11px] font-semibold transition-all border-none"
+            style={{ background: filter === l.code ? c.or : c.ft, color: filter === l.code ? 'white' : c.gr }}>
+            {l.flag} {l.name} ({translationProjects.filter(tp => tp.langCode === l.code).length})
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Translation projects list */}
+        <div className="lg:col-span-2">
+          <Card hover={false} className="overflow-hidden">
+            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+              <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Projets de traduction</span>
+            </div>
+            <div className="divide-y" style={{ borderColor: c.ft }}>
+              {filtered.map((tp, i) => {
+                const project = projects.find(p => p.id === tp.projectId);
+                const lang = languages.find(l => l.code === tp.langCode);
+                const st = statusConfig[tp.status];
+                if (!project || !lang) return null;
+                return (
+                  <div key={i} className="px-5 py-4 transition-colors hover:bg-[rgba(200,149,46,0.02)]">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{lang.flag}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[13px] font-semibold" style={{ color: c.mv }}>{project.title}</span>
+                          <span className="text-[10px]" style={{ color: c.gr }}>→</span>
+                          <span className="text-[12px] font-semibold" style={{ color: c.vm }}>{lang.name}</span>
+                        </div>
+                        <div className="text-[10px] mt-0.5" style={{ color: c.gr }}>
+                          {tp.translator ? `Traducteur : ${tp.translator}` : 'Traducteur à définir'}
+                          {tp.deadline ? ` · Deadline : ${tp.deadline}` : ''}
+                          {tp.cost ? ` · ${tp.cost.toLocaleString()}€` : ''}
+                        </div>
+                      </div>
+                      <Badge bg={st.bg} color={st.color}>{st.label}</Badge>
+                    </div>
+                    {tp.progress > 0 && (
+                      <div className="mt-2.5 ml-8">
+                        <div className="flex justify-between text-[9px] mb-0.5">
+                          <span style={{ color: c.gr }}>Progression</span>
+                          <span className="font-bold" style={{ color: st.color }}>{tp.progress}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                          <div className="h-full rounded-full" style={{ width: `${tp.progress}%`, background: st.color, transition: 'width 0.8s ease' }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+
+        {/* Language market sidebar */}
+        <div>
+          <Card hover={false} className="overflow-hidden">
+            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+              <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>🌍 Marchés cibles</span>
+            </div>
+            <div className="p-4 space-y-2">
+              {languages.map(l => {
+                const count = translationProjects.filter(tp => tp.langCode === l.code).length;
+                return (
+                  <div key={l.code} className="flex items-center gap-2.5 p-2.5 rounded-lg transition-colors hover:bg-[rgba(200,149,46,0.03)]"
+                    style={{ border: `1px solid ${count > 0 ? `${c.or}30` : c.gc}` }}>
+                    <span className="text-base">{l.flag}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] font-semibold" style={{ color: c.mv }}>{l.name}</div>
+                      <div className="text-[9px]" style={{ color: c.gr }}>Marché : {l.market}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[9px] font-bold" style={{ color: l.demand === 'Très forte' ? c.ok : l.demand === 'Forte' ? c.og : c.gr }}>{l.demand}</div>
+                      {count > 0 && <div className="text-[8px]" style={{ color: c.or }}>{count} projet{count > 1 ? 's' : ''}</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Pipeline visuel */}
+          <Card hover={false} className="mt-4 p-4">
+            <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>Pipeline traduction</div>
+            {Object.entries(statusConfig).map(([key, cfg]) => {
+              const count = translationProjects.filter(tp => tp.status === key).length;
+              return (
+                <div key={key} className="flex items-center gap-2 mb-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: cfg.color }} />
+                  <span className="flex-1 text-[11px]" style={{ color: c.vm }}>{cfg.label}</span>
+                  <span className="text-[11px] font-bold" style={{ color: cfg.color }}>{count}</span>
+                </div>
+              );
+            })}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
 // MODULE LECTEURS
 // ═══════════════════════════════════
 
@@ -3867,6 +4039,179 @@ const LecteursView = ({ projects, onProject, onToast }: { projects: Project[]; o
           })()}
         </div>
       </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
+// TABLEAU DE BORD MULTI-AUTEURS
+// ═══════════════════════════════════
+
+const MultiAuthorView = ({ projects, onProject }: { projects: Project[]; onProject: (p: Project) => void }) => {
+  const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
+  const authors = [...new Set(projects.map(p => p.author))];
+  const authorStats = authors.map(a => {
+    const ps = projects.filter(p => p.author === a);
+    const published = ps.filter(p => p.status === 'published').length;
+    const totalPages = ps.reduce((s, p) => s + p.pages, 0);
+    const totalISBN = ps.reduce((s, p) => s + p.editions.length, 0);
+    const avgScore = ps.filter(p => p.maxScore > 0).length > 0
+      ? Math.round(ps.filter(p => p.maxScore > 0).reduce((s, p) => s + (p.score / p.maxScore) * 100, 0) / ps.filter(p => p.maxScore > 0).length)
+      : 0;
+    const genres = [...new Set(ps.map(p => p.genre))];
+    const corr = ps.reduce((s, p) => s + p.corrections.length, 0);
+    return { author: a, projects: ps, count: ps.length, published, totalPages, totalISBN, avgScore, genres, corrections: corr };
+  }).sort((a, b) => b.count - a.count);
+
+  const filteredStats = selectedAuthor ? authorStats.filter(a => a.author === selectedAuthor) : authorStats;
+  const totalTitles = projects.length;
+  const totalPublished = projects.filter(p => p.status === 'published').length;
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Tableau de bord éditeur</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Vue consolidée multi-auteurs · {authors.length} auteur{authors.length > 1 ? 's' : ''} · {totalTitles} titres</p>
+        </div>
+      </div>
+
+      {/* KPIs consolidés */}
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={authors.length} label="Auteurs" accent={c.mv} />
+        <StatCard value={totalTitles} label="Titres total" accent={c.or} />
+        <StatCard value={totalPublished} label="Publiés" accent={c.ok} />
+        <StatCard value={projects.reduce((s, p) => s + p.editions.length, 0)} label="ISBN total" accent={c.vm} />
+      </div>
+
+      {/* Author filter */}
+      <div className="flex gap-2 mb-5 flex-wrap">
+        <button onClick={() => setSelectedAuthor(null)} className="px-3 py-1.5 rounded-lg cursor-pointer text-[11px] font-semibold transition-all border-none"
+          style={{ background: !selectedAuthor ? c.or : c.ft, color: !selectedAuthor ? 'white' : c.gr }}>
+          Tous ({authors.length})
+        </button>
+        {authors.map(a => (
+          <button key={a} onClick={() => setSelectedAuthor(selectedAuthor === a ? null : a)}
+            className="px-3 py-1.5 rounded-lg cursor-pointer text-[11px] font-semibold transition-all border-none"
+            style={{ background: selectedAuthor === a ? c.or : c.ft, color: selectedAuthor === a ? 'white' : c.gr }}>
+            {a} ({projects.filter(p => p.author === a).length})
+          </button>
+        ))}
+      </div>
+
+      {/* Author cards */}
+      <div className="space-y-5">
+        {filteredStats.map(as => {
+          const pctOfCatalogue = Math.round((as.count / totalTitles) * 100);
+          return (
+            <Card key={as.author} hover={false} className="overflow-hidden">
+              <div className="px-5 py-4 flex items-center gap-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-[18px] font-bold text-white shrink-0" style={{ background: `linear-gradient(135deg, ${c.mv}, ${c.or})` }}>
+                  {as.author.split(' ').map(w => w[0]).join('').slice(0, 2)}
+                </div>
+                <div className="flex-1">
+                  <div className="text-[16px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>{as.author}</div>
+                  <div className="text-[11px]" style={{ color: c.gr }}>
+                    {as.genres.join(', ')} · {pctOfCatalogue}% du catalogue
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  {[
+                    { v: as.count, l: 'Titres', col: c.mv },
+                    { v: as.published, l: 'Publiés', col: c.ok },
+                    { v: as.totalISBN, l: 'ISBN', col: c.or },
+                    { v: `${as.avgScore}%`, l: 'Score', col: as.avgScore > 70 ? c.ok : c.og },
+                  ].map((kpi, i) => (
+                    <div key={i} className="text-center px-3">
+                      <div className="text-[18px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: kpi.col }}>{kpi.v}</div>
+                      <div className="text-[8px] uppercase tracking-wider" style={{ color: c.gr }}>{kpi.l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Contribution bar */}
+              <div className="px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                <div className="flex items-center gap-3">
+                  <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Contribution</span>
+                  <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                    <div className="h-full rounded-full" style={{ width: `${pctOfCatalogue}%`, background: `linear-gradient(90deg, ${c.or}, ${c.og})`, transition: 'width 0.8s ease' }} />
+                  </div>
+                  <span className="text-[10px] font-bold" style={{ color: c.or }}>{pctOfCatalogue}%</span>
+                </div>
+              </div>
+
+              {/* Titles grid */}
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {as.projects.map(p => {
+                  const statusColor = p.status === 'published' ? c.ok : p.status === 'in-progress' ? c.og : c.gr;
+                  return (
+                    <div key={p.id} className="flex items-center gap-2.5 p-2.5 rounded-xl cursor-pointer transition-all hover:shadow-sm"
+                      onClick={() => onProject(p)}
+                      style={{ background: 'white', border: `1px solid ${c.gc}` }}>
+                      <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] font-semibold truncate" style={{ color: c.mv }}>{p.title}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="w-1.5 h-1.5 rounded-full" style={{ background: statusColor }} />
+                          <span className="text-[9px]" style={{ color: c.gr }}>{p.genre} · {p.pages}p · {p.editions.length} éd.</span>
+                        </div>
+                      </div>
+                      {p.corrections.length > 0 && (
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#FFE0E3', color: c.er }}>{p.corrections.length}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Cross-author comparison */}
+      {authors.length > 1 && !selectedAuthor && (
+        <Card hover={false} className="mt-5 overflow-hidden">
+          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>📊 Comparaison inter-auteurs</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr style={{ background: c.ft }}>
+                  {['Auteur', 'Titres', 'Publiés', 'ISBN', 'Pages total', 'Score moy.', 'Corrections', 'Poids catalogue'].map(h => (
+                    <th key={h} className="text-left px-3 py-2.5 font-bold uppercase tracking-wider" style={{ color: c.gr, fontSize: 9 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {authorStats.map((as, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${c.ft}` }}>
+                    <td className="px-3 py-3 font-semibold" style={{ color: c.mv }}>{as.author}</td>
+                    <td className="px-3 py-3" style={{ color: c.vm }}>{as.count}</td>
+                    <td className="px-3 py-3"><Badge bg="#D4F0E0" color={c.ok}>{as.published}</Badge></td>
+                    <td className="px-3 py-3" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{as.totalISBN}</td>
+                    <td className="px-3 py-3" style={{ color: c.vm }}>{as.totalPages.toLocaleString()}</td>
+                    <td className="px-3 py-3">
+                      <span className="font-bold" style={{ color: as.avgScore > 70 ? c.ok : as.avgScore > 40 ? c.og : c.er }}>{as.avgScore}%</span>
+                    </td>
+                    <td className="px-3 py-3">
+                      {as.corrections > 0
+                        ? <Badge bg="#FFE0E3" color={c.er}>{as.corrections}</Badge>
+                        : <span style={{ color: c.ok }}>✓</span>}
+                    </td>
+                    <td className="px-3 py-3" style={{ width: 100 }}>
+                      <div className="h-2 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                        <div className="h-full rounded-full" style={{ width: `${Math.round((as.count / totalTitles) * 100)}%`, background: c.or }} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };
@@ -4749,6 +5094,43 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
             </Btn>
           </Card>
 
+          {/* Push Notifications */}
+          <Card hover={false} className="p-6">
+            <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>
+              {lang === 'fr' ? 'Notifications navigateur' : 'Browser notifications'}
+            </h3>
+            <p className="text-[12px] mb-4" style={{ color: c.gr }}>
+              {lang === 'fr' ? 'Rappels de deadlines, alertes corrections, notifications de publication' : 'Deadline reminders, correction alerts, publication notifications'}
+            </p>
+            <div className="flex gap-2">
+              <Btn variant="secondary" onClick={async () => {
+                if (!('Notification' in window)) {
+                  onToast(lang === 'fr' ? 'Notifications non supportées par ce navigateur' : 'Notifications not supported');
+                  return;
+                }
+                const perm = await Notification.requestPermission();
+                if (perm === 'granted') {
+                  try { localStorage.setItem('jabr-push', 'true'); } catch {}
+                  new Notification('JABR — Jabrilia Éditions', {
+                    body: lang === 'fr' ? 'Notifications activées ! Vous recevrez des rappels.' : 'Notifications enabled! You will receive reminders.',
+                    icon: '/icon-192.svg',
+                  });
+                  onToast(lang === 'fr' ? 'Notifications activées ✓' : 'Notifications enabled ✓');
+                } else {
+                  onToast(lang === 'fr' ? 'Notifications refusées par le navigateur' : 'Notifications denied by browser');
+                }
+              }}>
+                🔔 {lang === 'fr' ? 'Activer les notifications' : 'Enable notifications'}
+              </Btn>
+              <Btn variant="secondary" onClick={() => {
+                try { localStorage.setItem('jabr-push', 'false'); } catch {}
+                onToast(lang === 'fr' ? 'Notifications désactivées' : 'Notifications disabled');
+              }}>
+                🔕 {lang === 'fr' ? 'Désactiver' : 'Disable'}
+              </Btn>
+            </div>
+          </Card>
+
           {/* Import CSV */}
           <Card hover={false} className="p-6">
             <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Import catalogue</h3>
@@ -5406,6 +5788,8 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
       ['droits', 'Droits & Contrats', 'Droits dérivés, adaptations, traductions, territoires, contrats'],
       ['benchmark', 'Benchmark Concurrence', 'Positionnement prix, concurrents par genre, tendances marché'],
       ['lecteurs', 'Lecteurs & Réception', 'Avis, notes, citations presse, lectorat cible par titre'],
+      ['traductions', 'Traductions', 'Langues cibles, traducteurs, progression, marchés internationaux'],
+      ['editeur', 'Tableau éditeur', 'Vue consolidée multi-auteurs, comparaison, poids catalogue'],
       ['settings', 'Paramètres', 'Éditeur, import CSV, thème sombre'],
     ];
     modules.forEach(([id, label, desc]) => {
@@ -5686,7 +6070,7 @@ const ONBOARD_STEPS = [
   { title: 'Bienvenue sur JABR 👋', desc: 'Votre pipeline éditorial complet. Gérez vos titres, ISBN, couvertures, distribution et analyses IA — tout en un.', icon: '🚀', tip: 'Ce tour rapide vous montre les fonctions clés.' },
   { title: 'Dashboard', desc: 'Vue d\'ensemble de votre catalogue : KPIs temps réel, priorités, readiness par titre, graphiques SVG.', icon: '📊', tip: 'Cliquez sur un titre pour ouvrir sa fiche détaillée.' },
   { title: 'Ctrl+K — Recherche globale', desc: '7 sources : titres, contenu, corrections, ISBN, collections, modules, actions. Tapez n\'importe quoi.', icon: '🔍', tip: 'Fonctionne partout dans l\'application.' },
-  { title: '18 modules', desc: 'Manuscrits, Analyse IA, Calibrage, Couvertures, Distribution, Marketing, Presse, Calendrier, Analytics, ISBN, Droits, Benchmark…', icon: '⚙️', tip: 'Navigation dans la sidebar à gauche.' },
+  { title: '21 modules', desc: 'Manuscrits, Analyse IA, Calibrage, Couvertures, Distribution, Marketing, Presse, Calendrier, Analytics, ISBN, Droits, Benchmark…', icon: '⚙️', tip: 'Navigation dans la sidebar à gauche.' },
   { title: 'Kanban & Vue Catalogue', desc: 'Basculez entre liste et Kanban drag & drop. Organisez vos titres par statut.', icon: '▣', tip: 'Toggle en haut de la page Catalogue.' },
   { title: 'ONIX 3.0 & Exports', desc: 'Export ONIX complet pour Dilicom/Dilisco, PDF fiche projet, CSV catalogue, communiqué de presse IA.', icon: '📤', tip: 'Disponible dans ISBN et Presse.' },
   { title: 'C\'est parti !', desc: 'Explorez votre pipeline. Ajoutez un titre, lancez une analyse, ou explorez les modules.', icon: '✨', tip: 'Vous pouvez relancer ce tour depuis les Paramètres.' },
@@ -5818,6 +6202,41 @@ export default function JabrApp() {
     });
   }, []);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const on = () => { setIsOnline(true); setToast('Connexion rétablie — synchronisation…'); };
+    const off = () => { setIsOnline(false); setToast('Mode hors-ligne — vos données sont en cache'); };
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    // Listen for SW sync messages
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (e) => {
+        if (e.data?.type === 'SYNC_COMPLETE') setToast('Synchronisation terminée ✓');
+      });
+    }
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+
+  // Push notifications on load
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('jabr-push') !== 'true') return;
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const corr = projects.reduce((s, p) => s + p.corrections.length, 0);
+      const noAnalysis = projects.filter(p => !p.analysis).length;
+      const drafts = projects.filter(p => p.status === 'draft').length;
+      const alerts: string[] = [];
+      if (corr > 0) alerts.push(`${corr} correction${corr > 1 ? 's' : ''} en attente`);
+      if (noAnalysis > 0) alerts.push(`${noAnalysis} manuscrit${noAnalysis > 1 ? 's' : ''} non analysé${noAnalysis > 1 ? 's' : ''}`);
+      if (drafts > 0) alerts.push(`${drafts} brouillon${drafts > 1 ? 's' : ''} à finaliser`);
+      if (alerts.length > 0) {
+        setTimeout(() => {
+          new Notification('JABR — Rappels', { body: alerts.join(' · '), icon: '/icon-192.svg' });
+        }, 3000);
+      }
+    } catch {}
+  }, [projects.length]);
 
   const navigate = (id: string) => { setPage(id); setProject(null); };
   const openProject = (p: Project) => { setProject(p); setPage('detail'); };
@@ -5913,6 +6332,8 @@ export default function JabrApp() {
       case 'droits': return <DroitsView projects={projects} onToast={showToast} />;
       case 'benchmark': return <BenchmarkView projects={projects} />;
       case 'lecteurs': return <LecteursView projects={projects} onProject={openProject} onToast={showToast} />;
+      case 'traductions': return <TraductionsView projects={projects} onToast={showToast} />;
+      case 'editeur': return <MultiAuthorView projects={projects} onProject={openProject} />;
       case 'marketing': return <MarketingView projects={projects} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
       case 'distribution': return <DistributionView projects={projects} onToast={showToast} distChecks={distChecks} />;
@@ -6007,6 +6428,12 @@ export default function JabrApp() {
       </div>
       <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={handleAdd} />
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-[180] py-2 text-center text-[11px] font-semibold text-white"
+          style={{ background: 'linear-gradient(90deg, #E07A2F, #D94452)', animation: 'fadeUp 0.3s ease-out' }}>
+          📡 Mode hors-ligne — Vos données sont disponibles en cache local
+        </div>
+      )}
       {showShortcuts && (
         <div className="fixed inset-0 z-[190] flex items-center justify-center" style={{ background: 'rgba(45,27,78,0.6)', backdropFilter: 'blur(4px)' }}
           onClick={() => setShowShortcuts(false)}>
