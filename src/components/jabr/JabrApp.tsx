@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { PROJECTS, PIPELINE_STEPS, COLLECTIONS, DIAG_LABELS, DISTRIBUTION_CHANNELS, FORMAT_LABELS, EDITION_STATUS_LABELS, MANUSCRIPT_STATUS_LABELS, countISBN, primaryISBN, primaryPrice, KDP_TRIM_SIZES, KDP_PAPER_TYPES, KDP_CONSTANTS, FR_PRINT_CONSTANTS, FR_TRIM_SIZES, calcKDPCover, calcFRCover, type Project, type Edition, type EditionFormat, type ManuscriptStatus, type AnalysisResult, type TrimSizeKey, type PaperType, type FrTrimKey, type CoverSpecs } from '@/lib/data';
 import { useProjects, useDistributionChecks, useCalendarResults } from '@/lib/useProjects';
 import { t, type Lang } from '@/lib/i18n';
+import { type Author } from '@/lib/authors';
+import { generateBudgetPlan, generateObjectivePlan, compareAB, type MediaPlan, type MediaPlanInput } from '@/lib/mediaEngine';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
@@ -216,7 +218,7 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['settings', 'Paramètres', 'settings'],
 ];
 
-const Sidebar = ({ active, onNav, projects, persisted, open, onToggle, lang, onToggleLang }: { active: string; onNav: (id: string) => void; projects: Project[]; persisted: boolean; open: boolean; onToggle: () => void; lang: Lang; onToggleLang: () => void }) => {
+const Sidebar = ({ active, onNav, projects, persisted, open, onToggle, lang, onToggleLang, author, onSwitchAuthor }: { active: string; onNav: (id: string) => void; projects: Project[]; persisted: boolean; open: boolean; onToggle: () => void; lang: Lang; onToggleLang: () => void; author?: Author; onSwitchAuthor?: () => void }) => {
   const corrCount = projects.reduce((s, p) => s + p.corrections.length, 0);
   const draftCount = projects.filter(p => p.status === 'draft').length;
   const audioCount = projects.filter(p => p.editions.some(e => e.format === 'audiobook')).length;
@@ -231,6 +233,26 @@ const Sidebar = ({ active, onNav, projects, persisted, open, onToggle, lang, onT
     <div className="px-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
       <JabrLogo />
       <div className="mt-1 uppercase" style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', letterSpacing: '1.5px' }}>Pipeline éditorial</div>
+      {author && (
+        <div className="mt-3 flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+            style={{ background: `linear-gradient(135deg, #2D1B4E, ${author.color || '#C8952E'})` }}>
+            {author.firstName[0]}{author.lastName[0]}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] font-semibold text-white truncate" style={{ opacity: 0.85 }}>{author.displayName}</div>
+          </div>
+          {onSwitchAuthor && (
+            <button onClick={onSwitchAuthor} title="Changer d'auteur"
+              className="shrink-0 rounded-md p-1 transition-colors"
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(200,149,46,0.15)'; e.currentTarget.style.color = 'rgba(200,149,46,0.8)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+            </button>
+          )}
+        </div>
+      )}
     </div>
 
     <div className="flex-1 px-2.5 py-3 flex flex-col gap-0.5">
@@ -5546,11 +5568,58 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
 };
 
 // --- MARKETING VIEW ---
-const MarketingView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onToast: (msg: string) => void; author?: Author }) => {
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [tab, setTab] = useState<'kit' | 'media' | 'amazon' | 'social'>('media');
   const [generatedKit, setGeneratedKit] = useState<Record<number, { brief: { tone: string; ambiance: string; targetAudience: string; themes: string[]; palette: { primary: string; secondary: string; accent: string }; oneLinePitch: string; backCoverHook: string; hashTags: string[]; marketingAngle: string; comparisons: string[]; visualKeywords: string[] }; marketing: { instagramCaption: string; linkedinPost: string; newsletterBlurb: string; pressRelease: string }; trailer: { duration: number; musicMood: string; scenes: { timestamp: number; visual: string; voiceOver: string; text: string }[] }; cover: { style: string; composition: string; typography: { titleFont: string; authorFont: string; placement: string }; genreConventions: string; thumbnailTest: string; promptMidjourney: string; promptDalle: string } }>>({});
   const [generatedMedia, setGeneratedMedia] = useState<Record<number, boolean>>({});
+
+  // ── Media Engine v3 state ──
+  const [mediaMode, setMediaMode] = useState<'budget' | 'objective'>('budget');
+  const [mediaBudget, setMediaBudget] = useState(2000);
+  const [mediaObjective, setMediaObjective] = useState(500);
+  const [mediaPlanA, setMediaPlanA] = useState<MediaPlan | null>(null);
+  const [mediaPlanB, setMediaPlanB] = useState<MediaPlan | null>(null);
+  const [showAB, setShowAB] = useState(false);
+  const [mediaExpanded, setMediaExpanded] = useState<string | null>(null);
+
+  const buildMediaInput = useCallback((p: Project): MediaPlanInput => ({
+    genre: p.genre,
+    title: p.title,
+    pages: p.pages,
+    price: parseFloat((primaryPrice(p) || '19,90€').replace(',', '.').replace('€', '')) || 19.90,
+    author: p.author,
+    hasNewsletter: !!(author?.newsletter),
+    newsletterSize: author?.newsletter?.subscribers || 0,
+    hasExistingAudience: !!(author?.social && Object.keys(author.social).length > 0),
+    audienceSize: author?.social ? Object.keys(author.social).length * 3000 : 0,
+    isFirstBook: projects.filter(pr => pr.status === 'published').length === 0,
+  }), [author, projects]);
+
+  const runMediaEngine = useCallback(() => {
+    const p = selectedProject ? projects.find(pr => pr.id === selectedProject) : null;
+    if (!p) return;
+    const input = buildMediaInput(p);
+    
+    if (mediaMode === 'budget') {
+      setMediaPlanA(generateBudgetPlan(mediaBudget, input));
+    } else {
+      setMediaPlanA(generateObjectivePlan(mediaObjective, input));
+    }
+    setGeneratedMedia(prev => ({ ...prev, [p.id]: true }));
+  }, [selectedProject, projects, mediaMode, mediaBudget, mediaObjective, buildMediaInput]);
+
+  const runABComparison = useCallback(() => {
+    const p = selectedProject ? projects.find(pr => pr.id === selectedProject) : null;
+    if (!p) return;
+    const input = buildMediaInput(p);
+    
+    const planBudget = generateBudgetPlan(mediaBudget, input);
+    const planObjective = generateObjectivePlan(mediaObjective, input);
+    setMediaPlanA(planBudget);
+    setMediaPlanB(planObjective);
+    setShowAB(true);
+  }, [selectedProject, projects, mediaBudget, mediaObjective, buildMediaInput]);
 
   const generateKit = async (projectId: number) => {
     const { runFullPipeline } = await import('@/lib/engine');
@@ -5682,7 +5751,7 @@ const MarketingView = ({ projects, onToast }: { projects: Project[]; onToast: (m
 
   const withBackCover = projects.filter(p => p.backCover && p.backCover.length > 50);
   const tabs = [
-    { id: 'media' as const, label: '📋 Plan Média', desc: 'Budget & canaux' },
+    { id: 'media' as const, label: '⚡ Moteur Média', desc: 'Budget · Objectif · A/B' },
     { id: 'amazon' as const, label: '🛒 Amazon Ads', desc: 'Mots-clés & campagnes' },
     { id: 'social' as const, label: '📱 Social Media', desc: 'TikTok, Insta, LinkedIn' },
     { id: 'kit' as const, label: '🎬 Kit IA', desc: 'Génération auto' },
@@ -5693,15 +5762,15 @@ const MarketingView = ({ projects, onToast }: { projects: Project[]; onToast: (m
       <div className="flex justify-between items-end mb-5">
         <div>
           <h2 className="text-2xl" style={{ color: c.mv }}>Marketing & Plan Média</h2>
-          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>80% digital · 20% presse & radio · Stratégie par titre</p>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Moteur intelligent · Budget ou Objectif · Comparaison A/B</p>
         </div>
       </div>
 
       <div className="flex gap-3.5 mb-5 flex-wrap">
-        <StatCard value={`${budgetPlan.total.toLocaleString()}€`} label="Budget total/titre" accent={c.or} />
-        <StatCard value="80%" label="Digital" accent="#3B6DC6" />
-        <StatCard value="20%" label="Presse & Radio" accent={c.vm} />
-        <StatCard value={withBackCover.length} label="Titres prêts" accent={c.ok} />
+        <StatCard value={projects.length} label="Titres catalogue" accent={c.or} />
+        <StatCard value={Object.keys(generatedMedia).length} label="Plans générés" accent={c.ok} />
+        <StatCard value={mediaPlanA ? `${mediaPlanA.totalBudget.toLocaleString()}€` : '—'} label="Dernier budget" accent="#3B6DC6" />
+        <StatCard value={mediaPlanA ? mediaPlanA.totalEstimatedSales : '—'} label="Ventes estimées" accent={c.vm} />
       </div>
 
       {/* Tabs */}
@@ -5719,80 +5788,336 @@ const MarketingView = ({ projects, onToast }: { projects: Project[]; onToast: (m
       {/* ═══ TAB: PLAN MÉDIA ═══ */}
       {tab === 'media' && (
         <div className="space-y-5">
-          {/* Budget donut */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <Card hover={false} className="overflow-hidden">
-              <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
-                <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Répartition budget digital (80%)</span>
-              </div>
-              <div className="p-5 space-y-3">
-                {budgetPlan.digital.breakdown.map((ch, i) => (
-                  <div key={i}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base">{ch.icon}</span>
-                        <span className="text-[11px] font-semibold" style={{ color: c.mv }}>{ch.channel}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{ch.budget}€</span>
-                        <Badge bg={c.ft} color={c.gr}>{ch.pct}%</Badge>
-                      </div>
-                    </div>
-                    <div className="text-[10px] mb-1.5 ml-7" style={{ color: c.gr }}>{ch.desc}</div>
-                    <div className="h-1.5 rounded-full overflow-hidden ml-7" style={{ background: c.gc }}>
-                      <div className="h-full rounded-full" style={{ width: `${(ch.pct / 30) * 100}%`, background: '#3B6DC6', transition: 'width 0.8s ease' }} />
-                    </div>
+          {/* Project Selector */}
+          <Card hover={false} className="overflow-hidden">
+            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.vm}` }}>
+              <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>📚 Sélectionnez un titre</span>
+            </div>
+            <div className="p-4 flex gap-2 flex-wrap">
+              {projects.map(p => (
+                <button key={p.id} onClick={() => { setSelectedProject(p.id); setMediaPlanA(null); setMediaPlanB(null); setShowAB(false); }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all"
+                  style={{
+                    background: selectedProject === p.id ? `${c.or}12` : c.ft,
+                    border: `1.5px solid ${selectedProject === p.id ? c.or : c.gc}`,
+                    cursor: 'pointer',
+                  }}>
+                  <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                  <div className="text-left">
+                    <div className="text-[11px] font-semibold" style={{ color: selectedProject === p.id ? c.or : c.mv }}>{p.title}</div>
+                    <div className="text-[9px]" style={{ color: c.gr }}>{p.genre} · {p.pages}p · {primaryPrice(p) || '—'}</div>
                   </div>
-                ))}
-              </div>
-            </Card>
+                </button>
+              ))}
+            </div>
+          </Card>
 
-            <Card hover={false} className="overflow-hidden">
-              <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
-                <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Presse & Radio (20%)</span>
-              </div>
-              <div className="p-5 space-y-3">
-                {budgetPlan.traditional.breakdown.map((ch, i) => (
-                  <div key={i}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base">{ch.icon}</span>
-                        <span className="text-[11px] font-semibold" style={{ color: c.mv }}>{ch.channel}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{ch.budget}€</span>
-                        <Badge bg={c.ft} color={c.gr}>{ch.pct}%</Badge>
-                      </div>
-                    </div>
-                    <div className="text-[10px] mb-1.5 ml-7" style={{ color: c.gr }}>{ch.desc}</div>
-                    <div className="h-1.5 rounded-full overflow-hidden ml-7" style={{ background: c.gc }}>
-                      <div className="h-full rounded-full" style={{ width: `${(ch.pct / 8) * 100}%`, background: c.vm, transition: 'width 0.8s ease' }} />
-                    </div>
-                  </div>
+          {/* Engine Controls */}
+          <Card hover={false} className="overflow-hidden">
+            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+              <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>🎯 Moteur Plan Média v3</span>
+            </div>
+            <div className="p-5">
+              {/* Mode selector */}
+              <div className="flex gap-2 mb-4">
+                {([['budget', '💰 Budget', 'J\'ai un budget, optimise'] , ['objective', '🎯 Objectif', 'Je veux X ventes']] as const).map(([m, label, desc]) => (
+                  <button key={m} onClick={() => { setMediaMode(m); setShowAB(false); setMediaPlanB(null); }}
+                    className="flex-1 p-3 rounded-xl text-left transition-all"
+                    style={{
+                      background: mediaMode === m ? `${c.or}10` : c.ft,
+                      border: `1.5px solid ${mediaMode === m ? c.or : c.gc}`,
+                    }}>
+                    <div className="text-[12px] font-bold" style={{ color: mediaMode === m ? c.or : c.mv }}>{label}</div>
+                    <div className="text-[10px] mt-0.5" style={{ color: c.gr }}>{desc}</div>
+                  </button>
                 ))}
               </div>
 
-              {/* Calendrier recommandé */}
-              <div className="px-5 pb-5">
-                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2 mt-3" style={{ color: c.or }}>📅 Calendrier recommandé</div>
-                <div className="space-y-1.5">
-                  {[
-                    { phase: 'J-30', label: 'Teasing', actions: 'Couverture reveal, countdown, extraits' },
-                    { phase: 'J-15', label: 'Pré-lancement', actions: 'SP influenceurs, Amazon pre-order, newsletter' },
-                    { phase: 'J-Day', label: 'Lancement', actions: 'Tous canaux simultanés, live Instagram, boost TikTok' },
-                    { phase: 'J+7', label: 'Amplification', actions: 'Retargeting, UGC, reviews Amazon' },
-                    { phase: 'J+30', label: 'Long tail', actions: 'SEO Amazon, contenu evergreen, podcast' },
-                  ].map((p, i) => (
-                    <div key={i} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: c.ft }}>
-                      <span className="text-[10px] font-bold shrink-0 w-10" style={{ color: c.or }}>{p.phase}</span>
-                      <span className="text-[11px] font-semibold shrink-0 w-24" style={{ color: c.mv }}>{p.label}</span>
-                      <span className="text-[10px]" style={{ color: c.gr }}>{p.actions}</span>
+              {/* Input fields */}
+              <div className="flex gap-3 items-end mb-4">
+                {mediaMode === 'budget' ? (
+                  <div className="flex-1">
+                    <label className="text-[10px] uppercase tracking-wider font-semibold mb-1 block" style={{ color: c.gr }}>Budget total (€)</label>
+                    <div className="flex items-center gap-2">
+                      {[500, 1000, 2000, 3000, 5000].map(v => (
+                        <button key={v} onClick={() => setMediaBudget(v)}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                          style={{
+                            background: mediaBudget === v ? c.or : c.ft,
+                            color: mediaBudget === v ? 'white' : c.mv,
+                            border: `1px solid ${mediaBudget === v ? c.or : c.gc}`,
+                          }}>
+                          {v.toLocaleString()}€
+                        </button>
+                      ))}
+                      <input type="number" value={mediaBudget} onChange={e => setMediaBudget(parseInt(e.target.value) || 0)}
+                        className="w-20 px-2 py-1.5 rounded-lg text-[11px] text-center"
+                        style={{ border: `1px solid ${c.gc}`, fontFamily: "'JetBrains Mono', monospace", color: c.mv }} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1">
+                    <label className="text-[10px] uppercase tracking-wider font-semibold mb-1 block" style={{ color: c.gr }}>Objectif ventes (exemplaires)</label>
+                    <div className="flex items-center gap-2">
+                      {[100, 250, 500, 1000, 2000].map(v => (
+                        <button key={v} onClick={() => setMediaObjective(v)}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                          style={{
+                            background: mediaObjective === v ? c.or : c.ft,
+                            color: mediaObjective === v ? 'white' : c.mv,
+                            border: `1px solid ${mediaObjective === v ? c.or : c.gc}`,
+                          }}>
+                          {v.toLocaleString()}
+                        </button>
+                      ))}
+                      <input type="number" value={mediaObjective} onChange={e => setMediaObjective(parseInt(e.target.value) || 0)}
+                        className="w-20 px-2 py-1.5 rounded-lg text-[11px] text-center"
+                        style={{ border: `1px solid ${c.gc}`, fontFamily: "'JetBrains Mono', monospace", color: c.mv }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2">
+                <button onClick={runMediaEngine} disabled={!selectedProject}
+                  className="px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all"
+                  style={{
+                    background: selectedProject ? `linear-gradient(135deg, ${c.or}, #E8B84B)` : c.gc,
+                    color: selectedProject ? 'white' : c.gr,
+                    cursor: selectedProject ? 'pointer' : 'not-allowed',
+                  }}>
+                  ⚡ Générer le plan
+                </button>
+                <button onClick={runABComparison} disabled={!selectedProject}
+                  className="px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all"
+                  style={{
+                    background: selectedProject ? `${c.vm}15` : c.ft,
+                    color: selectedProject ? c.vm : c.gr,
+                    border: `1.5px solid ${selectedProject ? c.vm : c.gc}`,
+                    cursor: selectedProject ? 'pointer' : 'not-allowed',
+                  }}>
+                  ⚔️ Comparaison A/B
+                </button>
+              </div>
+              {!selectedProject && <div className="text-[10px] mt-2" style={{ color: c.og }}>↑ Sélectionnez un titre ci-dessus pour générer un plan</div>}
+            </div>
+          </Card>
+
+          {/* Generated Plan */}
+          {mediaPlanA && (
+            <div className="space-y-4">
+              {/* KPIs */}
+              <div className="flex gap-3 flex-wrap">
+                {[
+                  { v: `${mediaPlanA.totalBudget.toLocaleString()}€`, l: 'Budget total', a: c.or },
+                  { v: mediaPlanA.totalEstimatedSales.toLocaleString(), l: 'Ventes estimées', a: c.ok },
+                  { v: `${mediaPlanA.costPerSale.toFixed(2)}€`, l: 'Coût par vente', a: mediaPlanA.costPerSale > 10 ? c.og : c.ok },
+                  { v: `×${mediaPlanA.kpis.roi.toFixed(1)}`, l: 'ROI estimé', a: mediaPlanA.kpis.roi > 1 ? c.ok : c.er },
+                  { v: mediaPlanA.kpis.reach.toLocaleString(), l: 'Reach', a: c.vm },
+                ].map((kpi, i) => (
+                  <div key={i} className="flex-1 min-w-[100px] p-3 rounded-xl text-center" style={{ background: c.ft, border: `1px solid ${c.gc}` }}>
+                    <div className="text-[18px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: kpi.a }}>{kpi.v}</div>
+                    <div className="text-[9px] uppercase tracking-wider mt-0.5" style={{ color: c.gr }}>{kpi.l}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Channel allocations */}
+              <Card hover={false} className="overflow-hidden">
+                <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                  <div className="flex items-center justify-between">
+                    <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Répartition par canal</span>
+                    <span className="text-[11px]" style={{ color: c.or }}>{mediaPlanA.channels.length} canaux actifs</span>
+                  </div>
+                </div>
+                <div className="p-5 space-y-3">
+                  {mediaPlanA.channels.map((ch, i) => {
+                    const isExpanded = mediaExpanded === ch.channel;
+                    return (
+                      <div key={ch.channel} className="rounded-xl overflow-hidden transition-all" style={{ background: isExpanded ? `${c.or}05` : 'transparent', border: isExpanded ? `1px solid ${c.or}20` : '1px solid transparent' }}>
+                        <div className="flex items-center gap-3 p-2.5 cursor-pointer" onClick={() => setMediaExpanded(isExpanded ? null : ch.channel)}>
+                          <span className="text-base shrink-0">{ch.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-semibold" style={{ color: c.mv }}>{ch.label}</span>
+                                <Badge bg={ch.priority === 'critical' ? '#D4F0E0' : ch.priority === 'high' ? '#FDE8D0' : c.ft} color={ch.priority === 'critical' ? c.ok : ch.priority === 'high' ? c.og : c.gr}>
+                                  {ch.priority === 'critical' ? '★ Critique' : ch.priority === 'high' ? 'Élevée' : ch.priority === 'medium' ? 'Moyenne' : 'Basse'}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{ch.budget.toLocaleString()}€</span>
+                                <Badge bg={c.ft} color={c.gr}>{ch.percentage}%</Badge>
+                              </div>
+                            </div>
+                            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                              <div className="h-full rounded-full transition-all duration-1000" style={{
+                                width: `${ch.percentage}%`,
+                                background: ch.priority === 'critical' ? c.ok : ch.priority === 'high' ? c.or : c.vm,
+                              }} />
+                            </div>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-[9px]" style={{ color: c.gr }}>~{ch.estimatedConversions} ventes</span>
+                              <span className="text-[9px]" style={{ color: c.gr }}>CPC {ch.cpc.toFixed(2)}€</span>
+                              <span className="text-[9px]" style={{ color: ch.roi > 1 ? c.ok : c.er }}>ROI ×{ch.roi.toFixed(1)}</span>
+                            </div>
+                          </div>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={c.gr} strokeWidth="2" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s ease' }}><polyline points="6 9 12 15 18 9" /></svg>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="px-5 pb-4 pt-1 space-y-3" style={{ animation: 'pageIn 0.2s ease-out' }}>
+                            <div className="text-[11px] leading-relaxed" style={{ color: c.gr }}>{ch.description}</div>
+                            <div>
+                              <div className="text-[9px] uppercase tracking-wider font-semibold mb-1.5" style={{ color: c.or }}>Actions concrètes</div>
+                              {ch.tactics.map((t, j) => (
+                                <div key={j} className="flex items-start gap-2 mb-1">
+                                  <span className="text-[9px] mt-0.5" style={{ color: c.or }}>▸</span>
+                                  <span className="text-[10px]" style={{ color: c.mv }}>{t}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-[9px]" style={{ color: c.gr }}>⏱ {ch.timing}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+
+              {/* Phases timeline */}
+              <Card hover={false} className="overflow-hidden">
+                <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                  <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>📅 Calendrier de lancement</span>
+                </div>
+                <div className="p-5 space-y-2">
+                  {mediaPlanA.phases.map((phase, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-xl" style={{ background: c.ft }}>
+                      <div className="text-center shrink-0 w-16">
+                        <div className="text-[11px] font-bold" style={{ color: c.or }}>{phase.timing}</div>
+                        <div className="text-[9px] mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.gr }}>{phase.budget.toLocaleString()}€</div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-[12px] font-bold mb-1" style={{ color: c.mv }}>{phase.name}</div>
+                        <div className="space-y-0.5">
+                          {phase.actions.map((a, j) => (
+                            <div key={j} className="text-[10px]" style={{ color: c.gr }}>▸ {a}</div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            </Card>
-          </div>
+              </Card>
+
+              {/* Recommendations & Warnings */}
+              {(mediaPlanA.recommendations.length > 0 || mediaPlanA.warnings.length > 0) && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {mediaPlanA.recommendations.length > 0 && (
+                    <Card hover={false} className="overflow-hidden">
+                      <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.ok}` }}>
+                        <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.ok }}>💡 Recommandations</span>
+                      </div>
+                      <div className="p-5 space-y-2">
+                        {mediaPlanA.recommendations.map((r, i) => (
+                          <div key={i} className="text-[11px] p-2.5 rounded-lg" style={{ background: '#D4F0E010', color: c.mv }}>✓ {r}</div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                  {mediaPlanA.warnings.length > 0 && (
+                    <Card hover={false} className="overflow-hidden">
+                      <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.og}` }}>
+                        <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.og }}>⚠️ Points d'attention</span>
+                      </div>
+                      <div className="p-5 space-y-2">
+                        {mediaPlanA.warnings.map((w, i) => (
+                          <div key={i} className="text-[11px] p-2.5 rounded-lg" style={{ background: '#FDE8D010', color: c.mv }}>⚠ {w}</div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                </div>
+              )}
+
+              {/* A/B Comparison */}
+              {showAB && mediaPlanA && mediaPlanB && (() => {
+                const ab = compareAB(mediaPlanA, mediaPlanB);
+                return (
+                  <Card hover={false} className="overflow-hidden">
+                    <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.vm}` }}>
+                      <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.vm }}>⚔️ Comparaison A/B</span>
+                    </div>
+                    <div className="p-5">
+                      <div className="flex items-center gap-3 mb-4 justify-center">
+                        <Badge bg={ab.winner === 'A' ? '#D4F0E0' : c.ft} color={ab.winner === 'A' ? c.ok : c.gr}>A: {mediaPlanA.label}</Badge>
+                        <span className="text-[11px] font-bold" style={{ color: c.gr }}>vs</span>
+                        <Badge bg={ab.winner === 'B' ? '#D4F0E0' : c.ft} color={ab.winner === 'B' ? c.ok : c.gr}>B: {mediaPlanB.label}</Badge>
+                      </div>
+                      <div className="space-y-2">
+                        {ab.comparison.map((row, i) => (
+                          <div key={i} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: c.ft }}>
+                            <span className="text-[10px] font-semibold w-28 shrink-0" style={{ color: c.gr }}>{row.metric}</span>
+                            <span className="text-[11px] font-bold flex-1 text-right" style={{ fontFamily: "'JetBrains Mono', monospace", color: row.winner === 'A' ? c.ok : c.mv }}>{row.valueA}</span>
+                            <span className="text-[9px] shrink-0" style={{ color: c.gr }}>vs</span>
+                            <span className="text-[11px] font-bold flex-1" style={{ fontFamily: "'JetBrains Mono', monospace", color: row.winner === 'B' ? c.ok : c.mv }}>{row.valueB}</span>
+                            <span className="text-[10px] shrink-0 w-6 text-center" style={{ color: row.winner === 'tie' ? c.gr : c.ok }}>{row.winner === 'tie' ? '=' : row.winner === 'A' ? '←' : '→'}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 p-3 rounded-xl text-[11px] leading-relaxed" style={{ background: `${c.vm}08`, color: c.mv, border: `1px solid ${c.vm}20` }}>
+                        <strong style={{ color: c.vm }}>Verdict :</strong> {ab.summary}
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Fallback if no plan generated yet */}
+          {!mediaPlanA && selectedProject && generatedMedia[selectedProject] && (
+            <div className="text-center py-10">
+              <div className="text-[13px]" style={{ color: c.gr }}>Cliquez sur &quot;Générer le plan&quot; pour lancer le moteur média</div>
+            </div>
+          )}
+
+          {/* Export plan */}
+          {mediaPlanA && sel && (
+            <div className="flex justify-center gap-3 pt-2">
+              <button onClick={() => {
+                const plan = mediaPlanA;
+                const lines = [
+                  `PLAN MÉDIA — ${sel.title}`, `${sel.genre} · ${sel.author} · ${sel.pages} pages`,
+                  `Mode : ${plan.mode === 'budget' ? 'Budget' : 'Objectif'} · Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+                  ``, `═══ KPIs ═══`,
+                  `Budget total : ${plan.totalBudget.toLocaleString()}€`,
+                  `Ventes estimées : ${plan.totalEstimatedSales}`,
+                  `Coût par vente : ${plan.costPerSale.toFixed(2)}€`,
+                  `ROI estimé : ×${plan.kpis.roi.toFixed(1)}`,
+                  `Reach : ${plan.kpis.reach.toLocaleString()}`,
+                  ``, `═══ CANAUX ═══`,
+                  ...plan.channels.map(ch => `${ch.icon} ${ch.label} — ${ch.budget.toLocaleString()}€ (${ch.percentage}%) · ~${ch.estimatedConversions} ventes · ROI ×${ch.roi.toFixed(1)}\n  ${ch.tactics.join('\n  ')}`),
+                  ``, `═══ PHASES ═══`,
+                  ...plan.phases.map(ph => `${ph.name} (${ph.timing}) — ${ph.budget.toLocaleString()}€\n  ${ph.actions.join('\n  ')}`),
+                  ...(plan.recommendations.length ? [``, `═══ RECOMMANDATIONS ═══`, ...plan.recommendations.map(r => `✓ ${r}`)] : []),
+                  ...(plan.warnings.length ? [``, `═══ ALERTES ═══`, ...plan.warnings.map(w => `⚠ ${w}`)] : []),
+                ];
+                const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8;' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                a.download = `plan-media-${sel.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${plan.mode}.txt`; a.click();
+                onToast(`Plan média exporté : ${sel.title}`);
+              }}
+                className="px-5 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center gap-2"
+                style={{ background: c.ft, color: c.mv, border: `1.5px solid ${c.gc}` }}>
+                {icons.download} Exporter le plan (.txt)
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -6590,11 +6915,21 @@ const OnboardingOverlay = ({ step, onNext, onSkip }: { step: number; onNext: () 
   );
 };
 
-export default function JabrApp() {
+export default function JabrApp({ author, onSwitchAuthor }: { author?: Author; onSwitchAuthor?: () => void } = {}) {
   const [page, setPage] = useState('dashboard');
   const [project, setProject] = useState<Project | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const { projects, loading, persisted, addProject, updateProject, deleteProject } = useProjects();
+  const { projects: allProjects, loading, persisted, addProject, updateProject, deleteProject } = useProjects();
+  
+  // Filter projects by author if one is selected
+  const projects = useMemo(() => {
+    if (!author) return allProjects;
+    return allProjects.filter(p => 
+      p.author === author.displayName || 
+      p.author.includes(author.lastName) ||
+      p.illustrator === author.displayName
+    );
+  }, [allProjects, author]);
   const distChecks = useDistributionChecks();
   const calStore = useCalendarResults();
   const [search, setSearch] = useState('');
@@ -6811,7 +7146,7 @@ export default function JabrApp() {
       case 'traductions': return <TraductionsView projects={projects} onToast={showToast} />;
       case 'multiauteurs': return <MultiAuteursView projects={projects} onProject={openProject} />;
       case 'editeur': return <MultiAuthorView projects={projects} onProject={openProject} />;
-      case 'marketing': return <MarketingView projects={projects} onToast={showToast} />;
+      case 'marketing': return <MarketingView projects={projects} onToast={showToast} author={author} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
       case 'distribution': return <DistributionView projects={projects} onToast={showToast} distChecks={distChecks} />;
       case 'calibrage': return <CalibrageView projects={projects} />;
@@ -6827,7 +7162,7 @@ export default function JabrApp() {
 
   return (
     <div className="flex min-h-screen" style={{ fontFamily: "'Inter', sans-serif", background: c.bc }}>
-      <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} persisted={persisted} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} lang={lang} onToggleLang={toggleLang} />
+      <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} persisted={persisted} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} lang={lang} onToggleLang={toggleLang} author={author} onSwitchAuthor={onSwitchAuthor} />
       <div className="flex-1 flex flex-col min-w-0 lg:ml-0">
         {/* TOP BAR */}
         <div className="flex flex-wrap gap-2 justify-between items-center px-4 md:px-8 py-2.5 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>
