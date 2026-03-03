@@ -5546,11 +5546,12 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
 };
 
 // --- MARKETING VIEW ---
-const MarketingView = ({ projects }: { projects: Project[] }) => {
+const MarketingView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const [tab, setTab] = useState<'kit' | 'media' | 'amazon' | 'social'>('media');
   const [generatedKit, setGeneratedKit] = useState<Record<number, { brief: { tone: string; ambiance: string; targetAudience: string; themes: string[]; palette: { primary: string; secondary: string; accent: string }; oneLinePitch: string; backCoverHook: string; hashTags: string[]; marketingAngle: string; comparisons: string[]; visualKeywords: string[] }; marketing: { instagramCaption: string; linkedinPost: string; newsletterBlurb: string; pressRelease: string }; trailer: { duration: number; musicMood: string; scenes: { timestamp: number; visual: string; voiceOver: string; text: string }[] }; cover: { style: string; composition: string; typography: { titleFont: string; authorFont: string; placement: string }; genreConventions: string; thumbnailTest: string; promptMidjourney: string; promptDalle: string } }>>({});
+  const [generatedMedia, setGeneratedMedia] = useState<Record<number, boolean>>({});
 
-  // Lazy import engine
   const generateKit = async (projectId: number) => {
     const { runFullPipeline } = await import('@/lib/engine');
     const p = projects.find(pr => pr.id === projectId);
@@ -5558,191 +5559,537 @@ const MarketingView = ({ projects }: { projects: Project[] }) => {
     const result = runFullPipeline({ title: p.title, genre: p.genre, pages: p.pages, backCover: p.backCover, collection: p.collection });
     setGeneratedKit(prev => ({ ...prev, [projectId]: result }));
     setSelectedProject(projectId);
+    setTab('kit');
+  };
+
+  const generateMediaPlan = (projectId: number) => {
+    setSelectedProject(projectId);
+    setGeneratedMedia(prev => ({ ...prev, [projectId]: true }));
+    setTab('media');
   };
 
   const sel = selectedProject ? projects.find(p => p.id === selectedProject) : null;
   const kit = selectedProject ? generatedKit[selectedProject] : null;
 
-  const engines = [
-    { icon: '📋', name: 'Brief créatif', desc: 'Analyse du contenu → ton, thèmes, palette, audience', auto: true },
-    { icon: '📱', name: 'Kit Marketing', desc: 'Instagram, LinkedIn, newsletter, communiqué de presse', auto: true },
-    { icon: '🎬', name: 'Script Trailer', desc: 'Scénario 45s : voix off + visuels + musique', auto: true },
-    { icon: '🎨', name: 'Brief Couverture', desc: 'Direction artistique + prompts Midjourney/DALL-E', auto: true },
-    { icon: '🎧', name: 'Plan Audiobook', desc: 'Découpe chapitres, voix, mastering, export', auto: true },
-  ];
+  // Genre-specific Amazon keywords
+  const amazonKeywords: Record<string, { primary: string[]; long_tail: string[]; negative: string[]; bid: string }> = {
+    'Jeunesse': {
+      primary: ['livre enfant anti-stress', 'cahier activités enfant', 'livre relaxation enfant', 'livre bien-être jeunesse', 'mindfulness enfant'],
+      long_tail: ['livre anti-stress enfant 6-10 ans', 'activités calme enfant anxieux', 'cahier coloriage relaxation', 'livre gestion émotions enfant', 'cadeau zen enfant'],
+      negative: ['adulte', 'érotique', 'thriller', 'horreur'],
+      bid: '0.35–0.55€',
+    },
+    'Roman': {
+      primary: ['roman français contemporain', 'littérature francophone', 'roman aventure', 'nouveau roman 2025', 'roman auteur guadeloupéen'],
+      long_tail: ['roman français chutes du niagara', 'littérature caribéenne francophone', 'roman voyage intérieur', 'auteur antillais roman', 'roman identité diaspora'],
+      negative: ['romance', 'érotique', 'policier', 'thriller'],
+      bid: '0.25–0.45€',
+    },
+    'Fantasy': {
+      primary: ['fantasy français', 'roman fantasy francophone', 'saga fantasy 2025', 'fantasy épique', 'dark fantasy français'],
+      long_tail: ['trilogie fantasy française trône', 'roman fantasy politique magie', 'saga epic fantasy francophone', 'fantasy monde secondaire français'],
+      negative: ['romance', 'young adult', 'science fiction'],
+      bid: '0.30–0.50€',
+    },
+    'Essai': {
+      primary: ['essai philosophique', 'essai société contemporaine', 'essai stratégie', 'livre pensée critique', 'essai français 2026'],
+      long_tail: ['essai philosophique monde contemporain', 'livre transformation digitale société', 'essai géopolitique francophone'],
+      negative: ['roman', 'fiction', 'cuisine'],
+      bid: '0.20–0.40€',
+    },
+    'BD': {
+      primary: ['bande dessinée française', 'BD auteur indépendant', 'graphic novel français', 'BD contemporaine', 'roman graphique'],
+      long_tail: ['bande dessinée indépendante édition limitée', 'BD auteur caribéen', 'graphic novel noir et blanc'],
+      negative: ['manga', 'comics américain', 'marvel'],
+      bid: '0.30–0.55€',
+    },
+  };
+
+  // Social media templates per genre
+  const socialTemplates: Record<string, { tiktok: { hooks: string[]; hashtags: string[]; format: string; timing: string }; instagram: { captions: string[]; hashtags: string[]; format: string; stories: string[] }; linkedin: { angle: string; hashtags: string[] } }> = {
+    'Jeunesse': {
+      tiktok: {
+        hooks: ['POV : ton enfant découvre ce livre et ne le lâche plus 📖✨', 'Le livre anti-stress que j\'aurais aimé avoir enfant 🌈', '3 activités du livre que mes enfants adorent ↓', 'Quand le calme revient grâce à un seul livre 🧘‍♀️'],
+        hashtags: ['#BookTok', '#BookTokFrance', '#LivreEnfant', '#AntiStress', '#ParentingTikTok', '#LectureEnfant', '#BienEtreEnfant', '#MomentCalme', '#JabrilliaEditions', '#LivreJeunesse', '#ActivitésEnfants', '#MindfulnessKids'],
+        format: 'Vidéo 15-30s, feuilletage livre + réaction enfant, musique douce lo-fi',
+        timing: 'Mercredi 14h + Samedi 10h (pics parents)',
+      },
+      instagram: {
+        captions: [
+          '📖 Un moment de calme dans le chaos du quotidien.\n\n« Mon Petit Livre Anti-Stress » aide votre enfant à apprivoiser ses émotions grâce à des activités ludiques et apaisantes.\n\n🎨 Illustré par @allisonmoradel\n📚 Disponible chez Jabrilia Éditions',
+          '✨ Parce que le bien-être, ça s\'apprend aussi petit.\n\n136 pages d\'activités conçues avec des pédagogues pour aider les 6-10 ans à gérer le stress.\n\n→ Lien en bio',
+        ],
+        hashtags: ['#LivreEnfant', '#AntiStress', '#BienEtreEnfant', '#Parentalité', '#LectureJeunesse', '#ActivitésCréatives', '#GestionDesÉmotions', '#JabriliaEditions', '#SteveMoradel', '#AllisonMoradel', '#ÉditionIndépendante', '#LivreIllustré', '#Aquarelle', '#MomentCalme', '#ÉducationPositive'],
+        format: 'Carrousel 5 slides : couverture → 3 pages intérieures → CTA',
+        stories: ['Sondage « Votre enfant est stressé par l\'école ? »', 'Swipe-up vers Amazon', 'Before/After : moment de lecture calme', 'Unboxing du livre'],
+      },
+      linkedin: { angle: 'Le bien-être enfant comme enjeu éducatif — expertise auteur enseignant', hashtags: ['#Éducation', '#BienÊtre', '#Édition', '#Entrepreneuriat'] },
+    },
+    'Roman': {
+      tiktok: {
+        hooks: ['Ce roman m\'a fait voir Niagara autrement 🌊', 'Quand un auteur guadeloupéen écrit sur les chutes… 📖', 'Le livre que BookTok France n\'a pas encore découvert ↓', 'POV : tu ouvres un roman et tu ne peux plus le lâcher'],
+        hashtags: ['#BookTok', '#BookTokFrance', '#RomanFrançais', '#LittératureFrancophone', '#NouveauRoman', '#LectureDuMoment', '#AuteurFrancophone', '#JabriliaEditions', '#Guadeloupe', '#LittératureCaribéenne', '#PageTurner', '#ConseilLecture'],
+        format: 'Vidéo 15-45s, lecture d\'un extrait + ambiance visuelle, musique cinématique',
+        timing: 'Dimanche 20h + Mardi 19h (pics lecture adulte)',
+      },
+      instagram: {
+        captions: [
+          '🏔️ « Sur les hauteurs des chutes du Niagara »\n\nUn roman sur les sommets qu\'on choisit de gravir et ceux qu\'on n\'attendait pas.\n\nUne plume entre Caraïbes et Amérique du Nord.\n\n📚 @jabriliaeditions',
+          '📖 Chaque chapitre est un pas de plus vers soi-même.\n\nSteve Moradel signe un premier roman puissant qui traverse les frontières et les identités.\n\n→ Lien en bio',
+        ],
+        hashtags: ['#Roman', '#LittératureFrançaise', '#AuteurFrancophone', '#NouvelleVoix', '#Niagara', '#SteveMoradel', '#JabriliaEditions', '#RomanContemporain', '#LivreàLire', '#ConseilLecture', '#ÉditionIndépendante', '#LittératureCaribéenne', '#Guadeloupe', '#VoyageLittéraire', '#RentréeLittéraire'],
+        format: 'Photo ambiance (paysage + livre) + carrousel extraits',
+        stories: ['Citation du jour extraite du roman', 'Behind the scenes : l\'écriture', 'Q&A auteur en story'],
+      },
+      linkedin: { angle: 'L\'entrepreneuriat littéraire — de consultant à romancier, parcours atypique', hashtags: ['#Édition', '#Entrepreneuriat', '#LittératureFrançaise', '#ParcoursProfessionnel'] },
+    },
+    'Fantasy': {
+      tiktok: {
+        hooks: ['Si tu aimes Tolkien et la politique, ce roman est pour toi ⚔️', 'La fantasy française qu\'il vous faut en 2026 🔥', 'POV : tu découvres une trilogie épique francophone', 'Ce système de magie est INSANE ↓'],
+        hashtags: ['#BookTok', '#FantasyBookTok', '#FantasyFrançaise', '#DarkFantasy', '#TrilogieFantasy', '#SagaÉpique', '#LeTrôneDeCendre', '#BookTokFrance', '#FantasyBooks', '#NouveautéLittéraire', '#SwordAndSorcery', '#Worldbuilding'],
+        format: 'Vidéo 30-60s, aesthetic dark + extraits, musique épique orchestrale',
+        timing: 'Vendredi 20h + Dimanche 15h (pics fantasy community)',
+      },
+      instagram: {
+        captions: [
+          '⚔️ « Le Trône de Cendre » — Tome I\n\nQuand le pouvoir consume ceux qui le convoitent.\n\nUne saga épique. Une plume française. Un monde qui ne pardonne pas.\n\n🔥 Bientôt chez @jabriliaeditions',
+        ],
+        hashtags: ['#Fantasy', '#FantasyFrançaise', '#SagaÉpique', '#DarkFantasy', '#Trilogie', '#LeTrôneDeCendre', '#BookstagramFrance', '#LivreFantasy', '#Worldbuilding', '#JabriliaEditions', '#NouveauRoman', '#ÉditionIndépendante'],
+        format: 'Reels ambiance dark + map du monde + character art',
+        stories: ['Sondage « Team personnage A ou B ? »', 'Countdown to release', 'Extraits exclusifs'],
+      },
+      linkedin: { angle: 'La fantasy comme vecteur de réflexion politique et sociale', hashtags: ['#Fantasy', '#Littérature', '#Créativité', '#Écriture'] },
+    },
+  };
+
+  // Media plan budget allocation
+  const budgetPlan = {
+    total: 2000,
+    digital: { pct: 80, breakdown: [
+      { channel: 'Amazon Ads (Sponsored Products)', pct: 30, budget: 600, icon: '🛒', desc: 'Campagnes mots-clés, produits sponsorisés, ciblage par genre' },
+      { channel: 'Instagram / Facebook Ads', pct: 20, budget: 400, icon: '📸', desc: 'Carrousels, reels sponsorisés, lookalike audiences lecteurs' },
+      { channel: 'TikTok Ads (Spark Ads)', pct: 15, budget: 300, icon: '🎵', desc: 'Boost posts organiques BookTok, In-Feed natif' },
+      { channel: 'Google Ads (Search)', pct: 8, budget: 160, icon: '🔍', desc: 'Mots-clés achat livre + genre spécifique' },
+      { channel: 'Newsletter / Email (Brevo)', pct: 5, budget: 100, icon: '📧', desc: 'Campagnes Les Pages de Jade (12K abonnés)' },
+      { channel: 'LinkedIn (organique + boost)', pct: 2, budget: 40, icon: '💼', desc: 'Thought leadership, parcours auteur-stratège' },
+    ]},
+    traditional: { pct: 20, breakdown: [
+      { channel: 'Radio digitale (podcasts)', pct: 8, budget: 160, icon: '🎙️', desc: 'Passages podcasts littéraires, France Inter numérique, RFI' },
+      { channel: 'Presse en ligne', pct: 7, budget: 140, icon: '📰', desc: 'Livres Hebdo, ActuaLitté, Babelio, encarts digitaux' },
+      { channel: 'Blogueurs / Influenceurs livre', pct: 5, budget: 100, icon: '✍️', desc: 'Service presse, SP numériques, chroniques partenaires' },
+    ]},
+  };
 
   const withBackCover = projects.filter(p => p.backCover && p.backCover.length > 50);
+  const tabs = [
+    { id: 'media' as const, label: '📋 Plan Média', desc: 'Budget & canaux' },
+    { id: 'amazon' as const, label: '🛒 Amazon Ads', desc: 'Mots-clés & campagnes' },
+    { id: 'social' as const, label: '📱 Social Media', desc: 'TikTok, Insta, LinkedIn' },
+    { id: 'kit' as const, label: '🎬 Kit IA', desc: 'Génération auto' },
+  ];
 
   return (
     <div>
       <div className="flex justify-between items-end mb-5">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Marketing</h2>
-          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Moteur IA orchestré — génération de kits promo par titre</p>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Marketing & Plan Média</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>80% digital · 20% presse & radio · Stratégie par titre</p>
         </div>
       </div>
 
-      <div className="flex gap-3.5 mb-6 flex-wrap">
-        <StatCard value={withBackCover.length} label="Titres avec 4e" accent={c.ok} />
-        <StatCard value={projects.length - withBackCover.length} label="Sans 4e (limité)" accent={c.og} />
-        <StatCard value="5" label="Engines" accent={c.vm} />
+      <div className="flex gap-3.5 mb-5 flex-wrap">
+        <StatCard value={`${budgetPlan.total.toLocaleString()}€`} label="Budget total/titre" accent={c.or} />
+        <StatCard value="80%" label="Digital" accent="#3B6DC6" />
+        <StatCard value="20%" label="Presse & Radio" accent={c.vm} />
+        <StatCard value={withBackCover.length} label="Titres prêts" accent={c.ok} />
       </div>
 
-      {/* Pipeline engines */}
-      <div className="grid grid-cols-5 gap-2.5 mb-6">
-        {engines.map((e, i) => (
-          <Card key={e.name} hover={false} className="p-4 text-center relative">
-            <div className="text-2xl mb-1.5">{e.icon}</div>
-            <div className="font-semibold text-[11px]" style={{ color: c.mv }}>{e.name}</div>
-            <div className="text-[9px] mt-1 leading-relaxed" style={{ color: c.gr }}>{e.desc}</div>
-            {i < engines.length - 1 && (
-              <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 text-[14px]" style={{ color: c.gc }}>→</div>
-            )}
-          </Card>
+      {/* Tabs */}
+      <div className="flex gap-1 mb-5 p-1 rounded-xl" style={{ background: c.ft }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className="flex-1 py-2.5 px-3 rounded-lg cursor-pointer border-none text-center transition-all"
+            style={{ background: tab === t.id ? 'white' : 'transparent', color: tab === t.id ? c.mv : c.gr, boxShadow: tab === t.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
+            <div className="text-[12px] font-semibold">{t.label}</div>
+            <div className="text-[9px]">{t.desc}</div>
+          </button>
         ))}
       </div>
 
-      {/* Project selector */}
-      <Card hover={false} className="mb-6">
-        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
-          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>
-            Sélectionner un titre pour générer le kit
-          </span>
-        </div>
-        {projects.map(p => {
-          const hasBack = p.backCover && p.backCover.length > 50;
-          const isSelected = selectedProject === p.id;
-          const hasKit = generatedKit[p.id];
-          return (
-            <div key={p.id} className="flex items-center gap-4 px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
-              style={{ borderBottom: `1px solid ${c.ft}`, background: isSelected ? '#FAF7F2' : undefined }}
-              onClick={() => generateKit(p.id)}>
-              <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold" style={{ color: c.nr }}>{p.title}</div>
-                <div className="text-[10px]" style={{ color: c.gr }}>{p.genre} · {p.pages} p. · {hasBack ? '4e renseignée' : '4e manquante'}</div>
+      {/* ═══ TAB: PLAN MÉDIA ═══ */}
+      {tab === 'media' && (
+        <div className="space-y-5">
+          {/* Budget donut */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <Card hover={false} className="overflow-hidden">
+              <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Répartition budget digital (80%)</span>
               </div>
-              {hasKit && <Badge bg="#D4F0E0" color={c.ok}>Kit généré</Badge>}
-              {!hasKit && <Badge bg={hasBack ? '#FDE8D0' : c.gc} color={hasBack ? c.og : c.gr}>{hasBack ? 'Prêt' : 'Limité'}</Badge>}
-            </div>
-          );
-        })}
-      </Card>
+              <div className="p-5 space-y-3">
+                {budgetPlan.digital.breakdown.map((ch, i) => (
+                  <div key={i}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{ch.icon}</span>
+                        <span className="text-[11px] font-semibold" style={{ color: c.mv }}>{ch.channel}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{ch.budget}€</span>
+                        <Badge bg={c.ft} color={c.gr}>{ch.pct}%</Badge>
+                      </div>
+                    </div>
+                    <div className="text-[10px] mb-1.5 ml-7" style={{ color: c.gr }}>{ch.desc}</div>
+                    <div className="h-1.5 rounded-full overflow-hidden ml-7" style={{ background: c.gc }}>
+                      <div className="h-full rounded-full" style={{ width: `${(ch.pct / 30) * 100}%`, background: '#3B6DC6', transition: 'width 0.8s ease' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
 
-      {/* Generated kit display */}
-      {sel && kit && (
-        <div className="space-y-4">
-          {/* Brief */}
-          <Card hover={false} className="overflow-hidden">
-            <div className="px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
-              <span className="text-[13px] font-semibold" style={{ color: c.mv }}>📋 Brief créatif — {sel.title}</span>
-            </div>
-            <div className="p-5 grid grid-cols-3 gap-4">
-              <div>
-                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Ton & Ambiance</div>
-                <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{kit.brief.tone}</div>
-                <div className="text-[11px]" style={{ color: c.gr }}>Ambiance : {kit.brief.ambiance}</div>
-                <div className="text-[11px]" style={{ color: c.gr }}>Audience : {kit.brief.targetAudience}</div>
+            <Card hover={false} className="overflow-hidden">
+              <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Presse & Radio (20%)</span>
               </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Thèmes détectés</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {kit.brief.themes.map((t: string) => (
-                    <span key={t} className="text-[10px] px-2 py-0.5 rounded" style={{ background: c.ft, color: c.vm }}>{t}</span>
-                  ))}
-                </div>
+              <div className="p-5 space-y-3">
+                {budgetPlan.traditional.breakdown.map((ch, i) => (
+                  <div key={i}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{ch.icon}</span>
+                        <span className="text-[11px] font-semibold" style={{ color: c.mv }}>{ch.channel}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{ch.budget}€</span>
+                        <Badge bg={c.ft} color={c.gr}>{ch.pct}%</Badge>
+                      </div>
+                    </div>
+                    <div className="text-[10px] mb-1.5 ml-7" style={{ color: c.gr }}>{ch.desc}</div>
+                    <div className="h-1.5 rounded-full overflow-hidden ml-7" style={{ background: c.gc }}>
+                      <div className="h-full rounded-full" style={{ width: `${(ch.pct / 8) * 100}%`, background: c.vm, transition: 'width 0.8s ease' }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Palette</div>
-                <div className="flex gap-2">
-                  {[kit.brief.palette.primary, kit.brief.palette.secondary, kit.brief.palette.accent].map((col, i) => (
-                    <div key={i} className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded" style={{ background: col, border: `1px solid ${c.gc}` }} />
-                      <span className="text-[9px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.gr }}>{col}</span>
+
+              {/* Calendrier recommandé */}
+              <div className="px-5 pb-5">
+                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2 mt-3" style={{ color: c.or }}>📅 Calendrier recommandé</div>
+                <div className="space-y-1.5">
+                  {[
+                    { phase: 'J-30', label: 'Teasing', actions: 'Couverture reveal, countdown, extraits' },
+                    { phase: 'J-15', label: 'Pré-lancement', actions: 'SP influenceurs, Amazon pre-order, newsletter' },
+                    { phase: 'J-Day', label: 'Lancement', actions: 'Tous canaux simultanés, live Instagram, boost TikTok' },
+                    { phase: 'J+7', label: 'Amplification', actions: 'Retargeting, UGC, reviews Amazon' },
+                    { phase: 'J+30', label: 'Long tail', actions: 'SEO Amazon, contenu evergreen, podcast' },
+                  ].map((p, i) => (
+                    <div key={i} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: c.ft }}>
+                      <span className="text-[10px] font-bold shrink-0 w-10" style={{ color: c.or }}>{p.phase}</span>
+                      <span className="text-[11px] font-semibold shrink-0 w-24" style={{ color: c.mv }}>{p.label}</span>
+                      <span className="text-[10px]" style={{ color: c.gr }}>{p.actions}</span>
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
+        </div>
+      )}
 
-          {/* Marketing Kit */}
-          <Card hover={false} className="overflow-hidden">
-            <div className="px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
-              <span className="text-[13px] font-semibold" style={{ color: c.mv }}>📱 Kit Marketing</span>
+      {/* ═══ TAB: AMAZON ADS ═══ */}
+      {tab === 'amazon' && (
+        <div className="space-y-5">
+          {/* Amazon strategy overview */}
+          <Card hover={false} className="p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-[32px]">🛒</span>
+              <div>
+                <h3 className="text-[16px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Stratégie Amazon Advertising</h3>
+                <p className="text-[11px]" style={{ color: c.gr }}>Sponsored Products · Keyword Targeting · Budget par genre</p>
+              </div>
             </div>
-            <div className="p-5 grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[
-                { label: 'Instagram', content: kit.marketing.instagramCaption },
-                { label: 'LinkedIn', content: kit.marketing.linkedinPost },
-                { label: 'Newsletter', content: kit.marketing.newsletterBlurb },
-                { label: 'Communiqué de presse', content: kit.marketing.pressRelease },
-              ].map(item => (
-                <div key={item.label} className="p-3 rounded-lg" style={{ background: '#FDFCFA', border: `1px solid ${c.ft}` }}>
-                  <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>{item.label}</div>
-                  <pre className="text-[10px] whitespace-pre-wrap leading-relaxed" style={{ color: c.nr, fontFamily: 'Inter, sans-serif' }}>{item.content}</pre>
+                { icon: '🎯', title: 'Sponsored Products', desc: 'Apparaître dans les résultats de recherche et pages produit similaires. CPC moyen 0.25-0.55€.' },
+                { icon: '📚', title: 'Product Display', desc: 'Cibler les lecteurs qui consultent des livres similaires dans votre genre. Retargeting automatique.' },
+                { icon: '🏷️', title: 'Sponsored Brands', desc: 'Bannière en haut de recherche avec logo Jabrilia + 3 titres. Branding éditeur.' },
+              ].map((s, i) => (
+                <div key={i} className="p-4 rounded-xl" style={{ background: c.ft }}>
+                  <div className="text-lg mb-2">{s.icon}</div>
+                  <div className="text-[12px] font-semibold mb-1" style={{ color: c.mv }}>{s.title}</div>
+                  <div className="text-[10px] leading-relaxed" style={{ color: c.gr }}>{s.desc}</div>
                 </div>
               ))}
             </div>
           </Card>
 
-          {/* Cover Brief */}
-          <Card hover={false} className="overflow-hidden">
-            <div className="px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
-              <span className="text-[13px] font-semibold" style={{ color: c.mv }}>🎨 Brief Couverture</span>
-            </div>
-            <div className="p-5 grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Direction artistique</div>
-                {[
-                  ['Style', kit.cover.style],
-                  ['Composition', kit.cover.composition],
-                  ['Typo titre', kit.cover.typography.titleFont],
-                  ['Placement', kit.cover.typography.placement],
-                  ['Conventions', kit.cover.genreConventions],
-                  ['Test miniature', kit.cover.thumbnailTest],
-                ].map(([k, v]) => (
-                  <div key={k} className="flex py-1" style={{ borderBottom: `1px solid ${c.ft}` }}>
-                    <span className="text-[10px] font-semibold w-[90px] shrink-0" style={{ color: c.vm }}>{k}</span>
-                    <span className="text-[10px]" style={{ color: c.nr }}>{v}</span>
+          {/* Keywords by genre */}
+          {projects.map(p => {
+            const kw = amazonKeywords[p.genre] || amazonKeywords['Roman'];
+            return (
+              <Card key={p.id} hover={false} className="overflow-hidden">
+                <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+                  <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                  <div>
+                    <span className="text-[13px] font-semibold" style={{ color: c.mv }}>{p.title}</span>
+                    <span className="text-[10px] ml-2" style={{ color: c.gr }}>{p.genre} · Enchère recommandée : {kw.bid}</span>
                   </div>
-                ))}
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Prompts IA</div>
-                <div className="p-3 rounded-lg mb-3" style={{ background: '#FDFCFA', border: `1px solid ${c.ft}` }}>
-                  <div className="text-[10px] font-semibold mb-1" style={{ color: c.vm }}>Midjourney</div>
-                  <pre className="text-[9px] whitespace-pre-wrap" style={{ color: c.nr, fontFamily: "'JetBrains Mono', monospace" }}>{kit.cover.promptMidjourney}</pre>
                 </div>
-                <div className="p-3 rounded-lg" style={{ background: '#FDFCFA', border: `1px solid ${c.ft}` }}>
-                  <div className="text-[10px] font-semibold mb-1" style={{ color: c.vm }}>DALL-E</div>
-                  <pre className="text-[9px] whitespace-pre-wrap" style={{ color: c.nr, fontFamily: "'JetBrains Mono', monospace" }}>{kit.cover.promptDalle}</pre>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Trailer Script */}
-          <Card hover={false} className="overflow-hidden">
-            <div className="px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
-              <span className="text-[13px] font-semibold" style={{ color: c.mv }}>🎬 Script Trailer — {kit.trailer.duration}s</span>
-            </div>
-            <div className="p-5">
-              <div className="text-[10px] mb-3" style={{ color: c.gr }}>Musique : {kit.trailer.musicMood}</div>
-              <div className="space-y-2">
-                {kit.trailer.scenes.map((scene: { timestamp: number; visual: string; voiceOver: string; text: string }, i: number) => (
-                  <div key={i} className="flex gap-3 p-2.5 rounded-lg" style={{ background: i % 2 === 0 ? '#FDFCFA' : 'white', border: `1px solid ${c.ft}` }}>
-                    <div className="text-[10px] font-bold shrink-0 w-[30px]" style={{ fontFamily: "'JetBrains Mono', monospace", color: c.or }}>{scene.timestamp}s</div>
-                    <div className="flex-1">
-                      <div className="text-[10px]" style={{ color: c.vm }}>🎥 {scene.visual}</div>
-                      {scene.voiceOver && <div className="text-[10px] mt-0.5" style={{ color: c.nr }}>🎤 « {scene.voiceOver} »</div>}
-                      {scene.text && <div className="text-[10px] mt-0.5 font-semibold" style={{ color: c.mv }}>📝 {scene.text}</div>}
+                <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Primary keywords */}
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: c.ok }}>🎯 Mots-clés primaires</div>
+                    <div className="space-y-1.5">
+                      {kw.primary.map((k, i) => (
+                        <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px]" style={{ background: '#D4F0E020', border: '1px solid #D4F0E0', color: c.vm }}>
+                          <span className="text-[8px]" style={{ color: c.ok }}>●</span> {k}
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
+                  {/* Long tail */}
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: c.or }}>🔎 Long tail (haute conversion)</div>
+                    <div className="space-y-1.5">
+                      {kw.long_tail.map((k, i) => (
+                        <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[10px]" style={{ background: `${c.or}08`, border: `1px solid ${c.or}30`, color: c.vm }}>
+                          <span className="text-[8px]" style={{ color: c.or }}>●</span> {k}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Negative */}
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: c.er }}>🚫 Mots-clés négatifs</div>
+                    <div className="space-y-1.5">
+                      {kw.negative.map((k, i) => (
+                        <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[10px]" style={{ background: '#FFE0E320', border: '1px solid #FFE0E3', color: c.gr }}>
+                          <span className="text-[8px]" style={{ color: c.er }}>✗</span> {k}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 p-2 rounded-lg text-[9px]" style={{ background: c.ft, color: c.gr }}>
+                      💡 Exclure ces termes pour éviter les impressions non pertinentes et optimiser le ROAS
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ═══ TAB: SOCIAL MEDIA ═══ */}
+      {tab === 'social' && (
+        <div className="space-y-5">
+          {projects.map(p => {
+            const social = socialTemplates[p.genre] || socialTemplates['Roman'];
+            if (!social) return null;
+            return (
+              <Card key={p.id} hover={false} className="overflow-hidden">
+                <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+                  <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                  <div className="flex-1">
+                    <span className="text-[13px] font-semibold" style={{ color: c.mv }}>{p.title}</span>
+                    <span className="text-[10px] ml-2" style={{ color: c.gr }}>{p.genre}</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => { navigator.clipboard.writeText(social.instagram.hashtags.join(' ')); onToast('Hashtags Instagram copiés !'); }}
+                      className="px-2.5 py-1 rounded-lg cursor-pointer border-none text-[9px] font-semibold" style={{ background: '#E1306C15', color: '#E1306C' }}>
+                      📋 Copier # Insta
+                    </button>
+                    <button onClick={() => { navigator.clipboard.writeText(social.tiktok.hashtags.join(' ')); onToast('Hashtags TikTok copiés !'); }}
+                      className="px-2.5 py-1 rounded-lg cursor-pointer border-none text-[9px] font-semibold" style={{ background: '#00000010', color: '#000' }}>
+                      📋 Copier # TikTok
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-5">
+                  {/* TikTok */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base">🎵</span>
+                      <span className="text-[12px] font-bold" style={{ color: c.mv }}>TikTok / BookTok</span>
+                    </div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider mb-2" style={{ color: c.or }}>Hooks vidéo</div>
+                    <div className="space-y-1.5 mb-3">
+                      {social.tiktok.hooks.map((h, i) => (
+                        <div key={i} className="p-2.5 rounded-lg text-[11px] leading-relaxed" style={{ background: c.ft, color: c.vm }}>
+                          {h}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: c.or }}>Format & timing</div>
+                    <div className="text-[10px] mb-2" style={{ color: c.gr }}>{social.tiktok.format}</div>
+                    <div className="text-[10px] mb-3" style={{ color: c.gr }}>📅 {social.tiktok.timing}</div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: c.or }}>Hashtags</div>
+                    <div className="flex flex-wrap gap-1">
+                      {social.tiktok.hashtags.map((h, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-semibold" style={{ background: '#00000008', color: '#333' }}>{h}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Instagram */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base">📸</span>
+                      <span className="text-[12px] font-bold" style={{ color: c.mv }}>Instagram</span>
+                    </div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider mb-2" style={{ color: '#E1306C' }}>Caption prête à poster</div>
+                    <div className="space-y-2 mb-3">
+                      {social.instagram.captions.slice(0, 1).map((cap, i) => (
+                        <div key={i} className="p-3 rounded-xl text-[10px] leading-relaxed whitespace-pre-line cursor-pointer"
+                          style={{ background: '#E1306C08', border: '1px solid #E1306C20', color: c.vm }}
+                          onClick={() => { navigator.clipboard.writeText(cap); onToast('Caption copiée !'); }}>
+                          {cap}
+                          <div className="text-[8px] mt-2 font-bold" style={{ color: '#E1306C' }}>Cliquez pour copier</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: '#E1306C' }}>Format</div>
+                    <div className="text-[10px] mb-3" style={{ color: c.gr }}>{social.instagram.format}</div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: '#E1306C' }}>Stories</div>
+                    <div className="space-y-1">
+                      {social.instagram.stories.map((s, i) => (
+                        <div key={i} className="text-[10px] flex items-center gap-1.5" style={{ color: c.vm }}>
+                          <span style={{ color: '#E1306C' }}>▸</span> {s}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider mb-1.5 mt-3" style={{ color: '#E1306C' }}>Hashtags</div>
+                    <div className="flex flex-wrap gap-1">
+                      {social.instagram.hashtags.map((h, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-semibold" style={{ background: '#E1306C08', color: '#E1306C' }}>{h}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* LinkedIn */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-base">💼</span>
+                      <span className="text-[12px] font-bold" style={{ color: c.mv }}>LinkedIn</span>
+                    </div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider mb-2" style={{ color: '#0A66C2' }}>Angle éditorial</div>
+                    <div className="p-3 rounded-xl text-[11px] leading-relaxed mb-3" style={{ background: '#0A66C208', border: '1px solid #0A66C220', color: c.vm }}>
+                      {social.linkedin.angle}
+                    </div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: '#0A66C2' }}>Hashtags</div>
+                    <div className="flex flex-wrap gap-1 mb-4">
+                      {social.linkedin.hashtags.map((h, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-semibold" style={{ background: '#0A66C208', color: '#0A66C2' }}>{h}</span>
+                      ))}
+                    </div>
+
+                    <div className="text-[9px] font-bold uppercase tracking-wider mb-2 mt-4 pt-3" style={{ color: c.or, borderTop: `1px solid ${c.gc}` }}>💡 Tips cross-plateforme</div>
+                    <div className="space-y-1.5">
+                      {[
+                        'Poster TikTok → recycler en Reel Instagram',
+                        'Extraire citation → LinkedIn + Story Insta',
+                        'UGC lecteurs → reposter sur tous les canaux',
+                        'Lien Amazon UTM dans chaque bio',
+                      ].map((tip, i) => (
+                        <div key={i} className="text-[10px] flex items-center gap-1.5" style={{ color: c.vm }}>
+                          <span style={{ color: c.ok }}>✓</span> {tip}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ═══ TAB: KIT IA ═══ */}
+      {tab === 'kit' && (
+        <div>
+          {/* Engine pipeline */}
+          <div className="grid grid-cols-5 gap-2.5 mb-6">
+            {[
+              { icon: '📋', name: 'Brief créatif', desc: 'Ton, thèmes, palette, audience' },
+              { icon: '📱', name: 'Kit Marketing', desc: 'Instagram, LinkedIn, newsletter' },
+              { icon: '🎬', name: 'Script Trailer', desc: 'Voix off + visuels + musique' },
+              { icon: '🎨', name: 'Brief Couverture', desc: 'Direction artistique + prompts IA' },
+              { icon: '🎧', name: 'Plan Audiobook', desc: 'Chapitres, voix, mastering' },
+            ].map((e, i) => (
+              <Card key={e.name} hover={false} className="p-4 text-center relative">
+                <div className="text-2xl mb-1.5">{e.icon}</div>
+                <div className="font-semibold text-[11px]" style={{ color: c.mv }}>{e.name}</div>
+                <div className="text-[9px] mt-1 leading-relaxed" style={{ color: c.gr }}>{e.desc}</div>
+                {i < 4 && <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 text-[14px]" style={{ color: c.gc }}>→</div>}
+              </Card>
+            ))}
+          </div>
+
+          {/* Project selector for kit generation */}
+          <Card hover={false} className="mb-6">
+            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+              <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Sélectionner un titre pour générer le kit</span>
             </div>
+            {projects.map(p => {
+              const hasBack = p.backCover && p.backCover.length > 50;
+              const isSelected = selectedProject === p.id;
+              const hasKit = generatedKit[p.id];
+              return (
+                <div key={p.id} className="flex items-center gap-4 px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
+                  style={{ borderBottom: `1px solid ${c.ft}`, background: isSelected ? '#FAF7F2' : undefined }}
+                  onClick={() => generateKit(p.id)}>
+                  <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{p.title}</div>
+                    <div className="text-[10px]" style={{ color: c.gr }}>{p.genre} · {p.author}</div>
+                  </div>
+                  {!hasBack && <Badge bg="#FFF3E0" color={c.og}>Sans 4e</Badge>}
+                  {hasKit ? <Badge bg="#D4F0E0" color={c.ok}>✓ Généré</Badge> : <span onClick={(e) => { e.stopPropagation(); generateKit(p.id); }}><Btn variant="secondary" onClick={() => {}}>Générer</Btn></span>}
+                </div>
+              );
+            })}
           </Card>
+
+          {/* Kit results */}
+          {sel && kit && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Brief */}
+              <Card hover={false} className="overflow-hidden">
+                <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                  <span className="text-[13px] font-semibold" style={{ color: c.mv }}>📋 Brief créatif — {sel.title}</span>
+                </div>
+                <div className="p-5 space-y-2.5">
+                  {[
+                    { l: 'Ton', v: kit.brief.tone }, { l: 'Ambiance', v: kit.brief.ambiance }, { l: 'Audience', v: kit.brief.targetAudience },
+                    { l: 'Pitch', v: kit.brief.oneLinePitch }, { l: 'Angle marketing', v: kit.brief.marketingAngle },
+                  ].map(f => (
+                    <div key={f.l} className="flex gap-2"><span className="text-[9px] font-bold uppercase tracking-wider shrink-0 w-20 pt-0.5" style={{ color: c.or }}>{f.l}</span><span className="text-[11px] leading-relaxed" style={{ color: c.vm }}>{f.v}</span></div>
+                  ))}
+                  <div className="flex flex-wrap gap-1 mt-2">{kit.brief.hashTags.map((h, i) => <span key={i} className="px-2 py-0.5 rounded-full text-[9px]" style={{ background: c.ft, color: c.vm }}>{h}</span>)}</div>
+                </div>
+              </Card>
+              {/* Marketing */}
+              <Card hover={false} className="overflow-hidden">
+                <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                  <span className="text-[13px] font-semibold" style={{ color: c.mv }}>📱 Kit Marketing</span>
+                </div>
+                <div className="p-5 space-y-3">
+                  {[
+                    { l: '📸 Instagram', v: kit.marketing.instagramCaption },
+                    { l: '💼 LinkedIn', v: kit.marketing.linkedinPost },
+                    { l: '📧 Newsletter', v: kit.marketing.newsletterBlurb },
+                  ].map(f => (
+                    <div key={f.l} className="p-3 rounded-xl cursor-pointer hover:shadow-sm transition-shadow" style={{ background: c.ft }}
+                      onClick={() => { navigator.clipboard.writeText(f.v); onToast(`${f.l} copié !`); }}>
+                      <div className="text-[10px] font-bold mb-1" style={{ color: c.or }}>{f.l}</div>
+                      <div className="text-[10px] leading-relaxed" style={{ color: c.vm }}>{f.v}</div>
+                      <div className="text-[8px] mt-1 font-bold" style={{ color: c.gr }}>Cliquer pour copier</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -6464,7 +6811,7 @@ export default function JabrApp() {
       case 'traductions': return <TraductionsView projects={projects} onToast={showToast} />;
       case 'multiauteurs': return <MultiAuteursView projects={projects} onProject={openProject} />;
       case 'editeur': return <MultiAuthorView projects={projects} onProject={openProject} />;
-      case 'marketing': return <MarketingView projects={projects} />;
+      case 'marketing': return <MarketingView projects={projects} onToast={showToast} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
       case 'distribution': return <DistributionView projects={projects} onToast={showToast} distChecks={distChecks} />;
       case 'calibrage': return <CalibrageView projects={projects} />;
