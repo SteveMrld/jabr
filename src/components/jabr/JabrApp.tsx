@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { PROJECTS, PIPELINE_STEPS, COLLECTIONS, DIAG_LABELS, DISTRIBUTION_CHANNELS, FORMAT_LABELS, EDITION_STATUS_LABELS, MANUSCRIPT_STATUS_LABELS, countISBN, primaryISBN, primaryPrice, KDP_TRIM_SIZES, KDP_PAPER_TYPES, KDP_CONSTANTS, FR_PRINT_CONSTANTS, FR_TRIM_SIZES, calcKDPCover, calcFRCover, type Project, type Edition, type EditionFormat, type ManuscriptStatus, type AnalysisResult, type TrimSizeKey, type PaperType, type FrTrimKey, type CoverSpecs } from '@/lib/data';
 import { useProjects, useDistributionChecks, useCalendarResults } from '@/lib/useProjects';
+import { orchestrateTitle, orchestrateCatalogue, type TitleOrchestration, type CatalogueInsight } from '@/lib/orchestrationEngine';
 import { t, type Lang } from '@/lib/i18n';
 import { type Author } from '@/lib/authors';
 import { generateBudgetPlan, generateObjectivePlan, compareAB, type MediaPlan, type MediaPlanInput } from '@/lib/mediaEngine';
@@ -195,6 +196,7 @@ const JabrLogo = () => (
 // ═══════════════════════════════════
 const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['dashboard', 'Dashboard', 'dashboard'],
+  ['orchestration', 'Orchestration', 'orchestration'],
   ['projets', 'Projets', 'projets'],
   ['manuscrits', 'Manuscrits', 'manuscrits'],
   ['analyse', 'Analyse', 'analyse'],
@@ -360,6 +362,203 @@ const MiniDonut = ({ segments, size = 80 }: { segments: { value: number; color: 
 };
 
 // --- DASHBOARD ---
+
+// ORCHESTRATION VIEW
+const OrchestrationView = ({ projects, onProject, onNav }: { projects: Project[]; onProject: (p: Project) => void; onNav: (id: string) => void }) => {
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [tab, setTab] = useState<"overview" | "detail" | "flowmap">("overview");
+  const catalogue = useMemo(() => orchestrateCatalogue(projects), [projects]);
+  const titleResults = useMemo(() => projects.map(p => orchestrateTitle(p)), [projects]);
+  const sorted = useMemo(() => [...titleResults].sort((a, b) => b.globalScore - a.globalScore), [titleResults]);
+  const selected = selectedId !== null ? titleResults.find(t => t.projectId === selectedId) : null;
+  const gradeColor = (g: string) => g === "A" ? "#16a34a" : g === "B" ? "#2563eb" : g === "C" ? c.or : g === "D" ? "#ea580c" : "#dc2626";
+  const impactColor = (i: string) => i === "critical" ? "#dc2626" : i === "high" ? "#ea580c" : i === "medium" ? c.or : "#6b7280";
+  const effortLabel = (e: string) => e === "quick-win" ? "Quick win" : e === "moderate" ? "Effort moyen" : "Chantier lourd";
+  const dims = ["editorial", "production", "distribution", "marketing", "international"] as const;
+  const dimLabels: Record<string, string> = { editorial: "Editorial", production: "Production", distribution: "Distribution", marketing: "Marketing", international: "International" };
+  const dimColors: Record<string, string> = { editorial: "#6C4DFF", production: c.or, distribution: "#2563eb", marketing: "#ea580c", international: "#16a34a" };
+  const flowSteps = [
+    { id: "manuscrit", label: "Manuscrit", module: "manuscrits", check: (p: Project) => p.manuscriptStatus === "validated" || p.manuscriptStatus === "isbn-injected" },
+    { id: "analyse", label: "Analyse IA", module: "analyse", check: (p: Project) => !!p.analysis },
+    { id: "corrections", label: "Corrections", module: "analyse", check: (p: Project) => p.corrections.length > 0 },
+    { id: "calibrage", label: "Calibrage", module: "calibrage", check: (p: Project) => Object.values(p.diag).filter(Boolean).length >= Object.keys(p.diag).length * 0.7 },
+    { id: "couverture", label: "Couverture", module: "couvertures", check: (p: Project) => Object.values(p.diag).filter(Boolean).length === Object.keys(p.diag).length },
+    { id: "isbn", label: "ISBN", module: "isbn", check: (p: Project) => p.editions.every(e => e.isbn && e.isbn.length > 5) },
+    { id: "distribution", label: "Distribution", module: "distribution", check: (p: Project) => p.editions.some(e => e.status === "ready" || e.status === "published") },
+    { id: "marketing", label: "Marketing", module: "marketing", check: (p: Project) => !!p.backCover && p.backCover.length > 50 },
+    { id: "traduction", label: "Traduction", module: "traductions", check: (p: Project) => p.status === "published" },
+  ];
+  const radarPoints = (scores: number[], radius: number) => {
+    const n = scores.length;
+    return scores.map((s, i) => {
+      const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+      const r = (s / 100) * radius;
+      return [150 + r * Math.cos(angle), 150 + r * Math.sin(angle)];
+    });
+  };
+  return (
+    <div style={{ padding: 24, maxWidth: 1100 }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+          <span style={{ fontSize: 28 }}>🧠</span>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: c.mv, margin: 0 }}>Editorial Orchestration Engine</h2>
+        </div>
+        <p style={{ color: c.gr, fontSize: 13, margin: 0 }}>Copilote strategique pour chaque titre du catalogue.</p>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        {([["overview", "Vue catalogue"], ["detail", "Analyse titre"], ["flowmap", "Flow Map"]] as [string, string][]).map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id as any)} style={{ padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, background: tab === id ? c.or : c.ft, color: tab === id ? "white" : c.nr }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === "overview" && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+            <StatCard value={catalogue.avgGlobalScore + "/100"} label="Score moyen" accent={c.or} />
+            <StatCard value={String(catalogue.readyToPublish)} label="Prets (A/B)" accent="#16a34a" />
+            <StatCard value={String(catalogue.criticalBottlenecks.length)} label="Blocages critiques" accent="#dc2626" />
+            <StatCard value={String(catalogue.totalTitles)} label="Titres" accent={c.mv} />
+          </div>
+          {catalogue.weeklyFocus.length > 0 && (
+            <div style={{ background: "linear-gradient(135deg, #FFF7ED, #FEF3C7)", borderRadius: 12, padding: 16, marginBottom: 20, border: "1px solid #FDE68A" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: c.or, marginBottom: 8 }}>Focus de la semaine</div>
+              {catalogue.weeklyFocus.map((f, i) => (
+                <div key={i} style={{ fontSize: 12, color: c.nr, padding: "4px 0" }}><strong style={{ color: c.or }}>{i + 1}.</strong> {f}</div>
+              ))}
+            </div>)}
+          {catalogue.portfolioBalance.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: c.mv, marginBottom: 8 }}>Equilibre du portefeuille</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {catalogue.portfolioBalance.map(g => (
+                  <div key={g.genre} style={{ background: "white", border: "1px solid " + c.ft, borderRadius: 10, padding: "10px 16px", minWidth: 120 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: c.nr }}>{g.genre}</div>
+                    <div style={{ fontSize: 11, color: c.gr }}>{g.count} titre{g.count > 1 ? "s" : ""} - {g.avgScore}/100</div>
+                    <div style={{ marginTop: 6, height: 4, borderRadius: 2, background: c.ft }}><div style={{ height: 4, borderRadius: 2, width: g.avgScore + "%", background: g.avgScore >= 65 ? "#16a34a" : g.avgScore >= 45 ? c.or : "#dc2626" }} /></div>
+                  </div>))}
+              </div></div>)}
+          <div style={{ fontSize: 13, fontWeight: 700, color: c.mv, marginBottom: 8 }}>Classement des titres</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {sorted.map((t, i) => {
+              const proj = projects.find(p => p.id === t.projectId);
+              return (
+                <div key={t.projectId} onClick={() => { setSelectedId(t.projectId); setTab("detail"); }} style={{ display: "grid", gridTemplateColumns: "40px 1fr 60px 80px 200px 80px", alignItems: "center", gap: 8, background: "white", border: "1px solid " + c.ft, borderRadius: 10, padding: "10px 14px", cursor: "pointer" }}>
+                  <span style={{ fontSize: 11, color: c.gr, fontWeight: 600 }}>#{i + 1}</span>
+                  <div><div style={{ fontSize: 13, fontWeight: 600, color: c.nr }}>{proj?.cover} {t.title}</div><div style={{ fontSize: 11, color: c.gr }}>{t.genre}</div></div>
+                  <div style={{ textAlign: "center" }}><span style={{ fontSize: 18, fontWeight: 800, color: gradeColor(t.globalGrade) }}>{t.globalGrade}</span></div>
+                  <div style={{ textAlign: "center", fontSize: 13, fontWeight: 600, color: c.nr }}>{t.globalScore}/100</div>
+                  <div style={{ fontSize: 11, color: c.gr, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.nextAction}</div>
+                  <div style={{ textAlign: "right", fontSize: 11, color: c.gr }}>{t.estimatedWeeksToReady > 0 ? "~" + t.estimatedWeeksToReady + " sem." : "Pret"}</div>
+                </div>);
+            })}
+          </div>
+        </div>
+      )}      {tab === "detail" && (
+        <div>
+          <div style={{ marginBottom: 16 }}>
+            <select value={selectedId ?? ""} onChange={e => setSelectedId(Number(e.target.value))} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid " + c.ft, fontSize: 13, background: "white", color: c.nr, minWidth: 300 }}>
+              <option value="">Choisir un titre...</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.cover} {p.title}</option>)}
+            </select>
+          </div>
+          {selected && (
+            <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20 }}>
+              <div style={{ background: "white", borderRadius: 12, border: "1px solid " + c.ft, padding: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: c.mv, marginBottom: 12, textAlign: "center" }}>Radar 5D</div>
+                <svg viewBox="0 0 300 300" style={{ width: "100%" }}>
+                  {[25, 50, 75, 100].map(pct => (<circle key={pct} cx={150} cy={150} r={pct * 1.2} fill="none" stroke={c.ft} strokeWidth={1} />))}
+                  {dims.map((_, i) => { const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2; return <line key={i} x1={150} y1={150} x2={150 + 120 * Math.cos(angle)} y2={150 + 120 * Math.sin(angle)} stroke={c.ft} strokeWidth={1} />; })}
+                  {(() => { const scores = dims.map(d => (selected as any)[d].score as number); const pts = radarPoints(scores, 120); return <polygon points={pts.map(pp => pp.join(",")).join(" ")} fill={c.or + "30"} stroke={c.or} strokeWidth={2} />; })()}
+                  {dims.map((d, i) => { const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2; const x = 150 + 140 * Math.cos(angle); const y = 150 + 140 * Math.sin(angle); return <text key={d} x={x} y={y} textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 10, fill: dimColors[d], fontWeight: 600 }}>{dimLabels[d]} {(selected as any)[d].score}</text>; })}
+                </svg>
+                <div style={{ textAlign: "center", marginTop: 8 }}>
+                  <span style={{ fontSize: 32, fontWeight: 800, color: gradeColor(selected.globalGrade) }}>{selected.globalGrade}</span>
+                  <span style={{ fontSize: 14, color: c.gr, marginLeft: 8 }}>{selected.globalScore}/100</span>
+                </div>
+              </div>
+              <div>
+                <div style={{ marginBottom: 20 }}>
+                  {dims.map(d => {
+                    const dim = (selected as any)[d] as { score: number; label: string; bottleneck: string | null };
+                    return (
+                      <div key={d} style={{ marginBottom: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: dimColors[d] }}>{dimLabels[d]}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: c.nr }}>{dim.score}/100</span>
+                        </div>
+                        <div style={{ height: 6, borderRadius: 3, background: c.ft }}><div style={{ height: 6, borderRadius: 3, width: dim.score + "%", background: dimColors[d], transition: "width 0.5s" }} /></div>
+                        {dim.bottleneck && <div style={{ fontSize: 10, color: "#dc2626", marginTop: 2 }}>! {dim.bottleneck}</div>}
+                      </div>);
+                  })}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: c.mv, marginBottom: 8 }}>Priorites strategiques</div>
+                {selected.priorities.map(pr => (
+                  <div key={pr.rank} style={{ display: "flex", gap: 10, alignItems: "flex-start", background: "white", border: "1px solid " + c.ft, borderRadius: 10, padding: "10px 14px", marginBottom: 6 }}>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: impactColor(pr.impact), minWidth: 24 }}>#{pr.rank}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: c.nr }}>{pr.action}</div>
+                      <div style={{ fontSize: 10, color: c.gr, marginTop: 2 }}>{pr.rationale}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <Badge bg={impactColor(pr.impact) + "20"} color={impactColor(pr.impact)}>{pr.impact}</Badge>
+                      <div style={{ fontSize: 9, color: c.gr, marginTop: 2 }}>{effortLabel(pr.effort)}</div>
+                    </div>
+                  </div>))}
+                <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: selected.estimatedWeeksToReady === 0 ? "#D4F0E0" : "#FFF7ED", textAlign: "center" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: selected.estimatedWeeksToReady === 0 ? "#16a34a" : c.or }}>
+                    {selected.estimatedWeeksToReady === 0 ? "Titre pret" : "~" + selected.estimatedWeeksToReady + " semaines"}
+                  </div>
+                </div>
+              </div>
+            </div>)}
+          {!selected && <div style={{ textAlign: "center", padding: 40, color: c.gr, fontSize: 13 }}>Selectionnez un titre.</div>}
+        </div>)}
+      {tab === "flowmap" && (
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: c.mv, marginBottom: 12 }}>Flux editorial</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <thead><tr>
+                <th style={{ textAlign: "left", padding: "8px 10px", borderBottom: "2px solid " + c.ft, color: c.gr, fontWeight: 600 }}>Titre</th>
+                {flowSteps.map(s => (<th key={s.id} style={{ textAlign: "center", padding: "8px 6px", borderBottom: "2px solid " + c.ft, color: c.gr, fontWeight: 600, cursor: "pointer" }} onClick={() => onNav(s.module)}>{s.label}</th>))}
+              </tr></thead>
+              <tbody>
+                {projects.map(p => {
+                  const checks = flowSteps.map(s => s.check(p));
+                  return (
+                    <tr key={p.id} style={{ borderBottom: "1px solid " + c.ft, cursor: "pointer" }} onClick={() => { setSelectedId(p.id); setTab("detail"); }}>
+                      <td style={{ padding: "8px 10px", fontWeight: 600, color: c.nr }}>{p.cover} {p.title}</td>
+                      {flowSteps.map((s, i) => {
+                        const ok = checks[i];
+                        const isCurrent = !ok && (i === 0 || checks[i - 1]);
+                        const bg = ok ? "#D4F0E0" : isCurrent ? "#FDE8D0" : "#F5F3F0";
+                        const clr = ok ? "#16a34a" : isCurrent ? c.or : "#ccc";
+                        return (<td key={s.id} style={{ textAlign: "center", padding: "8px 6px" }}><div style={{ width: 28, height: 28, borderRadius: "50%", background: bg, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: clr, border: isCurrent ? "2px solid " + c.or : "none" }}>{ok ? "\u2713" : isCurrent ? "\u2192" : "\u00B7"}</div></td>);
+                      })}
+                    </tr>);
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: c.mv, marginBottom: 8 }}>Goulots</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {flowSteps.map(s => {
+                const blocked = projects.filter(p => !s.check(p)).length;
+                const pct = projects.length > 0 ? Math.round((blocked / projects.length) * 100) : 0;
+                return (<div key={s.id} onClick={() => onNav(s.module)} style={{ background: "white", border: "1px solid " + c.ft, borderRadius: 10, padding: "10px 14px", minWidth: 100, cursor: "pointer" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: c.nr }}>{s.label}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: pct > 70 ? "#dc2626" : pct > 40 ? c.or : "#16a34a" }}>{pct}%</div>
+                  <div style={{ fontSize: 10, color: c.gr }}>{blocked}/{projects.length} bloques</div>
+                </div>);
+              })}
+            </div>
+          </div>
+        </div>)}
+    </div>
+  );
+};
 const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdateProject }: { onProject: (p: Project) => void; onNew: () => void; projects: Project[]; allProjects: Project[]; onNav?: (id: string) => void; onUpdateProject?: (p: Project) => void }) => {
   const pub = allProjects.filter(p => p.status === 'published').length;
   const prog = allProjects.filter(p => p.status === 'in-progress').length;
@@ -7582,6 +7781,7 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
     );
     switch (page) {
       case 'projets': return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} onUpdateProject={handleUpdate} />;
+      case 'orchestration': return <OrchestrationView projects={projects} onProject={openProject} onNav={navigate} />;
       case 'couvertures': return <CouverturesView onProject={openProject} projects={filtered} />;
       case 'isbn': return <ISBNView projects={filtered} onToast={showToast} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
