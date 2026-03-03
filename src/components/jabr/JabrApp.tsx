@@ -47,6 +47,7 @@ const icons: Record<string, React.ReactNode> = {
   benchmark: sv(<><path d="M18 20V10M12 20V4M6 20v-6" /></>),
   lecteurs: sv(<><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></>),
   traductions: sv(<><path d="M5 8l6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6" /></>),
+  multiauteurs: sv(<><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197" /></>),
   editeur: sv(<><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /></>),
   settings: sv(<><circle cx="12" cy="12" r="3" /><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></>),
   bell: sv(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" /></>),
@@ -210,6 +211,7 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['benchmark', 'Benchmark', 'benchmark'],
   ['lecteurs', 'Lecteurs', 'lecteurs'],
   ['traductions', 'Traductions', 'traductions'],
+  ['multiauteurs', 'Multi-auteurs', 'multiauteurs'],
   ['editeur', 'Éditeur', 'editeur'],
   ['settings', 'Paramètres', 'settings'],
 ];
@@ -3693,6 +3695,132 @@ Ce communiqué a été généré par JABR Pipeline Éditorial.`;
 };
 
 // ═══════════════════════════════════
+// TABLEAU MULTI-AUTEURS
+// ═══════════════════════════════════
+
+const MultiAuteursView = ({ projects, onProject }: { projects: Project[]; onProject: (p: Project) => void }) => {
+  const authors = [...new Set(projects.map(p => p.author))];
+
+  const authorStats = authors.map(author => {
+    const titles = projects.filter(p => p.author === author);
+    const published = titles.filter(p => p.status === 'published').length;
+    const totalPages = titles.reduce((s, p) => s + p.pages, 0);
+    const totalEditions = titles.reduce((s, p) => s + p.editions.length, 0);
+    const analyzed = titles.filter(p => p.analysis);
+    const avgScore = analyzed.length > 0 ? Math.round(analyzed.reduce((s, p) => s + (p.analysis?.iaScore || 0), 0) / analyzed.length) : null;
+    const corrections = titles.reduce((s, p) => s + p.corrections.length, 0);
+    const genres = [...new Set(titles.map(p => p.genre))];
+    const collections = [...new Set(titles.map(p => p.collection).filter(Boolean))];
+    const withBackCover = titles.filter(p => p.backCover && p.backCover.length > 50).length;
+    const readiness = titles.length > 0 ? Math.round(((published * 3 + withBackCover + (titles.length - corrections)) / (titles.length * 5)) * 100) : 0;
+
+    return { author, titles, published, totalPages, totalEditions, avgScore, corrections, genres, collections, withBackCover, readiness };
+  });
+
+  // Sort: most titles first
+  authorStats.sort((a, b) => b.titles.length - a.titles.length);
+
+  const totalTitles = projects.length;
+  const totalPublished = projects.filter(p => p.status === 'published').length;
+
+  return (
+    <div>
+      <div className="flex justify-between items-end mb-5">
+        <div>
+          <h2 className="text-2xl" style={{ color: c.mv }}>Tableau éditeur multi-auteurs</h2>
+          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Vue consolidée par auteur — production, qualité, readiness</p>
+        </div>
+      </div>
+
+      <div className="flex gap-3.5 mb-6 flex-wrap">
+        <StatCard value={authors.length} label="Auteurs" accent={c.mv} />
+        <StatCard value={totalTitles} label="Titres total" accent={c.or} />
+        <StatCard value={totalPublished} label="Publiés" accent={c.ok} />
+        <StatCard value={projects.reduce((s, p) => s + p.editions.length, 0)} label="Éditions" accent={c.vm} />
+      </div>
+
+      {/* Author cards */}
+      <div className="space-y-5">
+        {authorStats.map(a => (
+          <Card key={a.author} hover={false} className="overflow-hidden">
+            <div className="px-5 py-4 flex items-center gap-4" style={{ borderBottom: `2px solid ${c.or}` }}>
+              <div className="w-11 h-11 rounded-full flex items-center justify-center text-white text-[16px] font-bold shrink-0" style={{ background: `linear-gradient(135deg, ${c.mv}, ${c.or})` }}>
+                {a.author.split(' ').map(w => w[0]).join('').slice(0, 2)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-[16px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>{a.author}</h3>
+                <div className="text-[11px]" style={{ color: c.gr }}>
+                  {a.genres.join(', ')} {a.collections.length > 0 ? `· Collection${a.collections.length > 1 ? 's' : ''} : ${a.collections.join(', ')}` : ''}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: c.gr }}>Readiness</div>
+                  <div className="text-[18px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: a.readiness >= 70 ? c.ok : a.readiness >= 40 ? c.og : c.er }}>{a.readiness}%</div>
+                </div>
+                <svg width="40" height="40" viewBox="0 0 40 40">
+                  <circle cx="20" cy="20" r="16" fill="none" stroke={c.gc} strokeWidth="3" />
+                  <circle cx="20" cy="20" r="16" fill="none" stroke={a.readiness >= 70 ? c.ok : a.readiness >= 40 ? c.og : c.er} strokeWidth="3"
+                    strokeDasharray={`${(a.readiness / 100) * 100.5} 100.5`} strokeLinecap="round" transform="rotate(-90 20 20)"
+                    style={{ transition: 'stroke-dasharray 0.8s ease' }} />
+                </svg>
+              </div>
+            </div>
+
+            <div className="p-5">
+              {/* KPIs row */}
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
+                {[
+                  { v: a.titles.length, l: 'Titres', c: c.mv },
+                  { v: a.published, l: 'Publiés', c: c.ok },
+                  { v: a.totalEditions, l: 'Éditions', c: c.or },
+                  { v: a.totalPages.toLocaleString(), l: 'Pages', c: c.vm },
+                  { v: a.avgScore !== null ? `${a.avgScore}%` : '—', l: 'Score IA', c: a.avgScore !== null && a.avgScore > 25 ? c.er : c.ok },
+                  { v: a.corrections, l: 'Corrections', c: a.corrections > 0 ? c.er : c.ok },
+                ].map((kpi, i) => (
+                  <div key={i} className="text-center p-2 rounded-lg" style={{ background: c.ft }}>
+                    <div className="text-[16px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: kpi.c }}>{kpi.v}</div>
+                    <div className="text-[9px] uppercase tracking-wider" style={{ color: c.gr }}>{kpi.l}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Titles list */}
+              <div className="space-y-1.5">
+                {a.titles.map(p => {
+                  const score = p.maxScore > 0 ? Math.round((p.score / p.maxScore) * 100) : 0;
+                  return (
+                    <div key={p.id} className="flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors hover:bg-[rgba(200,149,46,0.04)]"
+                      onClick={() => onProject(p)}>
+                      <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] font-semibold truncate" style={{ color: c.mv }}>{p.title}</div>
+                        <div className="text-[9px]" style={{ color: c.gr }}>{p.genre} · {p.pages}p · {p.editions.length} éd.</div>
+                      </div>
+                      {/* Mini progress bar */}
+                      <div className="w-16">
+                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                          <div className="h-full rounded-full" style={{ width: `${score}%`, background: score >= 80 ? c.ok : score >= 50 ? c.og : c.er, transition: 'width 0.5s' }} />
+                        </div>
+                        <div className="text-[8px] text-right mt-0.5" style={{ color: c.gr }}>{score}%</div>
+                      </div>
+                      <Badge bg={p.status === 'published' ? '#D4F0E0' : p.status === 'in-progress' ? '#FFF3E0' : c.ft}
+                        color={p.status === 'published' ? c.ok : p.status === 'in-progress' ? c.og : c.gr}>
+                        {p.status === 'published' ? '✓' : p.status === 'in-progress' ? '◎' : '○'}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════
 // MODULE TRADUCTIONS
 // ═══════════════════════════════════
 
@@ -5789,6 +5917,7 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
       ['benchmark', 'Benchmark Concurrence', 'Positionnement prix, concurrents par genre, tendances marché'],
       ['lecteurs', 'Lecteurs & Réception', 'Avis, notes, citations presse, lectorat cible par titre'],
       ['traductions', 'Traductions', 'Langues cibles, traducteurs, progression, marchés internationaux'],
+      ['multiauteurs', 'Multi-auteurs', 'Vue consolidée par auteur, readiness, production, qualité'],
       ['editeur', 'Tableau éditeur', 'Vue consolidée multi-auteurs, comparaison, poids catalogue'],
       ['settings', 'Paramètres', 'Éditeur, import CSV, thème sombre'],
     ];
@@ -6333,6 +6462,7 @@ export default function JabrApp() {
       case 'benchmark': return <BenchmarkView projects={projects} />;
       case 'lecteurs': return <LecteursView projects={projects} onProject={openProject} onToast={showToast} />;
       case 'traductions': return <TraductionsView projects={projects} onToast={showToast} />;
+      case 'multiauteurs': return <MultiAuteursView projects={projects} onProject={openProject} />;
       case 'editeur': return <MultiAuthorView projects={projects} onProject={openProject} />;
       case 'marketing': return <MarketingView projects={projects} />;
       case 'analytics': return <AnalyticsView projects={projects} />;
