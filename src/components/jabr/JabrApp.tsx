@@ -7,6 +7,7 @@ import { orchestrateTitle, orchestrateCatalogue, type TitleOrchestration, type C
 import { t, type Lang } from '@/lib/i18n';
 import { type Author } from '@/lib/authors';
 import { generateBudgetPlan, generateObjectivePlan, compareAB, type MediaPlan, type MediaPlanInput } from '@/lib/mediaEngine';
+import { DISTRIBUTORS, TRIM_SIZES, calculateCoverDimensions, calculateSpineWidth, auditCover, generateCoverSpec, compareDistributorSpecs, type Distributor, type ProjectCoverData, type CoverSpec, type CoverDimensions, type CoverAudit } from '@/lib/coverSpecs';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
@@ -1723,210 +1724,362 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
 
 // --- COUVERTURES ---
 const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => void; projects: Project[] }) => {
-  const bad = projects.filter(p => p.corrections.length > 0);
-  const good = projects.filter(p => p.corrections.length === 0);
-  const [previewId, setPreviewId] = useState<number | null>(null);
-  const previewProject = previewId ? projects.find(p => p.id === previewId) : null;
+  const [selectedDist, setSelectedDist] = useState<Distributor>('pollen');
+  const [selectedTrim, setSelectedTrim] = useState('roman-fr');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [paperGSM, setPaperGSM] = useState(80);
+  const [showComparison, setShowComparison] = useState(false);
+
+  const dist = DISTRIBUTORS[selectedDist];
+
+  // Generate specs for selected project
+  const coverSpec = useMemo(() => {
+    if (!selectedProject) return null;
+    const coverData: ProjectCoverData = {
+      title: selectedProject.title,
+      author: selectedProject.author,
+      genre: selectedProject.genre,
+      collection: selectedProject.collection || undefined,
+      pages: selectedProject.pages,
+      isbn: selectedProject.editions[0]?.isbn,
+      price: selectedProject.editions.find(e => e.price)?.price,
+      backCoverText: selectedProject.backCover || undefined,
+      hasBarcode: selectedProject.diag?.ean || false,
+      hasCoverImage: !!selectedProject.coverImage,
+      hasSpineText: selectedProject.diag?.dos || false,
+      hasPublisherLogo: selectedProject.diag?.logo || false,
+      hasDepotLegal: false,
+      hasLegalNotice: false,
+      hasPublisherName: true,
+      selectedDistributors: [selectedDist],
+    };
+    return generateCoverSpec(coverData, selectedDist, selectedTrim, 'white', paperGSM);
+  }, [selectedProject, selectedDist, selectedTrim, paperGSM]);
+
+  // Comparison view
+  const comparison = useMemo(() => {
+    if (!selectedProject || !showComparison) return null;
+    return compareDistributorSpecs(selectedTrim, selectedProject.pages, 'white', paperGSM);
+  }, [selectedProject, selectedTrim, showComparison, paperGSM]);
+
+  // Global audit for all projects
+  const globalAudit = useMemo(() => {
+    return projects.map(p => {
+      const data: ProjectCoverData = {
+        title: p.title, author: p.author, genre: p.genre,
+        pages: p.pages, isbn: p.editions[0]?.isbn,
+        price: p.editions.find(e => e.price)?.price,
+        backCoverText: p.backCover || undefined,
+        hasBarcode: p.diag?.ean || false,
+        hasCoverImage: !!p.coverImage,
+        hasSpineText: p.diag?.dos || false,
+        hasPublisherLogo: p.diag?.logo || false,
+        selectedDistributors: [selectedDist],
+      };
+      const audit = auditCover(data, selectedDist);
+      return { project: p, audit };
+    });
+  }, [projects, selectedDist]);
+
+  const readyCount = globalAudit.filter(a => a.audit.critical.length === 0).length;
+  const issueCount = globalAudit.filter(a => a.audit.critical.length > 0).length;
+  const totalIssues = globalAudit.reduce((s, a) => s + a.audit.critical.length, 0);
 
   return (
     <div>
-      <h2 className="text-2xl mb-1" style={{ color: c.mv }}>Couvertures</h2>
-      <p className="mb-5" style={{ color: c.gr, fontSize: 13 }}>Audit qualité + preview gabarit complet (1re + dos + 4e)</p>
+      <h2 className="text-2xl mb-1" style={{ color: c.mv }}>Couvertures — Cahier des charges</h2>
+      <p className="mb-4" style={{ color: c.gr, fontSize: 13 }}>
+        Spécifications réelles {dist.name} · Audit automatique · Calcul des dimensions
+      </p>
+
+      {/* Distributor selector */}
+      <div className="flex gap-2 mb-5">
+        {(['pollen', 'kdp', 'ingramspark'] as Distributor[]).map(d => (
+          <button key={d} onClick={() => setSelectedDist(d)}
+            className="px-4 py-2 rounded-lg text-xs font-semibold transition-all"
+            style={{
+              background: selectedDist === d ? c.or : c.ft,
+              color: selectedDist === d ? 'white' : c.mv,
+              border: selectedDist === d ? 'none' : `1px solid ${c.gc}`,
+            }}>
+            {DISTRIBUTORS[d].name}
+            <span className="ml-1 opacity-60">({DISTRIBUTORS[d].country})</span>
+          </button>
+        ))}
+      </div>
+
+      {/* KPIs */}
       <div className="flex gap-3.5 mb-6">
-        <StatCard value={good.length} label="Conformes" accent={c.ok} />
-        <StatCard value={bad.length} label="À corriger" accent={c.er} />
-        <StatCard value={projects.reduce((s, p) => s + p.corrections.length, 0)} label="Corrections" accent={c.og} />
+        <StatCard value={readyCount} label={`Prêts ${dist.name}`} accent={c.ok} />
+        <StatCard value={issueCount} label="À corriger" accent={c.er} />
+        <StatCard value={totalIssues} label="Éléments manquants" accent={c.og} />
         <StatCard value={projects.filter(p => p.coverImage).length} label="Artwork intégré" accent={c.vm} />
       </div>
 
-      {/* À corriger */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 mb-6">
-        {bad.map(p => (
-          <Card key={p.id} className="cursor-pointer" onClick={() => onProject(p)}>
-            <div className="flex gap-3 p-4">
-              <CoverThumb emoji={p.cover} coverImage={p.coverImage} />
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold truncate">{p.title}</div>
-                <ScoreBar score={p.score} max={p.maxScore} />
-                <div className="mt-1.5">{p.corrections.slice(0, 2).map((fix, i) => <div key={i} className="text-[10px]" style={{ color: c.er }}>• {fix}</div>)}{p.corrections.length > 2 && <div className="text-[10px]" style={{ color: c.gr }}>+{p.corrections.length - 2} autres</div>}</div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Conformes avec bouton preview */}
-      <Card hover={false} className="mb-6">
-        <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
-          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Couvertures conformes</span>
+      {/* Distributor spec summary */}
+      <Card hover={false} className="mb-5">
+        <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <span className="text-[13px] font-bold" style={{ color: c.mv }}>
+            📋 Cahier des charges — {dist.fullName}
+          </span>
         </div>
-        {good.map(p => (
-          <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
-            <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
-            <span className="flex-1 text-[13px] font-semibold cursor-pointer" onClick={() => onProject(p)}>{p.title}</span>
-            <span className="text-xs font-semibold" style={{ color: c.ok }}>✓ 7/7</span>
-            <button className="text-[11px] px-3 py-1 rounded-lg font-semibold transition-colors"
-              style={{ background: previewId === p.id ? c.or : c.ft, color: previewId === p.id ? 'white' : c.mv }}
-              onClick={() => setPreviewId(previewId === p.id ? null : p.id)}>
-              {previewId === p.id ? 'Fermer' : 'Preview gabarit'}
-            </button>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5">
+          {[
+            ['Fonds perdus', `${dist.bleedMm} mm`],
+            ['Format PDF', dist.pdfFormat],
+            ['Profil couleur', dist.colorProfile],
+            ['Résolution', `${dist.recommendedDPI} DPI`],
+            ['Texte dos min.', `${dist.minPagesForSpineText} pages`],
+            ['Marge sécurité', `${dist.textSafetyMm} mm`],
+            ['Papier couv.', `${dist.coverStockGSM} g/m²`],
+            ['Traits de coupe', dist.cropMarksRequired ? 'Obligatoires' : 'Non requis'],
+          ].map(([label, value]) => (
+            <div key={label as string}>
+              <div className="text-[9px] uppercase tracking-wider font-semibold mb-1" style={{ color: c.gr }}>{label}</div>
+              <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{value}</div>
+            </div>
+          ))}
+        </div>
+        {/* Barcode spec */}
+        <div className="px-5 pb-3">
+          <div className="text-[9px] uppercase tracking-wider font-semibold mb-1" style={{ color: c.gr }}>Code-barres</div>
+          <div className="text-[12px]" style={{ color: c.mv }}>{dist.barcodeSpec}</div>
+        </div>
+        {/* Specific rules */}
+        <div className="px-5 pb-4">
+          <div className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Règles spécifiques {dist.name}</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+            {dist.specificRules.map((rule, i) => (
+              <div key={i} className="text-[11px] flex items-start gap-1.5" style={{ color: c.nr }}>
+                <span style={{ color: c.or }}>▸</span> {rule}
+              </div>
+            ))}
           </div>
-        ))}
-        {bad.map(p => (
-          <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
-            <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
-            <span className="flex-1 text-[13px] font-semibold cursor-pointer" onClick={() => onProject(p)}>{p.title}</span>
-            <span className="text-xs font-semibold" style={{ color: c.er }}>{p.score}/{p.maxScore}</span>
-            <button className="text-[11px] px-3 py-1 rounded-lg font-semibold transition-colors"
-              style={{ background: previewId === p.id ? c.or : c.ft, color: previewId === p.id ? 'white' : c.mv }}
-              onClick={() => setPreviewId(previewId === p.id ? null : p.id)}>
-              {previewId === p.id ? 'Fermer' : 'Preview gabarit'}
-            </button>
-          </div>
-        ))}
+        </div>
       </Card>
 
-      {/* Cover assembly preview */}
-      {previewProject && (() => {
-        const p = previewProject;
-        const thickness = (p.pages * 0.05).toFixed(1);
-        const thicknessMm = parseFloat(thickness);
-        const spineWidth = Math.max(20, Math.round(thicknessMm * 2.5));
-        const canSpineText = p.pages >= 79;
-        const coverW = 135; // mm
-        const coverH = 210; // mm
-        const bleed = 2.5;
-        const totalWmm = bleed + coverW + thicknessMm + coverW + bleed;
-        const totalHmm = bleed + coverH + bleed;
-        // Scale for display: 1mm ≈ 1.4px
-        const scale = 1.4;
-        const totalWpx = Math.round(totalWmm * scale);
-        const totalHpx = Math.round(totalHmm * scale);
-        const coverWpx = Math.round(coverW * scale);
-        const bleedPx = Math.round(bleed * scale);
+      {/* Project list with audit */}
+      <Card hover={false} className="mb-5">
+        <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
+          <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>
+            Audit couvertures — {dist.name}
+          </span>
+        </div>
+        {globalAudit.map(({ project: p, audit }) => {
+          const isSelected = selectedProject?.id === p.id;
+          return (
+            <div key={p.id}>
+              <div
+                className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
+                style={{ borderBottom: `1px solid ${c.ft}`, background: isSelected ? '#F5F0E8' : undefined }}
+                onClick={() => setSelectedProject(isSelected ? null : p)}>
+                <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+                <span className="flex-1 text-[13px] font-semibold" style={{ color: c.mv }}>{p.title}</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                  style={{
+                    background: audit.critical.length === 0 ? '#D4F0E0' : '#FFE0D0',
+                    color: audit.critical.length === 0 ? c.ok : c.er,
+                  }}>
+                  {audit.critical.length === 0 ? `✓ ${audit.score}/${audit.maxScore}` : `${audit.critical.length} manquant${audit.critical.length > 1 ? 's' : ''}`}
+                </span>
+                <span className="text-[10px]" style={{ color: c.gr }}>{isSelected ? '▼' : '▶'}</span>
+              </div>
 
-        return (
-          <Card hover={false} className="overflow-hidden mb-6">
-            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
-              <span className="text-[13px] font-semibold" style={{ color: c.mv }}>📐 Gabarit couverture complète — {p.title}</span>
-            </div>
+              {/* Expanded audit detail */}
+              {isSelected && coverSpec && (
+                <div className="px-5 py-4" style={{ background: '#FAFAF5', borderBottom: `1px solid ${c.ft}` }}>
 
-            {/* Specs row */}
-            <div className="px-5 py-3 flex gap-6 flex-wrap" style={{ background: c.ft }}>
-              {[
-                ['Format couverture', `${coverW} × ${coverH} mm`],
-                ['Dos', `${thickness} mm (${p.pages} pages)`],
-                ['Total déplié', `${totalWmm.toFixed(1)} × ${totalHmm.toFixed(1)} mm`],
-                ['Bleed', `${bleed} mm`],
-                ['Résolution', `${Math.ceil((totalWmm / 25.4) * 300)} × ${Math.ceil((totalHmm / 25.4) * 300)} px @300dpi`],
-                ['Texte dos', canSpineText ? '✓ Possible' : '✗ Trop fin'],
-              ].map(([k, v]) => (
-                <div key={k as string}>
-                  <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>{k}</div>
-                  <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{v}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Visual preview */}
-            <div className="p-6 flex justify-center" style={{ background: '#E8E4DE' }}>
-              <div className="relative" style={{ width: totalWpx, height: totalHpx }}>
-                {/* Bleed zone */}
-                <div className="absolute inset-0 rounded-sm" style={{ background: '#D4CFC6', border: '1px dashed #B0A898' }} />
-
-                {/* 4e de couverture (left) */}
-                <div className="absolute flex flex-col justify-between p-4" style={{
-                  left: bleedPx, top: bleedPx, width: coverWpx, height: totalHpx - bleedPx * 2,
-                  background: 'white', borderRight: `1px solid ${c.gc}`
-                }}>
-                  <div>
-                    <div className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>4e de couverture</div>
-                    <div className="text-[8px] leading-relaxed" style={{ color: c.nr }}>
-                      {p.backCover ? p.backCover.slice(0, 280) + (p.backCover.length > 280 ? '…' : '') : 'Texte de 4e non renseigné'}
+                  {/* Trim + paper selectors */}
+                  <div className="flex gap-3 mb-4 flex-wrap">
+                    <div>
+                      <label className="text-[9px] uppercase tracking-wider font-semibold block mb-1" style={{ color: c.gr }}>Format</label>
+                      <select value={selectedTrim} onChange={e => setSelectedTrim(e.target.value)}
+                        className="text-[12px] px-3 py-1.5 rounded-lg border" style={{ borderColor: c.gc, color: c.mv, background: 'white' }}>
+                        <optgroup label="Formats français">
+                          {Object.entries(TRIM_SIZES).filter(([, v]) => v.label.includes('mm) ')).slice(0, 6).map(([k, v]) => (
+                            <option key={k} value={k}>{v.label}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Formats internationaux">
+                          {Object.entries(TRIM_SIZES).filter(([, v]) => v.label.includes('"')).map(([k, v]) => (
+                            <option key={k} value={k}>{v.label}</option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] uppercase tracking-wider font-semibold block mb-1" style={{ color: c.gr }}>Papier intérieur</label>
+                      <select value={paperGSM} onChange={e => setPaperGSM(Number(e.target.value))}
+                        className="text-[12px] px-3 py-1.5 rounded-lg border" style={{ borderColor: c.gc, color: c.mv, background: 'white' }}>
+                        <option value={80}>80 g/m² offset blanc</option>
+                        <option value={90}>90 g/m² offset</option>
+                        <option value={100}>100 g/m²</option>
+                        <option value={120}>120 g/m²</option>
+                        <option value={150}>150 g/m² couché mat</option>
+                      </select>
+                    </div>
+                    <div className="ml-auto flex items-end">
+                      <button onClick={() => setShowComparison(!showComparison)}
+                        className="text-[11px] px-3 py-1.5 rounded-lg font-semibold"
+                        style={{ background: showComparison ? c.or : c.ft, color: showComparison ? 'white' : c.mv }}>
+                        {showComparison ? '✕ Fermer' : '⟷ Comparer 3 distributeurs'}
+                      </button>
                     </div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-[7px] tracking-wider" style={{ color: c.gr }}>ISBN</div>
-                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: c.mv }}>
-                      {p.editions[0]?.isbn || '978-2-488647-XX-X'}
+
+                  {/* Dimensions */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    {[
+                      ['Format fini', `${coverSpec.dimensions.trimWidthMm} × ${coverSpec.dimensions.trimHeightMm} mm`],
+                      ['Dos', `${coverSpec.dimensions.spineWidthMm.toFixed(1)} mm`],
+                      ['Planche totale', `${coverSpec.dimensions.totalWidthMm.toFixed(1)} × ${coverSpec.dimensions.totalHeightMm.toFixed(1)} mm`],
+                      ['Pixels @300dpi', `${coverSpec.dimensions.totalWidthPx} × ${coverSpec.dimensions.totalHeightPx} px`],
+                    ].map(([label, value]) => (
+                      <div key={label as string} className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.gc}` }}>
+                        <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>{label}</div>
+                        <div className="text-[13px] font-bold mt-1" style={{ color: c.mv, fontFamily: "'JetBrains Mono', monospace" }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Warnings */}
+                  {coverSpec.dimensions.warnings.length > 0 && (
+                    <div className="mb-4 p-3 rounded-lg" style={{ background: '#FFF8E0', border: '1px solid #F0D060' }}>
+                      {coverSpec.dimensions.warnings.map((w, i) => (
+                        <div key={i} className="text-[11px] flex items-start gap-1.5" style={{ color: '#8B6914' }}>
+                          <span>⚠</span> {w}
+                        </div>
+                      ))}
                     </div>
-                    <div className="mt-1 mx-auto" style={{ width: 60, height: 20, background: c.ft, border: `1px solid ${c.gc}` }}>
-                      <div className="text-[6px] text-center pt-1" style={{ color: c.gr }}>Code-barres EAN</div>
+                  )}
+
+                  {/* Audit checklist */}
+                  <div className="mb-4">
+                    <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>
+                      Checklist couverture — {dist.name}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                      {coverSpec.checklist.map((item, i) => (
+                        <div key={i} className="flex items-center gap-2 p-2 rounded-lg"
+                          style={{
+                            background: item.done ? '#E8F5E8' : (item.required ? '#FFE8E0' : '#F5F0E8'),
+                            border: `1px solid ${item.done ? '#A8D8A8' : (item.required ? '#FFB8A0' : c.gc)}`,
+                          }}>
+                          <span className="text-[14px]">{item.done ? '✓' : (item.required ? '✗' : '○')}</span>
+                          <div className="flex-1">
+                            <div className="text-[11px] font-semibold" style={{ color: item.done ? c.ok : (item.required ? c.er : c.gr) }}>
+                              {item.label} {item.required && !item.done && <span className="text-[9px] font-bold ml-1">REQUIS</span>}
+                            </div>
+                            <div className="text-[10px]" style={{ color: c.gr }}>{item.detail}</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </div>
 
-                {/* Dos (center) */}
-                <div className="absolute flex items-center justify-center" style={{
-                  left: bleedPx + coverWpx, top: bleedPx, width: spineWidth, height: totalHpx - bleedPx * 2,
-                  background: '#F5F0E8', borderLeft: `1px solid ${c.gc}`, borderRight: `1px solid ${c.gc}`
-                }}>
-                  {canSpineText ? (
-                    <div className="font-semibold" style={{
-                      writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)',
-                      fontSize: Math.min(9, spineWidth * 0.35), color: c.mv, letterSpacing: 1,
-                      overflow: 'hidden', maxHeight: totalHpx - bleedPx * 2 - 20,
-                    }}>
-                      {p.title.length > 30 ? p.title.slice(0, 28) + '…' : p.title} — Steve Moradel
-                    </div>
-                  ) : (
-                    <div className="text-[6px] text-center" style={{ color: c.gr, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>DOS</div>
-                  )}
-                </div>
-
-                {/* 1re de couverture (right) */}
-                <div className="absolute flex flex-col items-center justify-center" style={{
-                  left: bleedPx + coverWpx + spineWidth, top: bleedPx, width: coverWpx, height: totalHpx - bleedPx * 2,
-                  background: p.coverImage ? undefined : '#FDFAF5', borderLeft: `1px solid ${c.gc}`,
-                  backgroundImage: p.coverImage ? `url(${p.coverImage})` : undefined,
-                  backgroundSize: 'cover', backgroundPosition: 'center',
-                }}>
-                  {!p.coverImage && (
-                    <>
-                      <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: c.gr }}>Steve Moradel</div>
-                      <div className="text-[14px] font-bold text-center px-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>{p.title}</div>
-                      <div className="text-[8px] mt-2 italic" style={{ color: c.gr }}>{p.genre.toLowerCase()}</div>
-                      <div className="absolute bottom-3 text-[7px] tracking-widest uppercase" style={{ color: c.gr }}>Jabrilia Éditions</div>
-                    </>
-                  )}
-                  {p.coverImage && (
-                    <div className="absolute bottom-0 left-0 right-0 p-2 text-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
-                      <div className="text-[8px] font-semibold text-white truncate">{p.title}</div>
+                  {/* Audit details with fix instructions */}
+                  {coverSpec.audit.critical.length > 0 && (
+                    <div className="mb-4">
+                      <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.er }}>
+                        Actions requises ({coverSpec.audit.critical.length})
+                      </div>
+                      {coverSpec.audit.critical.map((item, i) => (
+                        <div key={i} className="p-3 rounded-lg mb-1.5" style={{ background: '#FFF5F0', border: '1px solid #FFD0C0' }}>
+                          <div className="text-[12px] font-semibold" style={{ color: c.er }}>✗ {item.label}</div>
+                          <div className="text-[11px] mt-1" style={{ color: c.nr }}>{item.message}</div>
+                          {item.fix && (
+                            <div className="text-[11px] mt-1.5 p-2 rounded" style={{ background: '#FFF0E8', color: '#7A4A00' }}>
+                              💡 {item.fix}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
-                </div>
 
-                {/* Labels */}
-                <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverWpx / 2, top: -14, transform: 'translateX(-50%)', color: c.gr }}>← 4e ({coverW}mm) →</div>
-                <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverWpx + spineWidth / 2, top: -14, transform: 'translateX(-50%)', color: c.or }}>Dos</div>
-                <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverWpx + spineWidth + coverWpx / 2, top: -14, transform: 'translateX(-50%)', color: c.gr }}>← 1re ({coverW}mm) →</div>
-              </div>
-            </div>
+                  {/* Export spec summary */}
+                  <div className="p-4 rounded-lg" style={{ background: 'white', border: `1px solid ${c.gc}` }}>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.or }}>
+                      Spécifications d'export — {dist.name}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {[
+                        ['Format', coverSpec.exportSpec.format],
+                        ['Couleur', coverSpec.exportSpec.colorProfile],
+                        ['Résolution', coverSpec.exportSpec.resolution],
+                        ['Fonds perdus', coverSpec.exportSpec.bleed],
+                        ['Traits de coupe', coverSpec.exportSpec.cropMarks ? 'Oui — obligatoires' : 'Non'],
+                        ['Taille planche', coverSpec.exportSpec.totalSize],
+                        ['Largeur dos', coverSpec.exportSpec.spineWidth],
+                      ].map(([label, value]) => (
+                        <div key={label as string}>
+                          <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>{label}</div>
+                          <div className="text-[11px] font-semibold mt-0.5" style={{ color: c.mv }}>{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-            {/* Export specs */}
-            <div className="px-5 py-3 grid grid-cols-3 gap-4" style={{ borderTop: `1px solid ${c.ft}` }}>
-              <div className="p-3 rounded-lg" style={{ background: c.ft }}>
-                <div className="text-[10px] font-semibold" style={{ color: c.vm }}>KDP</div>
-                <div className="text-[9px] mt-1" style={{ color: c.gr }}>
-                  PDF couverture unique · Fond perdu 3,2 mm · Pas de traits de coupe · sRGB ou CMJN
+                  {/* Comparison table */}
+                  {showComparison && comparison && (
+                    <div className="mt-4 p-4 rounded-lg" style={{ background: 'white', border: `1px solid ${c.gc}` }}>
+                      <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.vm }}>
+                        Comparaison 3 distributeurs — {p.title} ({p.pages} pages)
+                      </div>
+                      <table className="w-full text-[11px]">
+                        <thead>
+                          <tr style={{ borderBottom: `2px solid ${c.gc}` }}>
+                            <th className="text-left py-2 font-semibold" style={{ color: c.gr }}></th>
+                            <th className="text-center py-2 font-semibold" style={{ color: c.or }}>Pollen (FR)</th>
+                            <th className="text-center py-2 font-semibold" style={{ color: c.vm }}>KDP</th>
+                            <th className="text-center py-2 font-semibold" style={{ color: '#1E40AF' }}>IngramSpark</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            ['Fonds perdus', `${comparison.pollen.bleedMm} mm`, `${comparison.kdp.bleedMm} mm`, `${comparison.ingramspark.bleedMm} mm`],
+                            ['Dos', `${comparison.pollen.spineWidthMm.toFixed(1)} mm`, `${comparison.kdp.spineWidthMm.toFixed(1)} mm`, `${comparison.ingramspark.spineWidthMm.toFixed(1)} mm`],
+                            ['Planche', `${comparison.pollen.totalWidthMm.toFixed(0)} × ${comparison.pollen.totalHeightMm.toFixed(0)}`, `${comparison.kdp.totalWidthMm.toFixed(0)} × ${comparison.kdp.totalHeightMm.toFixed(0)}`, `${comparison.ingramspark.totalWidthMm.toFixed(0)} × ${comparison.ingramspark.totalHeightMm.toFixed(0)}`],
+                            ['Pixels', `${comparison.pollen.totalWidthPx} × ${comparison.pollen.totalHeightPx}`, `${comparison.kdp.totalWidthPx} × ${comparison.kdp.totalHeightPx}`, `${comparison.ingramspark.totalWidthPx} × ${comparison.ingramspark.totalHeightPx}`],
+                            ['Texte dos', comparison.pollen.canHaveSpineText ? 'Oui' : 'Non', comparison.kdp.canHaveSpineText ? 'Oui' : 'Non', comparison.ingramspark.canHaveSpineText ? 'Oui' : 'Non'],
+                            ['Sécurité texte', `${comparison.pollen.textSafetyMm} mm`, `${comparison.kdp.textSafetyMm} mm`, `${comparison.ingramspark.textSafetyMm} mm`],
+                            ['PDF', DISTRIBUTORS.pollen.pdfFormat, DISTRIBUTORS.kdp.pdfFormat, DISTRIBUTORS.ingramspark.pdfFormat],
+                            ['Couleur', DISTRIBUTORS.pollen.colorProfile, DISTRIBUTORS.kdp.colorProfile, DISTRIBUTORS.ingramspark.colorProfile],
+                          ].map((row, i) => (
+                            <tr key={i} style={{ borderBottom: `1px solid ${c.ft}` }}>
+                              <td className="py-1.5 font-semibold" style={{ color: c.gr }}>{row[0]}</td>
+                              <td className="py-1.5 text-center" style={{ color: c.mv }}>{row[1]}</td>
+                              <td className="py-1.5 text-center" style={{ color: c.mv }}>{row[2]}</td>
+                              <td className="py-1.5 text-center" style={{ color: c.mv }}>{row[3]}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="mt-3 text-[10px] p-2 rounded" style={{ background: '#F5F0FF', color: '#5B3E8A' }}>
+                        ⚠ Le dos diffère entre distributeurs — il faut un fichier couverture PAR distributeur.
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div className="p-3 rounded-lg" style={{ background: c.ft }}>
-                <div className="text-[10px] font-semibold" style={{ color: c.vm }}>Pollen / Imprimeur FR</div>
-                <div className="text-[9px] mt-1" style={{ color: c.gr }}>
-                  PDF/X-1a · CMJN obligatoire · Fond perdu 2,5 mm + traits de coupe · Profil Fogra39
-                </div>
-              </div>
-              <div className="p-3 rounded-lg" style={{ background: c.ft }}>
-                <div className="text-[10px] font-semibold" style={{ color: c.vm }}>IngramSpark</div>
-                <div className="text-[9px] mt-1" style={{ color: c.gr }}>
-                  PDF single page · Fond perdu 3,2 mm · sRGB ou CMJN · Cover calculator requis
-                </div>
-              </div>
+              )}
             </div>
-          </Card>
-        );
-      })()}
+          );
+        })}
+      </Card>
+
+      {/* Distributor notes */}
+      <Card hover={false}>
+        <div className="px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>Notes {dist.name}</span>
+        </div>
+        <div className="px-5 py-3">
+          {dist.notes.map((note, i) => (
+            <div key={i} className="text-[11px] flex items-start gap-2 mb-1.5" style={{ color: c.nr }}>
+              <span style={{ color: c.or }}>•</span> {note}
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 };
