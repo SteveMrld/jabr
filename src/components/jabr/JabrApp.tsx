@@ -190,7 +190,10 @@ const JabrLogo = () => (
       <circle cx="72" cy="72" r="4" fill="url(#g1)" />
       <path d="M35 10c2-2 5-3 8-3" stroke="url(#g1)" strokeWidth="3" strokeLinecap="round" fill="none" />
     </svg>
-    <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: c.or, letterSpacing: 3 }}>JABR</span>
+    <div className="flex flex-col">
+      <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: c.or, letterSpacing: 3 }}>JABR</span>
+      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: 1.5, marginTop: -2 }}>v3.5 · Cover Studio</span>
+    </div>
   </div>
 );
 
@@ -637,6 +640,8 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
   if (noAnalysis > 0) priorities.push({ label: `${noAnalysis} manuscrits non analysés`, count: noAnalysis, color: c.og, nav: 'analyse' });
   if (noBack > 0) priorities.push({ label: `${noBack} titres sans 4e de couverture`, count: noBack, color: c.og, nav: 'projets' });
   if (noCover > 0) priorities.push({ label: `${noCover} titres sans artwork`, count: noCover, color: c.og, nav: 'couvertures' });
+  const noMarketing = allProjects.filter(p => p.status !== 'draft' && (!p.backCover || p.backCover.length < 50 || !p.coverImage)).length;
+  if (noMarketing > 0) priorities.push({ label: `${noMarketing} titres prêts pour Cover Studio`, count: noMarketing, color: c.vm, nav: 'cover-studio' });
 
   return (
     <div>
@@ -680,6 +685,30 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
         <StatCard value={`${countISBN(allProjects)}/100`} label="ISBN" accent={c.or} />
         <StatCard value={totalPages.toLocaleString()} label="Pages" accent={c.vm} />
         <StatCard value={`~${totalRev.toLocaleString()}€`} label="Rev. estimés/an" accent={c.or} />
+      </div>
+
+      {/* JABR Engines — what the platform does */}
+      <div className="mb-3 p-3 rounded-xl" style={{ background: 'linear-gradient(135deg, #2D1B4E08, #C8952E08)', border: `1px solid ${c.gc}` }}>
+        <div className="flex items-center gap-4 flex-wrap">
+          {[
+            { icon: '🔍', label: 'Scanner 6D', desc: 'Analyse IA manuscrit' },
+            { icon: '📐', label: 'Cover Specs', desc: '3 distributeurs' },
+            { icon: '🎨', label: 'Cover Studio', desc: 'Couverture → Export' },
+            { icon: '📊', label: 'Media Engine', desc: 'Plan média IA' },
+            { icon: '🎬', label: 'Trailer Gen', desc: 'Brief Runway' },
+            { icon: '📦', label: 'ONIX 3.0', desc: 'Export distribution' },
+            { icon: '🎵', label: 'Audiobooks', desc: 'Pipeline TTS' },
+            { icon: '⚡', label: 'Orchestration', desc: 'Scoring 5 axes' },
+          ].map(e => (
+            <div key={e.label} className="flex items-center gap-1.5">
+              <span className="text-[13px]">{e.icon}</span>
+              <div>
+                <div className="text-[10px] font-bold leading-tight" style={{ color: c.mv }}>{e.label}</div>
+                <div className="text-[8px]" style={{ color: c.gr }}>{e.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* KPIs row 2 — production */}
@@ -2221,8 +2250,13 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
       coverImageUrl: selectedProject.coverImage || undefined,
       coverImageSource: selectedProject.coverImage ? 'upload' : undefined,
       distributor: selectedDist,
-      trimSizeKey: 'roman-fr',
-      paperGSM: 80,
+      trimSizeKey: selectedProject.genre.toLowerCase().includes('bd') ? 'BD'
+        : (selectedProject.collection?.toLowerCase().includes('étincelles') || selectedProject.genre.toLowerCase().includes('jeunesse')) ? 'A5'
+        : selectedProject.genre.toLowerCase().includes('poche') ? 'poche'
+        : 'roman-fr',
+      paperGSM: selectedProject.genre.toLowerCase().includes('bd') ? 150
+        : (selectedProject.collection?.toLowerCase().includes('étincelles') || selectedProject.genre.toLowerCase().includes('jeunesse')) ? 90
+        : 80,
     };
   }, [selectedProject, selectedDist]);
 
@@ -6816,6 +6850,24 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
                 const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'jabr-template.csv'; a.click();
                 onToast('Template CSV téléchargé');
               }}>{icons.download} Template</Btn>
+            </div>
+          </Card>
+
+          {/* API Integrations — Cover Studio */}
+          <Card hover={false} className="p-6">
+            <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.vm }}>
+              Intégrations IA — Cover Studio
+            </h3>
+            <p className="text-[12px] mb-4" style={{ color: c.gr }}>
+              Clés API pour la génération automatique d&apos;images et de bandes-annonces
+            </p>
+            <Field label="OpenAI API Key (DALL-E 3)" k="openaiKey" mono />
+            <Field label="Runway API Key (Gen-3 Alpha)" k="runwayKey" mono />
+            <Field label="Midjourney API Key (proxy)" k="midjourneyKey" mono />
+            <div className="mt-3 p-3 rounded-lg" style={{ background: '#F0F5FF', border: '1px solid #C0D0FF' }}>
+              <div className="text-[10px]" style={{ color: c.nr }}>
+                <strong>OpenAI :</strong> images DALL-E 3 pour couvertures — <strong>Runway :</strong> vidéos Gen-3 Alpha pour bandes-annonces — <strong>Midjourney :</strong> via proxy API
+              </div>
             </div>
           </Card>
 

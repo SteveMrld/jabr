@@ -80,7 +80,8 @@ export const PROJECTS: Project[] = [
       { format: 'epub', isbn: '978-2-488647-01-4', status: 'planned' },
       { format: 'pdf', isbn: '978-2-488647-02-1', status: 'planned' },
     ],
-    diag: { ean: true, prix: true, isbn_txt: true, texte4e: true, typo: true, dos: true, logo: true }, corrections: [], printCost: 4.85, revenue: 0,
+    diag: { ean: true, prix: true, isbn_txt: true, texte4e: true, typo: true, dos: true, logo: true }, manuscriptStatus: "validated", corrections: [], printCost: 4.85, revenue: 0,
+    backCover: "Et si tu avais en toi tous les super-pouvoirs pour apprivoiser le stress ? Dans ce livre, découvre 8 personnages attachants qui, comme toi, vivent des moments pas toujours faciles : la rentrée, les disputes, les peurs du soir… Grâce à des activités ludiques, des exercices de respiration et des histoires réconfortantes, apprends à transformer tes émotions en forces. Un compagnon doux et joyeux, à lire seul ou en famille.",
     changelog: [
       { date: '15 jan. 2025', action: 'Projet créé' },
       { date: '28 jan. 2025', action: 'Illustrations validées par Allison Moradel' },
@@ -93,19 +94,21 @@ export const PROJECTS: Project[] = [
   {
     id: 2, title: "Sur les hauteurs des chutes du Niagara", author: "Steve Moradel",
     genre: "Roman", score: 4, maxScore: 7, status: "draft", pages: 280, cover: "🏔️", coverImage: "/covers/niagara.jpg",
+    backCover: "Entre les grondements des chutes et le silence des mémoires enfouies, un homme remonte le fil de son histoire. De la Guadeloupe aux rives du Niagara, ce roman puissant explore les cicatrices de l'esclavage, la quête d'identité et la force insoupçonnée de ceux qui refusent d'oublier. Un premier roman habité, porté par une écriture à la fois lyrique et incandescente.",
     editions: [
-      { format: 'broché', isbn: '978-2-488647-03-8', status: 'planned' },
+      { format: 'broché', isbn: '978-2-488647-03-8', price: '21,90€', status: 'planned' },
       { format: 'poche', isbn: '978-2-488647-04-5', status: 'planned' },
       { format: 'epub', isbn: '978-2-488647-05-2', status: 'planned' },
     ],
     diag: { ean: false, prix: false, isbn_txt: false, texte4e: true, typo: true, dos: true, logo: true },
-    corrections: ["Ajouter EAN-13", "Ajouter prix TTC", "Ajouter ISBN texte"]
+    manuscriptStatus: "analyzed", corrections: ["Ajouter EAN-13", "Ajouter prix TTC", "Ajouter ISBN texte"]
   },
   {
     id: 3, title: "Du Chaos Naît une Étoile", author: "Steve Moradel",
     genre: "Essai", score: 3, maxScore: 7, status: "draft", pages: 220, cover: "⭐", coverImage: "/covers/chaos.jpg",
+    backCover: "Et si les crises étaient le terreau des plus grandes transformations ? Dans cet essai percutant, Steve Moradel décrypte les mécanismes par lesquels le chaos — personnel, collectif, civilisationnel — engendre l'innovation et le renouveau. Une invitation à changer de regard sur l'instabilité du monde.",
     editions: [
-      { format: 'broché', isbn: '978-2-488647-07-6', status: 'planned' },
+      { format: 'broché', isbn: '978-2-488647-07-6', price: '19,90€', status: 'planned' },
       { format: 'epub', isbn: '978-2-488647-08-3', status: 'planned' },
     ],
     diag: { ean: false, prix: false, isbn_txt: false, texte4e: true, typo: true, dos: false, logo: true },
@@ -115,7 +118,7 @@ export const PROJECTS: Project[] = [
     id: 4, title: "Dans les Failles du Siècle", author: "Steve Moradel",
     genre: "Essai", score: 4, maxScore: 7, status: "draft", pages: 310, cover: "🌍", coverImage: "/covers/failles.jpg",
     editions: [
-      { format: 'broché', isbn: '978-2-488647-10-6', status: 'planned' },
+      { format: 'broché', isbn: '978-2-488647-10-6', price: '22,90€', status: 'planned' },
       { format: 'poche', isbn: '978-2-488647-11-3', status: 'planned' },
       { format: 'epub', isbn: '978-2-488647-12-0', status: 'planned' },
     ],
@@ -126,7 +129,7 @@ export const PROJECTS: Project[] = [
     id: 5, title: "Aurora", author: "Steve Moradel",
     genre: "Roman", score: 4, maxScore: 7, status: "in-progress", pages: 350, cover: "❄️", coverImage: "/covers/aurora.jpg",
     editions: [
-      { format: 'broché', isbn: '978-2-488647-13-7', status: 'in-progress' },
+      { format: 'broché', isbn: '978-2-488647-13-7', price: '14,90€', status: 'in-progress' },
       { format: 'poche', isbn: '978-2-488647-14-4', status: 'planned' },
       { format: 'epub', isbn: '978-2-488647-15-1', status: 'planned' },
       { format: 'audiobook', isbn: '978-2-488647-16-8', status: 'planned' },
@@ -137,20 +140,21 @@ export const PROJECTS: Project[] = [
   {
     id: 6, title: "Le Trône de Cendre", subtitle: "Tome I – Le Lion Déchu", author: "Steve Moradel",
     genre: "Roman historique", series: "Le Trône de Cendre", seriesOrder: 1, score: 3, maxScore: 7, status: "in-progress", pages: 420, cover: "🏛️", coverImage: "/covers/trone-de-cendre.jpg",
+    backCover: "An 350 avant J.-C. Le royaume de Kush vacille. Tandis que l'empire d'Égypte étend son ombre sur les terres du sud, un prince déchu jure de reconquérir le trône qui lui a été arraché. Mais le pouvoir a un prix que même les dieux n'osent nommer. Entre alliances mortelles, trahisons de palais et batailles épiques aux portes de Méroé, « Le Lion Déchu » ouvre une trilogie magistrale où se mêlent l'Histoire et la légende.",
     editions: [
-      { format: 'broché', isbn: '978-2-488647-17-5', status: 'in-progress' },
+      { format: 'broché', isbn: '978-2-488647-17-5', price: '24,90€', status: 'in-progress' },
       { format: 'relié', isbn: '978-2-488647-18-2', status: 'planned' },
       { format: 'epub', isbn: '978-2-488647-19-9', status: 'planned' },
       { format: 'audiobook', isbn: '978-2-488647-20-5', status: 'planned' },
     ],
     diag: { ean: false, prix: false, isbn_txt: false, texte4e: true, typo: true, dos: false, logo: true },
-    corrections: ["Ajouter EAN-13", "Ajouter prix TTC", "Ajouter ISBN texte", "Corriger dos (AURORA → Le Trône de Cendre)"]
+    manuscriptStatus: "uploaded", corrections: ["Ajouter EAN-13", "Ajouter prix TTC", "Ajouter ISBN texte", "Corriger dos (AURORA → Le Trône de Cendre)"]
   },
   {
     id: 7, title: "À l'Ombre des Oliviers", author: "Steve Moradel",
     genre: "Roman", score: 4, maxScore: 7, status: "draft", pages: 290, cover: "🫒", coverImage: "/covers/oliviers.jpg",
     editions: [
-      { format: 'broché', isbn: '978-2-488647-21-2', status: 'planned' },
+      { format: 'broché', isbn: '978-2-488647-21-2', price: '19,90€', status: 'planned' },
       { format: 'poche', isbn: '978-2-488647-22-9', status: 'planned' },
       { format: 'epub', isbn: '978-2-488647-23-6', status: 'planned' },
     ],
@@ -160,28 +164,31 @@ export const PROJECTS: Project[] = [
   {
     id: 8, title: "Les Mémoires Reliées", author: "Steve Moradel",
     genre: "Roman", score: 4, maxScore: 7, status: "draft", pages: 330, cover: "🔗", coverImage: "/covers/memoires-reliees.jpg",
+    backCover: "Trois générations. Trois corps marqués par la même douleur. Quand Élise découvre que la maladie chronique qui la consume porte l'empreinte d'un traumatisme familial enfoui, elle plonge dans les mémoires de sa grand-mère antillaise. Un roman bouleversant sur la douleur héritée, le silence des mères et la puissance de la réparation.",
     editions: [
-      { format: 'broché', isbn: '978-2-488647-25-0', status: 'planned' },
+      { format: 'broché', isbn: '978-2-488647-25-0', price: '23,90€', status: 'planned' },
       { format: 'epub', isbn: '978-2-488647-26-7', status: 'planned' },
     ],
     diag: { ean: false, prix: false, isbn_txt: false, texte4e: true, typo: true, dos: true, logo: true },
-    corrections: ["Ajouter EAN-13", "Ajouter prix TTC", "Ajouter ISBN texte"]
+    manuscriptStatus: "analyzed", corrections: ["Ajouter EAN-13", "Ajouter prix TTC", "Ajouter ISBN texte"]
   },
   {
     id: 9, title: "Le Temps des Étincelles", author: "Steve et Allison Moradel",
     genre: "BD", collection: "Étincelles", score: 3, maxScore: 7, status: "in-progress", pages: 64, cover: "✨", coverImage: "/covers/etincelles.jpg",
+    backCover: "« Papa, est-ce que l'intelligence artificielle peut ressentir des choses ? » Jade a dix ans et pose les questions que les adultes n'osent plus se poser. À travers un dialogue tendre et profond entre un père et sa fille, cette bande dessinée explore notre rapport à la technologie, au vivant et à ce qui fait de nous des humains. 144 pages d'émerveillement illustré.",
     editions: [
-      { format: 'broché', isbn: '978-2-488647-29-8', status: 'in-progress' },
+      { format: 'broché', isbn: '978-2-488647-29-8', price: '29,90€', status: 'in-progress' },
       { format: 'epub', isbn: '978-2-488647-30-4', status: 'planned' },
     ],
     diag: { ean: false, prix: false, isbn_txt: false, texte4e: true, typo: false, dos: true, logo: true },
-    corrections: ["Ajouter EAN-13", "Ajouter prix TTC", "Ajouter ISBN texte", "Corriger ETINCELLES → ÉTINCELLES"]
+    manuscriptStatus: "uploaded", corrections: ["Ajouter EAN-13", "Ajouter prix TTC", "Ajouter ISBN texte", "Corriger ETINCELLES → ÉTINCELLES"]
   },
   {
     id: 10, title: "Les Réparatrices", author: "Steve Moradel",
     genre: "Essai", score: 2, maxScore: 7, status: "draft", pages: 240, cover: "🧵", coverImage: "/covers/reparatrices.jpg",
+    backCover: "Elles sont treize. Treize femmes qui, chacune à leur manière, réparent le monde. De l'infirmière de brousse à la juge internationale, de la militante écologiste à la poétesse exilée, ces portraits croisés racontent la force silencieuse de celles qui recousent les déchirures du siècle. Un essai lumineux, entre reportage et hommage.",
     editions: [
-      { format: 'broché', isbn: '978-2-488647-31-1', status: 'planned' },
+      { format: 'broché', isbn: '978-2-488647-31-1', price: '21,90€', status: 'planned' },
       { format: 'epub', isbn: '978-2-488647-32-8', status: 'planned' },
       { format: 'audiobook', isbn: '978-2-488647-33-5', status: 'planned' },
     ],
