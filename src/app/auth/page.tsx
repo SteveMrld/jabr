@@ -30,7 +30,7 @@ export default function AuthPage() {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (!authLoading && isAuthenticated) router.push('/demo');
+    if (!authLoading && isAuthenticated) router.push('/app');
   }, [authLoading, isAuthenticated, router]);
 
   const handleSubmit = async () => {

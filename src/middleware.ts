@@ -5,7 +5,7 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // If Supabase not configured, allow everything (dev/demo mode)
+  // If Supabase not configured, allow everything (dev mode)
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.next();
   }
@@ -27,23 +27,25 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Protected routes: redirect to /auth if not logged in
-  if (pathname.startsWith('/demo') && !session) {
+  // Protected route: /app requires auth
+  if (pathname.startsWith('/app') && !session) {
     const url = request.nextUrl.clone();
     url.pathname = '/auth';
     return NextResponse.redirect(url);
   }
 
-  // Already logged in: redirect /auth to /demo
-  if (pathname.startsWith('/auth') && session) {
+  // Already logged in: redirect /auth to /app
+  if (pathname.startsWith('/auth') && !pathname.startsWith('/auth/callback') && session) {
     const url = request.nextUrl.clone();
-    url.pathname = '/demo';
+    url.pathname = '/app';
     return NextResponse.redirect(url);
   }
+
+  // /demo is always accessible (no auth required)
 
   return response;
 }
 
 export const config = {
-  matcher: ['/demo/:path*', '/auth/:path*'],
+  matcher: ['/app/:path*', '/auth'],
 };
