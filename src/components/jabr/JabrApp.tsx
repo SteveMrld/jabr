@@ -140,9 +140,9 @@ const ScoreCircle = ({ score, max }: { score: number; max: number }) => {
 };
 
 const StatCard = ({ value, label, accent }: { value: string | number; label: string; accent?: string }) => (
-  <div className="bg-white rounded-xl border p-4 text-center transition-all duration-200 hover:border-[#C8952E] hover:shadow-md hover:-translate-y-0.5" style={{ borderColor: c.gc }}>
-    <div style={{ fontSize: 24, fontWeight: 700, color: accent || c.mv, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{value}</div>
-    <div className="mt-1.5 uppercase tracking-wider" style={{ fontSize: 9, color: c.gr, fontWeight: 600 }}>{label}</div>
+  <div className="bg-white rounded-xl border p-3 md:p-4 text-center transition-all duration-200 hover:border-[#C8952E] hover:shadow-md hover:-translate-y-0.5 min-w-0 overflow-hidden" style={{ borderColor: c.gc }}>
+    <div className="truncate" style={{ fontSize: 20, fontWeight: 700, color: accent || c.mv, fontFamily: "'Playfair Display', serif", lineHeight: 1 }}>{value}</div>
+    <div className="mt-1 uppercase tracking-wider truncate" style={{ fontSize: 8, color: c.gr, fontWeight: 600 }}>{label}</div>
   </div>
 );
 
@@ -173,7 +173,7 @@ const CoverThumb = ({ emoji, coverImage, size = 'md' }: { emoji: string; coverIm
 
 const Btn = ({ children, variant = 'primary', onClick, className = '' }: { children: React.ReactNode; variant?: 'primary' | 'secondary'; onClick?: () => void; className?: string }) => (
   <button onClick={onClick}
-    className={`inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg font-semibold text-[13px] transition-colors cursor-pointer btn-press ${variant === 'primary' ? 'text-white hover:bg-[#E8B84B]' : 'border hover:bg-gray-50'} ${className}`}
+    className={`inline-flex items-center gap-1 px-3 md:px-5 py-2 md:py-2.5 rounded-lg font-semibold text-[12px] md:text-[13px] transition-colors cursor-pointer btn-press whitespace-nowrap ${variant === 'primary' ? 'text-white hover:bg-[#E8B84B]' : 'border hover:bg-gray-50'} ${className}`}
     style={variant === 'primary' ? { background: c.or } : { borderColor: c.vm, color: c.vm }}>
     {children}
   </button>
@@ -644,13 +644,13 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
   if (noMarketing > 0) priorities.push({ label: `${noMarketing} titres prêts pour Cover Studio`, count: noMarketing, color: c.vm, nav: 'cover-studio' });
 
   return (
-    <div>
-      <div className="flex justify-between items-end mb-5">
-        <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Dashboard</h2>
-          <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Jabrilia Éditions — Cockpit éditorial</p>
+    <div className="max-w-full overflow-hidden">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
+        <div className="min-w-0">
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Dashboard</h2>
+          <p className="mt-0.5" style={{ color: c.gr, fontSize: 12 }}>Jabrilia Éditions — Cockpit éditorial</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 flex-wrap">
           <Btn variant="secondary" onClick={async () => {
             try {
               const res = await fetch('/api/export-catalogue', {
@@ -678,7 +678,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
       </div>
 
       {/* KPIs row 1 */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3 mb-3">
         <StatCard value={allProjects.length} label="Titres" accent={c.mv} />
         <StatCard value={pub} label="Publiés" accent={c.ok} />
         <StatCard value={prog} label="En cours" accent={c.og} />
@@ -688,8 +688,8 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
       </div>
 
       {/* JABR Engines — what the platform does */}
-      <div className="mb-3 p-3 rounded-xl" style={{ background: 'linear-gradient(135deg, #2D1B4E08, #C8952E08)', border: `1px solid ${c.gc}` }}>
-        <div className="flex items-center gap-4 flex-wrap">
+      <div className="mb-3 p-2 md:p-3 rounded-xl overflow-x-auto" style={{ background: 'linear-gradient(135deg, #2D1B4E08, #C8952E08)', border: `1px solid ${c.gc}` }}>
+        <div className="flex items-center gap-3 md:gap-4 flex-wrap md:flex-wrap" style={{ minWidth: 0 }}>
           {[
             { icon: '🔍', label: 'Scanner 6D', desc: 'Analyse IA manuscrit' },
             { icon: '📐', label: 'Cover Specs', desc: '3 distributeurs' },
@@ -712,7 +712,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
       </div>
 
       {/* KPIs row 2 — production */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3 mb-4">
         <StatCard value={`${withCoverArt}/${allProjects.length}`} label="Artwork" accent={withCoverArt === allProjects.length ? c.ok : c.og} />
         <StatCard value={`${withBackCover}/${allProjects.length}`} label="4e couverture" accent={withBackCover === allProjects.length ? c.ok : c.og} />
         <StatCard value={`${analyzed.length}/${allProjects.length}`} label="Analysés" accent={analyzed.length === allProjects.length ? c.ok : c.og} />
@@ -792,7 +792,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
             <span style={{ color: c.og }}>{icons.warn}</span>
             <span className="text-[13px] font-semibold" style={{ color: c.og }}>Actions prioritaires</span>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {priorities.map((pr, i) => (
               <div key={i} className="flex items-center gap-2 py-1.5 px-3 rounded-lg cursor-pointer hover:bg-white/50 transition-colors"
                 onClick={() => onNav?.(pr.nav)}>
@@ -807,9 +807,9 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
 
       {/* Quick readiness per title */}
       <Card hover={false} className="mb-5">
-        <div className="flex justify-between items-center px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+        <div className="flex flex-wrap justify-between items-center gap-1 px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Readiness</span>
-          <span className="text-[10px]" style={{ color: c.gr }}>Manuscrit · ISBN · Couverture · Artwork · 4e · Analyse · Publié</span>
+          <span className="text-[9px] hidden sm:inline" style={{ color: c.gr }}>Manuscrit · ISBN · Couverture · Artwork · 4e · Analyse · Publié</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0">
           {allProjects.map(p => {
@@ -8753,9 +8753,9 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
   };
 
   return (
-    <div className="flex min-h-screen" style={{ fontFamily: "'Inter', sans-serif", background: c.bc }}>
+    <div className="flex min-h-screen overflow-x-hidden" style={{ fontFamily: "'Inter', sans-serif", background: c.bc }}>
       <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} persisted={persisted} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} lang={lang} onToggleLang={toggleLang} author={author} onSwitchAuthor={onSwitchAuthor} />
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden lg:ml-0">
         {/* TOP BAR */}
         <div className="flex flex-wrap gap-2 justify-between items-center px-4 md:px-8 py-2.5 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>
           {/* Hamburger for mobile */}
@@ -8826,7 +8826,7 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
             <NotifPanel open={notifOpen} onClose={() => setNotifOpen(false)} projects={projects} />
           </div>
         </div>
-        <div className="flex-1 p-4 md:p-7 overflow-y-auto" onClick={() => notifOpen && setNotifOpen(false)}>
+        <div className="flex-1 p-3 sm:p-4 md:p-7 overflow-y-auto overflow-x-hidden" onClick={() => notifOpen && setNotifOpen(false)}>
           <div key={project ? `p-${project.id}` : page} style={{ animation: 'pageIn 0.3s ease-out' }}>{renderContent()}</div>
         </div>
       </div>

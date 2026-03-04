@@ -21,6 +21,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { overflow-x: hidden; max-width: 100vw; }
 body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--blanc-casse); color: var(--noir); }
 h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; }
 
