@@ -8,6 +8,7 @@ import { t, type Lang } from '@/lib/i18n';
 import { type Author } from '@/lib/authors';
 import { generateBudgetPlan, generateObjectivePlan, compareAB, type MediaPlan, type MediaPlanInput } from '@/lib/mediaEngine';
 import { DISTRIBUTORS, TRIM_SIZES, calculateCoverDimensions, calculateSpineWidth, auditCover, generateCoverSpec, compareDistributorSpecs, type Distributor, type ProjectCoverData, type CoverSpec, type CoverDimensions, type CoverAudit } from '@/lib/coverSpecs';
+import { JABRILIA_CHARTER, getCoverTypoRecommendation, auditCoverAgainstCharter, type PublisherCharter, type CollectionSpec } from '@/lib/publisherCharter';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
@@ -2019,6 +2020,112 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
                       ))}
                     </div>
                   </div>
+
+                  {/* Publisher Charter — Charte éditoriale */}
+                  {(() => {
+                    const charter = JABRILIA_CHARTER; // TODO: load from user's publisher profile
+                    const typoRec = getCoverTypoRecommendation(p.genre, p.collection || undefined, charter);
+                    const charterAudit = auditCoverAgainstCharter({
+                      title: p.title, author: p.author, genre: p.genre,
+                      collection: p.collection || undefined, pages: p.pages,
+                      backCover: p.backCover || undefined,
+                    }, charter);
+                    const col = typoRec.collection;
+
+                    return (
+                      <div className="mt-4 p-4 rounded-lg" style={{ background: '#FDFAF5', border: `2px solid ${c.or}` }}>
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="text-[10px] uppercase tracking-wider font-bold" style={{ color: c.or }}>
+                            Charte {charter.fullName}
+                          </div>
+                          <div className="text-[10px] px-2 py-0.5 rounded-md" style={{ background: '#FFF5E0', color: c.or }}>
+                            {col.name}
+                          </div>
+                        </div>
+
+                        {/* Typography recommendations */}
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+                          <div className="p-2 rounded-lg" style={{ background: 'white', border: `1px solid ${c.gc}` }}>
+                            <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Titre couverture</div>
+                            <div className="text-[12px] font-bold mt-0.5" style={{ color: c.mv, fontFamily: typoRec.title.fallback }}>
+                              {typoRec.title.fontFamily} {typoRec.title.sizePt}pt
+                            </div>
+                            <div className="text-[9px] mt-0.5" style={{ color: c.gr }}>{typoRec.title.alignment}, couleur {typoRec.title.color}</div>
+                          </div>
+                          <div className="p-2 rounded-lg" style={{ background: 'white', border: `1px solid ${c.gc}` }}>
+                            <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Auteur couverture</div>
+                            <div className="text-[12px] font-bold mt-0.5" style={{ color: c.mv, fontFamily: typoRec.author.fallback }}>
+                              {typoRec.author.fontFamily} {typoRec.author.sizePt}pt
+                            </div>
+                            <div className="text-[9px] mt-0.5" style={{ color: c.gr }}>{typoRec.author.alignment}</div>
+                          </div>
+                          <div className="p-2 rounded-lg" style={{ background: 'white', border: `1px solid ${c.gc}` }}>
+                            <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Texte 4e</div>
+                            <div className="text-[12px] font-bold mt-0.5" style={{ color: c.mv, fontFamily: typoRec.backText.fallback }}>
+                              {typoRec.backText.fontFamily} {typoRec.backText.sizePt}pt
+                            </div>
+                            <div className="text-[9px] mt-0.5" style={{ color: c.gr }}>{typoRec.backText.alignment}</div>
+                          </div>
+                        </div>
+
+                        {/* Collection palette */}
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Palette</div>
+                          {Object.entries(col.palette).map(([key, color]) => (
+                            <div key={key} className="flex items-center gap-1">
+                              <div style={{ width: 14, height: 14, borderRadius: 4, background: color, border: '1px solid rgba(0,0,0,0.1)' }} />
+                              <span className="text-[8px]" style={{ color: c.gr }}>{key}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Format & paper */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                          {[
+                            ['Format', col.formatLabel],
+                            ['Papier int.', col.paperType],
+                            ['Couverture', `${col.coverPaperGSM}g ${col.coverFinish}`],
+                            ['Dos min. texte', `${col.separatorStyle}`],
+                          ].map(([label, value]) => (
+                            <div key={label as string} className="text-[10px]">
+                              <span className="font-semibold" style={{ color: c.gr }}>{label} : </span>
+                              <span style={{ color: c.mv }}>{value}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Back cover layout */}
+                        <div className="mb-3">
+                          <div className="text-[9px] uppercase tracking-wider font-semibold mb-1" style={{ color: c.gr }}>
+                            Structure 4e de couverture ({charter.name})
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {charter.coverRules.backCoverLayout.map((item, i) => (
+                              <span key={i} className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#F0EBE0', color: c.mv }}>
+                                {i > 0 && <span style={{ color: c.or }}> → </span>}{item}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Collection-specific notes */}
+                        {col.notes.length > 0 && (
+                          <div>
+                            <div className="text-[9px] uppercase tracking-wider font-semibold mb-1" style={{ color: c.gr }}>
+                              Règles {col.name}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-0.5">
+                              {col.notes.map((note, i) => (
+                                <div key={i} className="text-[10px] flex items-start gap-1" style={{ color: c.nr }}>
+                                  <span style={{ color: c.or }}>▸</span> {note}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Comparison table */}
                   {showComparison && comparison && (
