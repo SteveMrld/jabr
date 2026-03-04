@@ -1,384 +1,340 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import {
+  BookOpen, BarChart3, Shield, Send, FileText, Palette,
+  Ruler, Hash, Truck, Megaphone, ChevronRight, Check,
+  X, Menu, ArrowRight, Sparkles, Layers, Eye,
+  Calendar, Users, Globe, Zap, Star, PenTool
+} from 'lucide-react';
 
-// ═══════════════════════════════════
-// JABR — Landing Page
-// Jabrilia Éditions · Pipeline éditorial
-// ═══════════════════════════════════
-
-const c = {
-  or: '#C8952E', oc: '#A07424', mv: '#2D1B4E', vi: '#3E2768',
-  bg: '#0F0A1A', cream: '#FAF6F0', warm: '#F5EDE0',
+const t = {
+  bg: '#FAFAF8', text: '#2D2A26', text2: '#6B645B',
+  border: '#E8E4DF', card: '#FFFFFF',
+  cta: '#C8952E', ctaH: '#B88322', ctaFaint: 'rgba(200,149,46,0.08)',
+  data: '#1E40AF', dataFaint: 'rgba(30,64,175,0.06)',
+  ok: '#059669', okFaint: 'rgba(5,150,105,0.06)',
+  dark: '#0F0A1A', violet: '#2D1B4E',
 };
 
-// Animated counter
-const Counter = ({ end, suffix = '', duration = 2000 }: { end: number; suffix?: string; duration?: number }) => {
-  const [count, setCount] = useState(0);
-  const [started, setStarted] = useState(false);
-  const [uid] = useState(() => `ctr-${end}-${Math.random().toString(36).slice(2)}`);
-
-  useEffect(() => {
-    const el = document.getElementById(uid);
-    if (!el) { setStarted(true); return; }
-    const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight && rect.bottom > 0) { setStarted(true); return; }
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setStarted(true); observer.disconnect(); } },
-      { threshold: 0.2 }
-    );
-    observer.observe(el);
-    const timer = setTimeout(() => setStarted(true), 2000);
-    return () => { observer.disconnect(); clearTimeout(timer); };
-  }, [uid]);
-
-  useEffect(() => {
-    if (!started) return;
-    const steps = 40;
-    const inc = end / steps;
-    let current = 0;
-    const timer = setInterval(() => {
-      current += inc;
-      if (current >= end) { setCount(end); clearInterval(timer); }
-      else setCount(Math.floor(current));
-    }, duration / steps);
-    return () => clearInterval(timer);
-  }, [started, end, duration]);
-
-  return <span id={uid}>{count}{suffix}</span>;
-};
-
-// Fade-in on scroll
-const FadeIn = ({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) => {
+function useFadeIn() {
+  const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
-  const [id] = useState(() => `fi-${Math.random().toString(36).slice(2)}`);
-
   useEffect(() => {
-    const el = document.getElementById(id);
-    if (!el) { setVisible(true); return; }
-
-    // Immediate check: if already in viewport, show now
-    const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight && rect.bottom > 0) {
-      setVisible(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
-      { threshold: 0.1 }
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.top < window.innerHeight && r.bottom > 0) { setVisible(true); return; }
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0.12 }
     );
-    observer.observe(el);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return { ref, visible };
+}
 
-    // Fallback: always show after 1.5s
-    const timer = setTimeout(() => setVisible(true), 1500);
-    return () => { observer.disconnect(); clearTimeout(timer); };
-  }, [id]);
-
+const FadeIn = ({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) => {
+  const { ref, visible } = useFadeIn();
   return (
-    <div id={id} className={className}
-      style={{ opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(30px)', transition: `all 0.8s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s` }}>
+    <div ref={ref} className={className} style={{
+      opacity: visible ? 1 : 0,
+      transform: visible ? 'translateY(0)' : 'translateY(28px)',
+      transition: `all 0.7s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s`,
+    }}>
       {children}
     </div>
   );
 };
 
-const Logo = ({ size = 50 }: { size?: number }) => (
+const Logo = ({ size = 36 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
-    <defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8B84B" /><stop offset="100%" stopColor="#A07424" /></linearGradient></defs>
-    <path d="M65 15c8 0 14 5 14 12s-6 13-14 13h-5c-3 0-5 2-6 4l-8 22c-3 8-10 14-18 14-10 0-16-7-14-16l2-8c1-4 5-7 9-7h6c4 0 7-3 8-6l6-16c3-7 10-12 18-12z" fill="url(#lg)" />
-    <circle cx="72" cy="72" r="4" fill="url(#lg)" />
-    <path d="M35 10c2-2 5-3 8-3" stroke="url(#lg)" strokeWidth="3" strokeLinecap="round" fill="none" />
+    <defs><linearGradient id="jlg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#E8B84B" /><stop offset="100%" stopColor="#A07424" />
+    </linearGradient></defs>
+    <path d="M65 15c8 0 14 5 14 12s-6 13-14 13h-5c-3 0-5 2-6 4l-8 22c-3 8-10 14-18 14-10 0-16-7-14-16l2-8c1-4 5-7 9-7h6c4 0 7-3 8-6l6-16c3-7 10-12 18-12z" fill="url(#jlg)" />
+    <circle cx="72" cy="72" r="4" fill="url(#jlg)" />
+    <path d="M35 10c2-2 5-3 8-3" stroke="url(#jlg)" strokeWidth="3" strokeLinecap="round" fill="none" />
   </svg>
 );
 
+const DashboardPreview = () => {
+  const titles = [
+    { name: 'Le Lion D\u00e9chu', genre: 'Fantasy', status: 'En cours', readiness: 72, color: '#C8952E' },
+    { name: 'Mon petit livre anti-stress', genre: 'Jeunesse', status: 'BAT', readiness: 88, color: '#059669' },
+    { name: 'Les M\u00e9moires Reli\u00e9es', genre: 'Roman', status: 'Corrections', readiness: 45, color: '#1E40AF' },
+    { name: 'Le Dernier Rivage', genre: 'Roman', status: 'Brouillon', readiness: 31, color: '#6B645B' },
+  ];
+  return (
+    <div style={{ background: t.dark, borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(200,149,46,0.15)', boxShadow: '0 32px 64px rgba(0,0,0,0.25)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: 'rgba(15,10,26,0.95)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F56' }} />
+        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFBD2E' }} />
+        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27C93F' }} />
+        <div style={{ flex: 1, margin: '0 12px', padding: '4px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: "'JetBrains Mono', monospace" }}>
+          jabr-eta.vercel.app
+        </div>
+      </div>
+      <div style={{ display: 'flex', minHeight: 300 }}>
+        <div style={{ width: 160, padding: '14px 10px', background: 'linear-gradient(180deg, #2D1B4E, #1A0F2E)', flexShrink: 0 }} className="hide-mobile-preview">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+            <Logo size={16} />
+            <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 12, fontWeight: 700, color: t.cta, letterSpacing: 2 }}>JABR</span>
+          </div>
+          {['Dashboard', 'Projets', 'Manuscrits', 'Analyse', 'Couvertures', 'ISBN', 'Distribution'].map((item, i) => (
+            <div key={item} style={{
+              padding: '5px 10px', borderRadius: 6, fontSize: 10, marginBottom: 2,
+              background: i === 0 ? 'rgba(200,149,46,0.15)' : 'transparent',
+              color: i === 0 ? t.cta : 'rgba(255,255,255,0.3)',
+              fontWeight: i === 0 ? 600 : 400,
+            }}>{item}</div>
+          ))}
+        </div>
+        <div style={{ flex: 1, padding: 16, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'white' }}>Dashboard</div>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>Jabrilia \u00c9ditions</div>
+            </div>
+            <div style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: 600, color: 'white', background: t.cta }}>+ Nouveau projet</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 12 }}>
+            {[['10', 'Titres'], ['4', 'En cours'], ['28', 'ISBN'], ['72%', 'Readiness']].map(([v, l]) => (
+              <div key={l} style={{ padding: '8px 6px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, color: t.cta }}>{v}</div>
+                <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+          {titles.map((title, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, marginBottom: 3,
+              background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
+            }}>
+              <div style={{ width: 24, height: 32, borderRadius: 4, background: 'linear-gradient(135deg, #2D1B4E, rgba(200,149,46,0.3))', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title.name}</div>
+                <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)' }}>{title.genre}</div>
+              </div>
+              <div style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, background: title.color + '20', color: title.color, fontWeight: 600 }}>{title.status}</div>
+              <div style={{ width: 50, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                <div style={{ height: '100%', borderRadius: 2, background: title.color, width: title.readiness + '%' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PIPELINE = [
-  { icon: '✍️', title: 'Manuscrit', desc: 'Import .docx, calibrage automatique, calcul pages et dos' },
-  { icon: '🎨', title: 'Couverture', desc: 'Diagnostic 7 critères, conformité EAN, ISBN, prix' },
-  { icon: '📐', title: 'Calibrage', desc: 'Format, marges, typographie, épaisseur dos calculée' },
-  { icon: '✅', title: 'BAT', desc: 'Bon à Tirer haute résolution, validation finale' },
-  { icon: '📱', title: 'ePub', desc: 'Conversion ePub 3.0, validation W3C automatique' },
-  { icon: '🎧', title: 'Audiobook', desc: 'Production TTS IA, mastering, distribution multi-plateforme' },
-  { icon: '📢', title: 'Marketing', desc: 'Fiches produit, visuels réseaux sociaux, communiqués' },
-  { icon: '🌍', title: 'Distribution', desc: 'KDP, IngramSpark, Pollen, Apple Books, Kobo, Audible' },
+  { icon: PenTool, title: 'Id\u00e9e & cadrage', desc: 'Cadrez le livre, l\u2019intention, la collection.' },
+  { icon: FileText, title: 'Manuscrit', desc: 'Centralisez le texte et les versions.' },
+  { icon: Eye, title: 'Analyse', desc: 'Diagnostic \u00e9ditorial et scoring.' },
+  { icon: Shield, title: 'Corrections', desc: 'Suivi des it\u00e9rations et validations.' },
+  { icon: Palette, title: 'Couverture', desc: 'Gestion des pistes et d\u00e9cisions.' },
+  { icon: Ruler, title: 'Calibrage', desc: 'Pr\u00e9paration de production et contr\u00f4les.' },
+  { icon: Hash, title: 'ISBN & distribution', desc: 'Identifiants + canaux de diffusion.' },
+  { icon: Send, title: 'Lancement', desc: 'Planning, assets, communication.' },
 ];
 
-const FEATURES = [
-  { title: 'Multi-format natif', desc: 'Broché, poche, relié, ePub, PDF, audiobook — chaque format a son ISBN, son prix, son statut.', icon: '📚' },
-  { title: 'ISBN automatisé', desc: 'Registre centralisé avec préfixe éditeur 978-2-488647. Attribution, suivi et export CSV en un clic.', icon: '🔢' },
-  { title: 'Diagnostic couverture', desc: '7 critères vérifiés : EAN-13, prix TTC, ISBN, typographie, dos, logo, texte 4e de couverture.', icon: '🔍' },
-  { title: 'Distribution intelligente', desc: 'Matrice titre × canal. Chaque format connaît ses canaux compatibles. Rien ne passe entre les mailles.', icon: '🎯' },
+const MODULES = [
+  { icon: Layers, title: 'Catalogue & collections', desc: 'Vision globale, genres, collections, statuts de chaque titre.' },
+  { icon: BarChart3, title: 'Analyse \u00e9ditoriale', desc: 'Scoring, diagnostics, checklists, score IA.' },
+  { icon: Palette, title: 'Couvertures', desc: 'Diagnostic 7 crit\u00e8res, conformit\u00e9 EAN, ISBN, prix.' },
+  { icon: Hash, title: 'Registre ISBN', desc: 'Attribution, suivi, export CSV et ONIX 3.0.' },
+  { icon: Truck, title: 'Distribution', desc: 'Matrice titre \u00d7 canal, readiness par format.' },
+  { icon: Megaphone, title: 'Marketing & calendrier', desc: 'Plan m\u00e9dia IA, fen\u00eatre de sortie, jalons.' },
+];
+
+const NAV_ITEMS = [
+  { href: '#fonctionnalites', label: 'Fonctionnalit\u00e9s' },
+  { href: '#pipeline', label: 'Pipeline' },
+  { href: '#modules', label: 'Modules' },
+  { href: '#tarifs', label: 'Tarifs' },
 ];
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 60);
-    window.addEventListener('scroll', handler);
-    return () => window.removeEventListener('scroll', handler);
+    const h = () => setScrolled(window.scrollY > 40);
+    window.addEventListener('scroll', h, { passive: true });
+    return () => window.removeEventListener('scroll', h);
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen]);
+
   return (
-    <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", color: '#1A1A1A' }}>
-      {/* NAV */}
-      <nav className="fixed top-0 left-0 right-0 z-50 transition-all duration-500"
-        style={{ background: scrolled ? 'rgba(15,10,26,0.95)' : 'transparent', backdropFilter: scrolled ? 'blur(20px)' : 'none', borderBottom: scrolled ? '1px solid rgba(200,149,46,0.15)' : 'none' }}>
-        <div className="max-w-6xl mx-auto px-8 flex items-center justify-between" style={{ height: scrolled ? 64 : 80, transition: 'height 0.4s' }}>
-          <div className="flex items-center gap-3">
-            <Logo size={scrolled ? 28 : 36} />
-            <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: scrolled ? 18 : 22, fontWeight: 700, color: c.or, letterSpacing: 4, transition: 'font-size 0.4s' }}>JABR</span>
-          </div>
-          <div className="flex items-center gap-8">
-            <a href="#features" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Fonctionnalités</a>
-            <a href="#pipeline" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Pipeline</a>
-            <a href="#stats" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Chiffres</a>
-            <a href="#testimonials" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Retours</a>
-            <a href="#pricing" className="hidden md:inline text-sm transition-colors hover:text-[#C8952E]" style={{ color: 'rgba(255,255,255,0.5)' }}>Tarifs</a>
-            <Link href="/demo"
-              className="px-5 py-2.5 rounded-lg font-semibold text-sm text-white transition-all hover:scale-105"
-              style={{ background: c.or }}>
-              Ouvrir le Dashboard
-            </Link>
+    <div style={{ fontFamily: "'Inter', -apple-system, system-ui, sans-serif", color: t.text, background: t.bg }}>
+
+      {/* HEADER */}
+      <header style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        background: scrolled ? 'rgba(250,250,248,0.88)' : 'transparent',
+        backdropFilter: scrolled ? 'saturate(180%) blur(14px)' : 'none',
+        borderBottom: scrolled ? '1px solid #E8E4DF' : '1px solid transparent',
+        transition: 'all 0.4s ease',
+      }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+            <Logo size={28} />
+            <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 20, fontWeight: 700, color: t.cta, letterSpacing: 3 }}>JABR</span>
+          </Link>
+          <nav style={{ display: 'flex', alignItems: 'center', gap: 28 }} className="hide-mobile">
+            {NAV_ITEMS.map(n => (
+              <a key={n.href} href={n.href} style={{ color: t.text2, fontSize: 14, textDecoration: 'none' }}>{n.label}</a>
+            ))}
+          </nav>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Link href="/auth" style={{ color: t.text2, fontSize: 14, textDecoration: 'none', fontWeight: 500 }} className="hide-mobile">Se connecter</Link>
+            <Link href="/auth" style={{
+              display: 'inline-flex', alignItems: 'center', height: 40, padding: '0 18px',
+              borderRadius: 999, background: t.cta, color: '#fff', fontSize: 14, fontWeight: 600, textDecoration: 'none',
+            }}>Commencer</Link>
+            <button onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu"
+              className="show-mobile" style={{
+                display: 'none', alignItems: 'center', justifyContent: 'center',
+                width: 40, height: 40, borderRadius: 10, border: '1px solid #E8E4DF',
+                background: 'white', cursor: 'pointer',
+              }}>
+              <Menu size={18} color={t.text} />
+            </button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* ═══════════════════════════════════ */}
-      {/* HERO */}
-      {/* ═══════════════════════════════════ */}
-      <section className="relative overflow-hidden" style={{ background: `linear-gradient(160deg, ${c.bg} 0%, ${c.mv} 40%, #1A0F2E 100%)`, minHeight: '100vh' }}>
-        {/* Decorative elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-20 left-10 w-72 h-72 rounded-full opacity-[0.04]" style={{ background: c.or, filter: 'blur(80px)' }} />
-          <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full opacity-[0.06]" style={{ background: c.or, filter: 'blur(100px)' }} />
-          <div className="absolute top-1/3 right-1/4 w-48 h-48 rounded-full opacity-[0.03]" style={{ background: '#E8B84B', filter: 'blur(60px)' }} />
-          {/* Grid lines */}
-          <div className="absolute inset-0 opacity-[0.03]"
-            style={{ backgroundImage: `linear-gradient(rgba(200,149,46,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(200,149,46,0.3) 1px, transparent 1px)`, backgroundSize: '60px 60px' }} />
-        </div>
-
-        <div className="relative max-w-6xl mx-auto px-8 flex flex-col items-center justify-center" style={{ minHeight: '100vh', paddingTop: 100, paddingBottom: 80 }}>
-          {/* Badge */}
-          <FadeIn>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8"
-              style={{ background: 'rgba(200,149,46,0.1)', border: '1px solid rgba(200,149,46,0.2)' }}>
-              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: c.or }} />
-              <span style={{ color: c.or, fontSize: 13, fontWeight: 500, letterSpacing: 1 }}>JABRILIA ÉDITIONS</span>
+      {/* MOBILE DRAWER */}
+      {menuOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
+          <div onClick={() => setMenuOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }} />
+          <div style={{
+            position: 'absolute', top: 0, right: 0, bottom: 0, width: 280,
+            background: 'white', padding: 24, display: 'flex', flexDirection: 'column',
+            boxShadow: '-8px 0 32px rgba(0,0,0,0.1)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+              <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: t.cta, letterSpacing: 3 }}>JABR</span>
+              <button onClick={() => setMenuOpen(false)} aria-label="Fermer le menu"
+                style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid #E8E4DF', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={16} color={t.text} />
+              </button>
             </div>
-          </FadeIn>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {NAV_ITEMS.map(n => (
+                <a key={n.href} href={n.href} onClick={() => setMenuOpen(false)}
+                  style={{ padding: '12px 14px', borderRadius: 10, color: t.text, fontSize: 15, fontWeight: 500, textDecoration: 'none' }}>
+                  {n.label}
+                </a>
+              ))}
+            </div>
+            <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Link href="/auth" onClick={() => setMenuOpen(false)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 44, borderRadius: 999, border: '1px solid #E8E4DF', color: t.text, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+                Se connecter
+              </Link>
+              <Link href="/auth" onClick={() => setMenuOpen(false)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 44, borderRadius: 999, background: t.cta, color: '#fff', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+                Commencer un projet
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
-          {/* Main title */}
-          <FadeIn delay={0.15}>
-            <h1 className="text-center" style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(40px, 7vw, 80px)', fontWeight: 700, lineHeight: 1.05, letterSpacing: -1 }}>
-              <span style={{ color: 'rgba(255,255,255,0.95)' }}>De l&apos;idée au livre,</span><br />
-              <span style={{ background: `linear-gradient(135deg, ${c.or}, #E8B84B)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                sans friction.
-              </span>
-            </h1>
+      {/* HERO */}
+      <section style={{ paddingTop: 100, paddingBottom: 60 }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px', display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 40, alignItems: 'center' }} className="hero-grid">
+          <div>
+            <FadeIn>
+              <div style={{ color: t.text2, fontSize: 14, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 500 }}>
+                Cockpit \u00e9ditorial
+              </div>
+            </FadeIn>
+            <FadeIn delay={0.1}>
+              <h1 style={{
+                fontFamily: "'Playfair Display', Georgia, serif",
+                fontSize: 'clamp(32px, 4.5vw, 54px)', lineHeight: 1.08, fontWeight: 700,
+                color: t.text, margin: '14px 0 16px',
+              }}>
+                Le cockpit {'\u00e9'}ditorial pour transformer un manuscrit en livre publi{'\u00e9'}.
+              </h1>
+            </FadeIn>
+            <FadeIn delay={0.2}>
+              <p style={{ color: t.text2, fontSize: 18, lineHeight: 1.65, maxWidth: '56ch', margin: 0 }}>
+                JABR structure chaque {'\u00e9'}tape : manuscrit, analyse, couverture, ISBN, distribution, lancement. Un espace unique pour piloter tout le cycle de vie d&apos;un livre.
+              </p>
+            </FadeIn>
+            <FadeIn delay={0.3}>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 24 }}>
+                <Link href="/auth" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8, height: 48, padding: '0 24px',
+                  borderRadius: 999, background: t.cta, color: '#fff', fontSize: 15, fontWeight: 600,
+                  textDecoration: 'none', boxShadow: '0 4px 16px rgba(200,149,46,0.25)',
+                }}>
+                  Commencer un projet <ArrowRight size={16} />
+                </Link>
+                <Link href="/demo" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8, height: 48, padding: '0 24px',
+                  borderRadius: 999, border: '1px solid #E8E4DF', background: 'white',
+                  color: t.text, fontSize: 15, fontWeight: 500, textDecoration: 'none',
+                }}>
+                  Voir la d{'\u00e9'}mo
+                </Link>
+              </div>
+            </FadeIn>
+            <FadeIn delay={0.4}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
+                {['Pipeline \u00e9ditorial complet', 'Catalogue & collections', 'Analytics de production'].map(badge => (
+                  <span key={badge} style={{
+                    fontSize: 12, color: t.text2, border: '1px solid #E8E4DF',
+                    padding: '6px 12px', borderRadius: 999, background: 'white',
+                  }}>{badge}</span>
+                ))}
+              </div>
+            </FadeIn>
+          </div>
+          <FadeIn delay={0.3} className="hero-preview">
+            <DashboardPreview />
           </FadeIn>
+        </div>
+      </section>
 
-          {/* Subtitle */}
-          <FadeIn delay={0.3}>
-            <p className="text-center max-w-2xl mt-8 mx-auto" style={{ color: 'rgba(255,255,255,0.45)', fontSize: 'clamp(16px, 2vw, 20px)', lineHeight: 1.7 }}>
-              JABR orchestre chaque étape de votre pipeline éditorial — du manuscrit brut à la distribution mondiale. 
-              Un seul outil pour vos ISBN, vos couvertures, vos formats et vos canaux.
+      {/* PROBLEME / VALEUR */}
+      <section id="fonctionnalites" style={{ padding: '72px 0', borderTop: '1px solid #E8E4DF' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px' }}>
+          <FadeIn>
+            <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(26px, 2.8vw, 38px)', lineHeight: 1.15, fontWeight: 700, color: t.text, margin: 0 }}>
+              Publier un livre, c&apos;est un art.<br />L&apos;organisation doit {'\u00ea'}tre pr{'\u00e9'}cise.
+            </h2>
+            <p style={{ color: t.text2, fontSize: 17, lineHeight: 1.65, maxWidth: '62ch', margin: '12px 0 0' }}>
+              Entre fichiers, emails, tableurs et versions, les projets s&apos;{'\u00e9'}parpillent. JABR apporte une architecture {'\u00e9'}ditoriale : claire, tra{'\u00e7'}able, pilotable.
             </p>
           </FadeIn>
-
-          {/* CTA */}
-          <FadeIn delay={0.45}>
-            <div className="flex flex-col sm:flex-row items-center gap-4 mt-12">
-              <Link href="/demo"
-                className="group px-8 py-4 rounded-xl font-semibold text-base text-white transition-all hover:scale-105 flex items-center gap-3"
-                style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})`, boxShadow: '0 8px 32px rgba(200,149,46,0.3)' }}>
-                Accéder au Dashboard
-                <span className="transition-transform group-hover:translate-x-1">→</span>
-              </Link>
-              <a href="#pipeline"
-                className="px-8 py-4 rounded-xl font-semibold text-base transition-all hover:bg-[rgba(255,255,255,0.06)] flex items-center gap-2"
-                style={{ color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                Découvrir le pipeline
-              </a>
-            </div>
-          </FadeIn>
-
-          {/* Screenshot preview */}
-          <FadeIn delay={0.6} className="w-full mt-20">
-            <div className="relative max-w-4xl mx-auto">
-              <div className="absolute -inset-4 rounded-2xl opacity-20" style={{ background: `linear-gradient(135deg, ${c.or}, ${c.mv})`, filter: 'blur(40px)' }} />
-              <div className="relative rounded-xl overflow-hidden" style={{ border: '1px solid rgba(200,149,46,0.2)', boxShadow: '0 32px 64px rgba(0,0,0,0.5)' }}>
-                {/* Fake browser bar */}
-                <div className="flex items-center gap-2 px-4 py-3" style={{ background: 'rgba(15,10,26,0.95)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#FF5F56' }} />
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#FFBD2E' }} />
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#27C93F' }} />
-                  </div>
-                  <div className="flex-1 mx-4 px-4 py-1.5 rounded-md" style={{ background: 'rgba(255,255,255,0.05)', fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-                    jabr-eta.vercel.app/demo
-                  </div>
-                </div>
-                {/* Dashboard mockup */}
-                <div className="flex" style={{ background: c.bg, height: 320 }}>
-                  {/* Sidebar */}
-                  <div className="w-48 shrink-0 p-4 flex flex-col gap-1" style={{ background: `linear-gradient(180deg, ${c.mv}, #1A0F2E)` }}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <Logo size={20} />
-                      <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 700, color: c.or, letterSpacing: 2 }}>JABR</span>
-                    </div>
-                    {['Dashboard', 'Projets', 'Manuscrits', 'Analyse', 'Calibrage', 'Couvertures', 'Audiobooks', 'Distribution', 'Marketing', 'Presse', 'Calendrier', 'Analytics', '', 'ISBN', 'Collections', 'Paramètres'].map((item, i) =>
-                      item === '' ? <div key={i} className="my-1.5" style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} /> :
-                      <div key={i} className="px-3 py-1.5 rounded-md text-[11px]"
-                        style={{ background: i === 0 ? c.vi : 'transparent', color: i === 0 ? 'white' : 'rgba(255,255,255,0.35)', fontWeight: i === 0 ? 600 : 400 }}>
-                        {item}
-                      </div>
-                    )}
-                  </div>
-                  {/* Content */}
-                  <div className="flex-1 p-5 overflow-hidden">
-                    <div className="flex justify-between items-center mb-4">
-                      <div>
-                        <div className="text-sm font-semibold text-white">Dashboard</div>
-                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>Jabrilia Éditions — Mars 2026</div>
-                      </div>
-                      <div className="px-3 py-1.5 rounded-md text-[10px] font-semibold text-white" style={{ background: c.or }}>+ Nouveau projet</div>
-                    </div>
-                    <div className="flex gap-2 mb-4">
-                      {[['10', 'Projets'], ['4', 'En cours'], ['0', 'Publiés'], ['28/100', 'ISBN']].map(([v, l]) => (
-                        <div key={l} className="px-3 py-2.5 rounded-lg flex-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                          <div className="font-bold text-sm text-white">{v}</div>
-                          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>{l}</div>
-                        </div>
-                      ))}
-                    </div>
-                    {[1,2,3,4].map(i => (
-                      <div key={i} className="flex items-center gap-2 py-2 px-3 rounded-lg mb-1" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                        <div className="w-6 h-6 rounded" style={{ background: `rgba(200,149,46,${0.1 + i * 0.05})` }} />
-                        <div className="flex-1">
-                          <div className="h-2 rounded" style={{ background: 'rgba(255,255,255,0.08)', width: `${60 + i * 10}%` }} />
-                        </div>
-                        <div className="h-1.5 w-16 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                          <div className="h-full rounded-full" style={{ background: c.or, width: `${40 + i * 15}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════ */}
-      {/* FEATURES */}
-      {/* ═══════════════════════════════════ */}
-      <section id="features" className="relative" style={{ background: c.cream }}>
-        <div className="max-w-6xl mx-auto px-8 py-28">
-          <FadeIn>
-            <div className="text-center mb-16">
-              <div className="uppercase tracking-[4px] text-sm font-semibold mb-4" style={{ color: c.or }}>Fonctionnalités</div>
-              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: c.mv, lineHeight: 1.2 }}>
-                Tout ce dont un éditeur<br />indépendant a besoin
-              </h2>
-            </div>
-          </FadeIn>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {FEATURES.map((f, i) => (
-              <FadeIn key={f.title} delay={i * 0.1}>
-                <div className="group p-8 rounded-2xl transition-all duration-300 hover:scale-[1.02] cursor-default"
-                  style={{ background: 'white', border: '1px solid rgba(200,149,46,0.1)', boxShadow: '0 2px 20px rgba(0,0,0,0.03)' }}>
-                  <div className="flex items-start gap-5">
-                    <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shrink-0 transition-transform group-hover:scale-110"
-                      style={{ background: 'rgba(200,149,46,0.08)' }}>
-                      {f.icon}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold mb-2" style={{ color: c.mv }}>{f.title}</h3>
-                      <p className="text-sm leading-relaxed" style={{ color: '#6B6560' }}>{f.desc}</p>
-                    </div>
-                  </div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════ */}
-      {/* PIPELINE */}
-      {/* ═══════════════════════════════════ */}
-      <section id="pipeline" style={{ background: 'white' }}>
-        <div className="max-w-6xl mx-auto px-8 py-28">
-          <FadeIn>
-            <div className="text-center mb-16">
-              <div className="uppercase tracking-[4px] text-sm font-semibold mb-4" style={{ color: c.or }}>Pipeline</div>
-              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: c.mv, lineHeight: 1.2 }}>
-                8 étapes, du manuscrit<br />à la librairie
-              </h2>
-              <p className="mt-4 text-base max-w-xl mx-auto" style={{ color: '#9E9689' }}>
-                Chaque livre passe par un pipeline structuré. JABR suit l&apos;avancement, détecte les blocages, et automatise ce qui peut l&apos;être.
-              </p>
-            </div>
-          </FadeIn>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {PIPELINE.map((step, i) => (
-              <FadeIn key={step.title} delay={i * 0.08}>
-                <div className="group relative p-6 rounded-2xl text-center transition-all duration-300 hover:scale-[1.03] cursor-default"
-                  style={{ background: c.cream, border: '1px solid rgba(200,149,46,0.08)' }}>
-                  {/* Step number */}
-                  <div className="absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
-                    style={{ background: 'rgba(200,149,46,0.1)', color: c.or }}>
-                    {i + 1}
-                  </div>
-                  <div className="text-3xl mb-3 transition-transform group-hover:scale-125">{step.icon}</div>
-                  <h4 className="font-bold text-sm mb-2" style={{ color: c.mv }}>{step.title}</h4>
-                  <p style={{ fontSize: 12, color: '#9E9689', lineHeight: 1.5 }}>{step.desc}</p>
-                  {/* Connector line */}
-                  {i < 7 && i !== 3 && (
-                    <div className="hidden md:block absolute top-1/2 -right-2 w-4 h-px" style={{ background: 'rgba(200,149,46,0.2)' }} />
-                  )}
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════ */}
-      {/* STATS */}
-      {/* ═══════════════════════════════════ */}
-      <section id="stats" className="relative overflow-hidden" style={{ background: `linear-gradient(160deg, ${c.mv}, #1A0F2E)` }}>
-        <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: `linear-gradient(rgba(200,149,46,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(200,149,46,0.5) 1px, transparent 1px)`, backgroundSize: '40px 40px' }} />
-        <div className="relative max-w-6xl mx-auto px-8 py-28">
-          <FadeIn>
-            <div className="text-center mb-16">
-              <div className="uppercase tracking-[4px] text-sm font-semibold mb-4" style={{ color: c.or }}>En chiffres</div>
-              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: 'white', lineHeight: 1.2 }}>
-                Le catalogue Jabrilia
-              </h2>
-            </div>
-          </FadeIn>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 32 }} className="grid-responsive">
             {[
-              { value: 10, suffix: '', label: 'Titres au catalogue', sub: 'Romans, essais, BD, jeunesse, poésie' },
-              { value: 28, suffix: '', label: 'ISBN attribués', sub: '6 formats par titre max' },
-              { value: 16, suffix: '', label: 'Modules intégrés', sub: 'De l\'analyse au marketing' },
-              { value: 6, suffix: '', label: 'Canaux de distribution', sub: 'KDP, Pollen, IngramSpark…' },
-            ].map((stat, i) => (
-              <FadeIn key={stat.label} delay={i * 0.1}>
-                <div className="text-center p-6 rounded-2xl" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(200,149,46,0.1)' }}>
-                  <div style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 48, fontWeight: 700, color: c.or, lineHeight: 1 }}>
-                    <Counter end={stat.value} suffix={stat.suffix} />
+              { icon: Eye, kicker: 'Vision', title: 'Catalogue lisible', desc: 'Tous les titres, collections et statuts, au m\u00eame endroit.' },
+              { icon: Zap, kicker: 'Flux', title: 'Pipeline clair', desc: 'Vous savez exactement o\u00f9 en est chaque livre.' },
+              { icon: Sparkles, kicker: 'D\u00e9cision', title: 'Moins d\u2019h\u00e9sitation', desc: 'Diagnostics, checklists et validations pour avancer vite.' },
+            ].map((card, i) => (
+              <FadeIn key={card.title} delay={i * 0.1}>
+                <div style={{
+                  background: 'white', border: '1px solid #E8E4DF', borderRadius: 16,
+                  padding: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.04)', cursor: 'default',
+                }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: t.ctaFaint, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                    <card.icon size={20} color={t.cta} />
                   </div>
-                  <div className="mt-3 font-semibold text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>{stat.label}</div>
-                  <div className="mt-1" style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>{stat.sub}</div>
+                  <div style={{ fontSize: 12, color: t.text2, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 500, marginBottom: 6 }}>{card.kicker}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 6 }}>{card.title}</div>
+                  <div style={{ fontSize: 14, color: t.text2, lineHeight: 1.55 }}>{card.desc}</div>
                 </div>
               </FadeIn>
             ))}
@@ -386,396 +342,313 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════ */}
-      {/* TESTIMONIALS */}
-      {/* ═══════════════════════════════════ */}
-      <section id="testimonials" style={{ background: c.cream }}>
-        <div className="max-w-6xl mx-auto px-8 py-28">
+      {/* COMMENT CA MARCHE */}
+      <section style={{ padding: '72px 0', background: 'white', borderTop: '1px solid #E8E4DF', borderBottom: '1px solid #E8E4DF' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px' }}>
           <FadeIn>
-            <div className="text-center mb-16">
-              <div className="uppercase tracking-[4px] text-sm font-semibold mb-4" style={{ color: c.or }}>Retours</div>
-              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: c.mv, lineHeight: 1.2 }}>
-                Pensé par un éditeur,<br />pour les éditeurs
-              </h2>
-            </div>
-          </FadeIn>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { quote: "En une session, j'ai attribué 28 ISBN, diagnostiqué mes 10 couvertures et identifié les corrections à faire. Avant, ça me prenait une semaine.", name: 'Steve Moradel', role: 'Fondateur, Jabrilia Éditions', avatar: '✍️' },
-              { quote: "Le Scanner 6D m'a révélé un score IA de 42% sur mon manuscrit. J'ai pu réécrire les passages problématiques avant impression. Un filet de sécurité indispensable.", name: 'Retour bêta', role: 'Auteur-éditeur indépendant', avatar: '📖' },
-              { quote: "La matrice Distribution × Canaux change tout. On voit instantanément quel titre est prêt pour quel canal, et ce qu'il manque pour y arriver.", name: 'Retour bêta', role: 'Éditeur indépendant', avatar: '🎯' },
-            ].map((t, i) => (
-              <FadeIn key={i} delay={i * 0.15}>
-                <div className="p-6 rounded-2xl h-full flex flex-col" style={{ background: 'white', border: '1px solid rgba(200,149,46,0.1)', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
-                  <div className="text-2xl mb-4" style={{ color: c.or }}>&ldquo;</div>
-                  <p className="text-[14px] leading-relaxed flex-1" style={{ color: '#4A4542' }}>{t.quote}</p>
-                  <div className="flex items-center gap-3 mt-6 pt-4" style={{ borderTop: '1px solid rgba(200,149,46,0.1)' }}>
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg" style={{ background: 'rgba(200,149,46,0.08)' }}>{t.avatar}</div>
-                    <div>
-                      <div className="font-semibold text-[13px]" style={{ color: c.mv }}>{t.name}</div>
-                      <div style={{ fontSize: 11, color: '#9E9689' }}>{t.role}</div>
-                    </div>
-                  </div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════ */}
-      {/* WHY JABR */}
-      {/* ═══════════════════════════════════ */}
-      <section className="relative overflow-hidden" style={{ background: `linear-gradient(160deg, ${c.mv}, #1A0F2E)` }}>
-        <div className="absolute inset-0 opacity-[0.03]"
-          style={{ backgroundImage: `linear-gradient(rgba(200,149,46,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(200,149,46,0.5) 1px, transparent 1px)`, backgroundSize: '40px 40px' }} />
-        <div className="relative max-w-6xl mx-auto px-8 py-28">
-          <FadeIn>
-            <div className="text-center mb-16">
-              <div className="uppercase tracking-[4px] text-sm font-semibold mb-4" style={{ color: c.or }}>Comparaison</div>
-              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: 'white', lineHeight: 1.2 }}>
-                Tableur vs. JABR
-              </h2>
-              <p className="mt-4 text-base max-w-xl mx-auto" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                La plupart des éditeurs indépendants gèrent leur catalogue dans des tableurs. Voici ce que ça change.
-              </p>
-            </div>
-          </FadeIn>
-
-          <FadeIn delay={0.2}>
-            <div className="max-w-3xl mx-auto rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(200,149,46,0.15)' }}>
-              <div className="grid grid-cols-3 text-center py-4 text-[13px] font-semibold" style={{ background: 'rgba(200,149,46,0.08)' }}>
-                <div style={{ color: 'rgba(255,255,255,0.5)' }}>Fonctionnalité</div>
-                <div style={{ color: 'rgba(255,255,255,0.3)' }}>Tableur</div>
-                <div style={{ color: c.or }}>JABR</div>
-              </div>
-              {[
-                ['Registre ISBN', '❌ Manuel, erreurs', '✅ Auto-attribué, export CSV + ONIX'],
-                ['Diagnostic couverture', '❌ Vérification visuelle', '✅ 7 critères automatiques'],
-                ['Calibrage dos', '❌ Calcul à la main', '✅ Formule pages × épaisseur'],
-                ['Multi-format', '❌ 1 ligne par format', '✅ 6 formats liés par titre'],
-                ['Distribution', '❌ Fichier par canal', '✅ Matrice interactive + checklist'],
-                ['Analyse manuscrit', '❌ Impossible', '✅ Scanner 6D + score IA'],
-                ['Marketing', '❌ À part', '✅ Moteur 5 engines intégré'],
-                ['Pipeline visuel', '❌ Aucun', '✅ 8 étapes du manuscrit à la distribution'],
-                ['Calendrier éditorial', '❌ Intuition', '✅ IA : fenêtre de sortie + plan média'],
-              ].map(([feature, tableur, jabr], i) => (
-                <div key={i} className="grid grid-cols-3 text-[12px] py-3 px-4" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
-                  <div className="font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>{feature}</div>
-                  <div className="text-center" style={{ color: 'rgba(255,255,255,0.25)' }}>{tableur}</div>
-                  <div className="text-center" style={{ color: c.or }}>{jabr}</div>
-                </div>
-              ))}
-            </div>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════ */}
-      {/* FORMATS */}
-      {/* ═══════════════════════════════════ */}
-      <section style={{ background: c.cream }}>
-        <div className="max-w-6xl mx-auto px-8 py-28">
-          <FadeIn>
-            <div className="text-center mb-16">
-              <div className="uppercase tracking-[4px] text-sm font-semibold mb-4" style={{ color: c.or }}>Multi-format</div>
-              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: c.mv, lineHeight: 1.2 }}>
-                1 titre, 6 formats,<br />6 ISBN
-              </h2>
-              <p className="mt-4 text-base max-w-xl mx-auto" style={{ color: '#9E9689' }}>
-                Chaque version d&apos;un livre reçoit son propre ISBN. JABR gère la matrice complète.
-              </p>
-            </div>
-          </FadeIn>
-
-          <FadeIn delay={0.2}>
-            <div className="flex flex-wrap justify-center gap-4 max-w-3xl mx-auto">
-              {[
-                { format: 'Broché', icon: '📕', desc: 'Impression standard', color: '#E8B84B' },
-                { format: 'Poche', icon: '📗', desc: 'Format économique', color: '#2EAE6D' },
-                { format: 'Relié', icon: '📘', desc: 'Édition premium', color: '#3E2768' },
-                { format: 'ePub', icon: '📱', desc: 'Numérique', color: '#E07A2F' },
-                { format: 'Audiobook', icon: '🎧', desc: 'Production IA', color: '#5B3E8A' },
-                { format: 'PDF', icon: '📄', desc: 'Téléchargement', color: '#9E9689' },
-              ].map((f, i) => (
-                <div key={f.format} className="group flex items-center gap-3 px-5 py-4 rounded-xl transition-all duration-300 hover:scale-105 cursor-default"
-                  style={{ background: 'white', border: '1px solid rgba(200,149,46,0.1)', boxShadow: '0 2px 12px rgba(0,0,0,0.03)', animationDelay: `${i * 0.05}s` }}>
-                  <span className="text-2xl transition-transform group-hover:scale-125">{f.icon}</span>
-                  <div>
-                    <div className="font-bold text-sm" style={{ color: c.mv }}>{f.format}</div>
-                    <div style={{ fontSize: 11, color: '#9E9689' }}>{f.desc}</div>
-                  </div>
-                  <div className="w-2 h-2 rounded-full ml-2" style={{ background: f.color }} />
-                </div>
-              ))}
-            </div>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════ */}
-      {/* PRICING */}
-      {/* ═══════════════════════════════════ */}
-      <section id="pricing" style={{ background: c.bg }}>
-        <div className="max-w-6xl mx-auto px-8 py-28">
-          <FadeIn>
-            <div className="text-center mb-16">
-              <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold mb-6" style={{ background: 'rgba(200,149,46,0.1)', color: c.or, letterSpacing: 1.5 }}>
-                TARIFS
-              </span>
-              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: 'white', lineHeight: 1.15 }}>
-                Un plan pour chaque éditeur
-              </h2>
-              <p className="mt-4 text-base max-w-lg mx-auto" style={{ color: 'rgba(255,255,255,0.4)', lineHeight: 1.7 }}>
-                Du manuscrit au lecteur, sans friction. Commencez gratuitement.
-              </p>
-            </div>
-          </FadeIn>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Starter */}
-            <FadeIn delay={0}>
-              <div className="rounded-2xl p-8 h-full flex flex-col" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>Starter</div>
-                <div className="flex items-end gap-1 mb-2">
-                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 42, fontWeight: 700, color: 'white' }}>0€</span>
-                  <span className="text-sm mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>/mois</span>
-                </div>
-                <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>Idéal pour tester JABR avec un premier titre.</p>
-                <div className="flex-1 space-y-3 mb-8">
-                  {['3 titres max', '10 ISBN', 'Diagnostic couverture', 'Export CSV', 'Scanner 6D basique', 'Dashboard'].map((f, i) => (
-                    <div key={i} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                      <span style={{ color: c.or }}>✓</span> {f}
-                    </div>
-                  ))}
-                </div>
-                <Link href="/demo" className="block text-center py-3.5 rounded-xl font-semibold text-sm transition-all hover:scale-[1.02]"
-                  style={{ background: 'rgba(255,255,255,0.06)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  Commencer gratuitement
-                </Link>
-              </div>
-            </FadeIn>
-
-            {/* Pro — highlighted */}
-            <FadeIn delay={0.1}>
-              <div className="rounded-2xl p-8 h-full flex flex-col relative" style={{ background: 'rgba(200,149,46,0.06)', border: `2px solid ${c.or}` }}>
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-bold" style={{ background: c.or, color: c.bg }}>
-                  POPULAIRE
-                </div>
-                <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: c.or }}>Pro</div>
-                <div className="flex items-end gap-1 mb-2">
-                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 42, fontWeight: 700, color: 'white' }}>29€</span>
-                  <span className="text-sm mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>/mois</span>
-                </div>
-                <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>Pour l'éditeur indépendant qui publie régulièrement.</p>
-                <div className="flex-1 space-y-3 mb-8">
-                  {['Titres illimités', '100 ISBN', 'Tous les 21 modules', 'ONIX 3.0 complet', 'Calendrier éditorial IA', 'Plan média IA', 'Export PDF', 'Import CSV', 'Kanban drag & drop', 'Ctrl+K recherche globale'].map((f, i) => (
-                    <div key={i} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                      <span style={{ color: c.or }}>✓</span> {f}
-                    </div>
-                  ))}
-                </div>
-                <Link href="/pricing" className="block text-center py-3.5 rounded-xl font-semibold text-sm transition-all hover:scale-[1.02]"
-                  style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})`, color: 'white', boxShadow: '0 8px 24px rgba(200,149,46,0.3)' }}>
-                  Essai gratuit 14 jours
-                </Link>
-              </div>
-            </FadeIn>
-
-            {/* Maison */}
-            <FadeIn delay={0.2}>
-              <div className="rounded-2xl p-8 h-full flex flex-col" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'rgba(255,255,255,0.3)' }}>Maison d&apos;édition</div>
-                <div className="flex items-end gap-1 mb-2">
-                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 42, fontWeight: 700, color: 'white' }}>79€</span>
-                  <span className="text-sm mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>/mois</span>
-                </div>
-                <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>Pour les structures avec plusieurs auteurs et collections.</p>
-                <div className="flex-1 space-y-3 mb-8">
-                  {['Tout du plan Pro', '500 ISBN', 'Multi-utilisateurs (5)', 'API & webhooks', 'Connexion Dilicom directe', 'Support prioritaire', 'Marque blanche', 'Formation 1h offerte'].map((f, i) => (
-                    <div key={i} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                      <span style={{ color: c.or }}>✓</span> {f}
-                    </div>
-                  ))}
-                </div>
-                <a href="mailto:contact@jabrilia.com" className="block text-center py-3.5 rounded-xl font-semibold text-sm transition-all hover:scale-[1.02]"
-                  style={{ background: 'rgba(255,255,255,0.06)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  Nous contacter
-                </a>
-              </div>
-            </FadeIn>
-          </div>
-
-          <FadeIn delay={0.3}>
-            <div className="text-center mt-10">
-              <p className="text-sm" style={{ color: 'rgba(255,255,255,0.25)' }}>
-                Tous les plans incluent : hébergement Vercel, mises à jour, chiffrement données, RGPD conforme.
-                <br />14 jours d&apos;essai gratuit sur les plans payants. Sans engagement.
-              </p>
-            </div>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════ */}
-      {/* INTERACTIVE DEMO PREVIEW */}
-      {/* ═══════════════════════════════════ */}
-      <section style={{ background: c.cream }}>
-        <div className="max-w-6xl mx-auto px-8 py-28">
-          <FadeIn>
-            <div className="text-center mb-14">
-              <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold mb-6" style={{ background: 'rgba(45,27,78,0.06)', color: c.mv, letterSpacing: 1.5 }}>
-                DÉMO INTERACTIVE
-              </span>
-              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(26px, 4vw, 40px)', fontWeight: 700, color: c.mv, lineHeight: 1.2 }}>
-                Testez JABR en 30 secondes
-              </h2>
-              <p className="mt-4 text-base max-w-lg mx-auto" style={{ color: '#9E9689', lineHeight: 1.7 }}>
-                Pas de compte. Pas de carte bancaire. Cliquez et explorez.
-              </p>
-            </div>
-          </FadeIn>
-
-          <FadeIn delay={0.1}>
-            <div className="max-w-4xl mx-auto">
-              <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(200,149,46,0.15)', boxShadow: '0 20px 60px rgba(45,27,78,0.08)' }}>
-                {/* Browser chrome */}
-                <div className="flex items-center gap-2 px-5 py-3" style={{ background: '#FAF7F2', borderBottom: '1px solid rgba(200,149,46,0.1)' }}>
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#E8C0C0' }} />
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#F0DCA0' }} />
-                    <div className="w-3 h-3 rounded-full" style={{ background: '#C0DEC0' }} />
-                  </div>
-                  <div className="flex-1 mx-4 px-4 py-1.5 rounded-lg text-xs" style={{ background: 'white', color: '#9E9689', border: '1px solid #E8E4DF' }}>
-                    jabr-eta.vercel.app/demo
-                  </div>
-                </div>
-
-                {/* Demo modules grid */}
-                <div className="p-8" style={{ background: 'white' }}>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[
-                      { icon: '📊', label: 'Dashboard', desc: 'Vue d\'ensemble', color: '#2D1B4E' },
-                      { icon: '📅', label: 'Calendrier IA', desc: 'Fenêtres de sortie', color: '#C8952E' },
-                      { icon: '🔍', label: 'Scanner 6D', desc: 'Détection patterns', color: '#E07A2F' },
-                      { icon: '🚚', label: 'Distribution', desc: '6 canaux', color: '#2EAE6D' },
-                      { icon: '📡', label: 'Plan Média', desc: 'IA recommandations', color: '#3B6DC6' },
-                      { icon: '📈', label: 'Finances', desc: 'Marges & ROI', color: '#5B3E8A' },
-                      { icon: '📋', label: 'ONIX 3.0', desc: 'Export Dilicom', color: '#D94452' },
-                      { icon: '▣', label: 'Kanban', desc: 'Drag & drop', color: '#C8952E' },
-                    ].map((mod, i) => (
-                      <Link href="/demo" key={i}
-                        className="p-4 rounded-xl text-center transition-all hover:scale-105 hover:shadow-lg cursor-pointer"
-                        style={{ background: '#FAF7F2', border: '1px solid #E8E4DF' }}>
-                        <div className="text-2xl mb-2">{mod.icon}</div>
-                        <div className="text-xs font-bold" style={{ color: mod.color }}>{mod.label}</div>
-                        <div className="text-[10px] mt-0.5" style={{ color: '#9E9689' }}>{mod.desc}</div>
-                      </Link>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 text-center">
-                    <Link href="/demo"
-                      className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-semibold text-sm text-white transition-all hover:scale-105"
-                      style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})`, boxShadow: '0 8px 24px rgba(200,149,46,0.25)' }}>
-                      Explorer le Dashboard complet →
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════ */}
-      {/* CTA FINAL + WAITLIST */}
-      {/* ═══════════════════════════════════ */}
-      <section className="relative overflow-hidden" style={{ background: `linear-gradient(160deg, ${c.bg}, ${c.mv})` }}>
-        <div className="absolute inset-0">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-[0.06]" style={{ background: c.or, filter: 'blur(120px)' }} />
-        </div>
-        <div className="relative max-w-4xl mx-auto px-8 py-28 text-center">
-          <FadeIn>
-            <Logo size={60} />
-          </FadeIn>
-          <FadeIn delay={0.1}>
-            <h2 className="mt-8" style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 700, color: 'white', lineHeight: 1.15 }}>
-              Prêt à structurer<br />votre pipeline éditorial ?
+            <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(26px, 2.8vw, 38px)', lineHeight: 1.15, fontWeight: 700, color: t.text, margin: '0 0 32px' }}>
+              De l&apos;id{'\u00e9'}e au livre, sans perdre le fil.
             </h2>
           </FadeIn>
-          <FadeIn delay={0.2}>
-            <p className="mt-6 text-base max-w-lg mx-auto" style={{ color: 'rgba(255,255,255,0.4)', lineHeight: 1.7 }}>
-              Rejoignez la liste d&apos;attente pour être parmi les premiers à utiliser JABR en production.
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }} className="grid-responsive">
+            {[
+              { num: '01', title: 'Structurer', desc: 'Centraliser le projet, la collection, les fichiers.', icon: Layers },
+              { num: '02', title: 'Produire', desc: 'Analyse, corrections, couverture, calibrage \u2014 \u00e9tape par \u00e9tape.', icon: Shield },
+              { num: '03', title: 'Publier', desc: 'ISBN, distribution, planning de sortie, lancement.', icon: Send },
+            ].map((s, i) => (
+              <FadeIn key={s.num} delay={i * 0.12}>
+                <div style={{ padding: 24, border: '1px solid #E8E4DF', borderRadius: 16, background: t.bg }}>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, color: t.data, marginBottom: 12 }}>{s.num}</div>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: t.dataFaint, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                    <s.icon size={20} color={t.data} />
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 6 }}>{s.title}</div>
+                  <div style={{ fontSize: 14, color: t.text2, lineHeight: 1.55 }}>{s.desc}</div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PIPELINE */}
+      <section id="pipeline" style={{ padding: '72px 0' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px' }}>
+          <FadeIn>
+            <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(26px, 2.8vw, 38px)', lineHeight: 1.15, fontWeight: 700, color: t.text, margin: 0 }}>
+              Un pipeline {'\u00e9'}ditorial complet {'\u2014'} visible d&apos;un coup d&apos;{'\u0153'}il
+            </h2>
+            <p style={{ color: t.text2, fontSize: 16, lineHeight: 1.6, margin: '10px 0 24px' }}>
+              8 {'\u00e9'}tapes, du manuscrit {'\u00e0'} la librairie.
             </p>
           </FadeIn>
-          <FadeIn delay={0.3}>
-            {/* Waitlist form */}
-            <div className="max-w-md mx-auto mt-10">
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  placeholder="votre@email.com"
-                  className="flex-1 px-5 py-4 rounded-xl text-sm outline-none"
-                  style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
-                  onFocus={e => { e.target.style.borderColor = 'rgba(200,149,46,0.4)'; }}
-                  onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; }}
-                />
-                <button
-                  onClick={(e) => {
-                    const input = (e.target as HTMLElement).parentElement?.querySelector('input');
-                    if (input && input.value.includes('@')) {
-                      input.value = '';
-                      const btn = e.target as HTMLElement;
-                      btn.textContent = '✓ Inscrit !';
-                      btn.style.background = '#2EAE6D';
-                      setTimeout(() => { btn.textContent = 'Rejoindre'; btn.style.background = `linear-gradient(135deg, ${c.or}, ${c.oc})`; }, 3000);
-                    }
-                  }}
-                  className="px-6 py-4 rounded-xl font-semibold text-sm text-white cursor-pointer border-none transition-all hover:scale-105"
-                  style={{ background: `linear-gradient(135deg, ${c.or}, ${c.oc})`, boxShadow: '0 8px 24px rgba(200,149,46,0.3)', whiteSpace: 'nowrap' }}>
-                  Rejoindre
-                </button>
-              </div>
-              <p className="mt-3 text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
-                Pas de spam. Notification au lancement uniquement.
-              </p>
-            </div>
+          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 12, scrollSnapType: 'x mandatory' }}>
+            {PIPELINE.map((step, i) => (
+              <FadeIn key={step.title} delay={i * 0.06}>
+                <div style={{
+                  minWidth: 220, scrollSnapAlign: 'start', flexShrink: 0,
+                  border: '1px solid #E8E4DF', borderRadius: 16,
+                  background: 'white', padding: 18,
+                }}>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: t.data, marginBottom: 10 }}>
+                    {'\u00c9'}TAPE {String(i + 1).padStart(2, '0')}
+                  </div>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: t.ctaFaint, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+                    <step.icon size={18} color={t.cta} />
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>{step.title}</div>
+                  <div style={{ fontSize: 13, color: t.text2, lineHeight: 1.5 }}>{step.desc}</div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
-              <Link href="/demo"
-                className="group px-10 py-5 rounded-xl font-semibold text-lg text-white transition-all hover:scale-105 flex items-center gap-3"
-                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                Tester la démo
-                <span className="transition-transform group-hover:translate-x-1">→</span>
+      {/* MODULES */}
+      <section id="modules" style={{ padding: '72px 0', background: 'white', borderTop: '1px solid #E8E4DF' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px' }}>
+          <FadeIn>
+            <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(26px, 2.8vw, 38px)', lineHeight: 1.15, fontWeight: 700, color: t.text, margin: '0 0 32px' }}>
+              L&apos;atelier {'\u00e9'}ditorial, module par module
+            </h2>
+          </FadeIn>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }} className="grid-responsive">
+            {MODULES.map((m, i) => (
+              <FadeIn key={m.title} delay={i * 0.08}>
+                <div style={{ border: '1px solid #E8E4DF', borderRadius: 16, padding: 24, background: t.bg }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: t.ctaFaint, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                    <m.icon size={22} color={t.cta} />
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 6 }}>{m.title}</div>
+                  <div style={{ fontSize: 14, color: t.text2, lineHeight: 1.55 }}>{m.desc}</div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+          <FadeIn delay={0.3}>
+            <div style={{ marginTop: 24 }}>
+              <Link href="/demo" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, height: 44, padding: '0 20px',
+                borderRadius: 999, border: '1px solid #E8E4DF', background: 'white',
+                color: t.text, fontSize: 14, fontWeight: 500, textDecoration: 'none',
+              }}>
+                Voir les 22 modules <ChevronRight size={14} />
               </Link>
             </div>
           </FadeIn>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════ */}
+      {/* COCKPIT PREUVES */}
+      <section style={{ padding: '72px 0', borderTop: '1px solid #E8E4DF' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px' }}>
+          <FadeIn>
+            <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(26px, 2.8vw, 38px)', lineHeight: 1.15, fontWeight: 700, color: t.text, margin: '0 0 32px' }}>
+              Pilotez votre catalogue comme un syst{'\u00e8'}me {'\u00e9'}ditorial.
+            </h2>
+          </FadeIn>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }} className="grid-responsive">
+            {[
+              { icon: BarChart3, title: 'Pipeline', desc: 'O\u00f9 en est chaque titre \u2014 sans interpr\u00e9tation.', color: t.cta, bg: t.ctaFaint },
+              { icon: Check, title: 'Readiness', desc: 'Ce qui manque avant publication, clairement.', color: t.data, bg: t.dataFaint },
+              { icon: Star, title: '\u00c9volution', desc: 'Progression dans le temps : titres, sorties, compl\u00e9tude.', color: t.ok, bg: t.okFaint },
+            ].map((p, i) => (
+              <FadeIn key={p.title} delay={i * 0.1}>
+                <div style={{ background: 'white', border: '1px solid #E8E4DF', borderRadius: 16, padding: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: p.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                    <p.icon size={22} color={p.color} />
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 6 }}>{p.title}</div>
+                  <div style={{ fontSize: 14, color: t.text2, lineHeight: 1.55 }}>{p.desc}</div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* TARIFS */}
+      <section id="tarifs" style={{ padding: '72px 0', background: 'white', borderTop: '1px solid #E8E4DF' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0 20px' }}>
+          <FadeIn>
+            <div style={{ textAlign: 'center', marginBottom: 40 }}>
+              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(26px, 2.8vw, 38px)', lineHeight: 1.15, fontWeight: 700, color: t.text, margin: 0 }}>
+                Des plans simples. Sans engagement.
+              </h2>
+              <p style={{ color: t.text2, fontSize: 16, marginTop: 10 }}>Commencez gratuitement. Sans carte bancaire.</p>
+            </div>
+          </FadeIn>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }} className="grid-responsive">
+            {[
+              {
+                name: 'D\u00e9couverte', price: '0\u20ac', period: '/mois',
+                desc: 'Pour tester la logique du cockpit.',
+                features: ['3 titres', '10 ISBN', 'Diagnostic couverture', 'Export CSV', 'Dashboard'],
+                cta: 'Commencer gratuitement', primary: false, badge: '',
+              },
+              {
+                name: 'Studio', price: '29\u20ac', period: '/mois',
+                desc: 'Pour piloter plusieurs projets en production.',
+                features: ['Titres illimit\u00e9s', '100 ISBN', 'Tous les 22 modules', 'ONIX 3.0', 'Calendrier \u00e9ditorial IA', 'Plan m\u00e9dia IA', 'Ctrl+K recherche globale'],
+                cta: 'Essai gratuit 14 jours', primary: true, badge: 'POPULAIRE',
+              },
+              {
+                name: 'Maison', price: '79\u20ac', period: '/mois',
+                desc: 'Pour un catalogue et une \u00e9quipe.',
+                features: ['Tout du plan Studio', '500 ISBN', 'Multi-utilisateurs (5)', 'API & webhooks', 'Connexion Dilicom', 'Support prioritaire'],
+                cta: 'Contacter', primary: false, badge: '',
+              },
+            ].map((plan, i) => (
+              <FadeIn key={plan.name} delay={i * 0.1}>
+                <div style={{
+                  border: plan.primary ? '2px solid #C8952E' : '1px solid #E8E4DF',
+                  borderRadius: 16, padding: 28, background: plan.primary ? t.ctaFaint : t.bg,
+                  position: 'relative', display: 'flex', flexDirection: 'column', height: '100%',
+                }}>
+                  {plan.badge && (
+                    <div style={{
+                      position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
+                      padding: '4px 14px', borderRadius: 999, background: t.cta, color: 'white',
+                      fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
+                    }}>{plan.badge}</div>
+                  )}
+                  <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: plan.primary ? t.cta : t.text2, marginBottom: 8 }}>{plan.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 36, fontWeight: 700, color: t.text }}>{plan.price}</span>
+                    <span style={{ fontSize: 14, color: t.text2 }}>{plan.period}</span>
+                  </div>
+                  <div style={{ fontSize: 14, color: t.text2, lineHeight: 1.5, margin: '10px 0 20px' }}>{plan.desc}</div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+                    {plan.features.map(f => (
+                      <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: t.text }}>
+                        <Check size={14} color={t.cta} strokeWidth={2.5} />
+                        {f}
+                      </div>
+                    ))}
+                  </div>
+                  <Link href={plan.name === 'Maison' ? 'mailto:contact@jabrilia.com' : '/auth'} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', height: 44, borderRadius: 999,
+                    background: plan.primary ? t.cta : 'white',
+                    color: plan.primary ? 'white' : t.text,
+                    border: plan.primary ? 'none' : '1px solid #E8E4DF',
+                    fontSize: 14, fontWeight: 600, textDecoration: 'none',
+                    boxShadow: plan.primary ? '0 4px 16px rgba(200,149,46,0.25)' : 'none',
+                  }}>
+                    {plan.cta}
+                  </Link>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA FINAL */}
+      <section style={{ padding: '72px 0', borderTop: '1px solid #E8E4DF' }}>
+        <div style={{ maxWidth: 700, margin: '0 auto', padding: '0 20px' }}>
+          <FadeIn>
+            <div style={{
+              background: 'white', border: '1px solid #E8E4DF', borderRadius: 20,
+              padding: '48px 40px', textAlign: 'center',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.05)',
+            }}>
+              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(24px, 2.6vw, 34px)', lineHeight: 1.15, fontWeight: 700, color: t.text, margin: '0 0 10px' }}>
+                Structurons votre catalogue.
+              </h2>
+              <p style={{ color: t.text2, fontSize: 16, lineHeight: 1.6, margin: '0 0 24px' }}>
+                Cr{'\u00e9'}ez un premier projet en 2 minutes.
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link href="/auth" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8, height: 48, padding: '0 28px',
+                  borderRadius: 999, background: t.cta, color: '#fff', fontSize: 15, fontWeight: 600,
+                  textDecoration: 'none', boxShadow: '0 4px 16px rgba(200,149,46,0.25)',
+                }}>
+                  Cr{'\u00e9'}er mon espace <ArrowRight size={16} />
+                </Link>
+                <a href="mailto:contact@jabrilia.com" style={{
+                  display: 'inline-flex', alignItems: 'center', height: 48, padding: '0 24px',
+                  borderRadius: 999, border: '1px solid #E8E4DF', background: 'white',
+                  color: t.text, fontSize: 15, fontWeight: 500, textDecoration: 'none',
+                }}>
+                  Contact
+                </a>
+              </div>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
       {/* FOOTER */}
-      {/* ═══════════════════════════════════ */}
-      <footer style={{ background: c.bg, borderTop: '1px solid rgba(200,149,46,0.08)' }}>
-        <div className="max-w-6xl mx-auto px-8 py-12">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <Logo size={24} />
-              <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 16, fontWeight: 700, color: c.or, letterSpacing: 3 }}>JABR</span>
-              <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>par Jabrilia Éditions</span>
+      <footer style={{ borderTop: '1px solid #E8E4DF', padding: '40px 0 32px', color: t.text2 }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 32 }} className="grid-footer">
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Logo size={22} />
+                <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: t.cta, letterSpacing: 2 }}>JABR</span>
+              </div>
+              <div style={{ fontSize: 14, lineHeight: 1.6, maxWidth: '36ch' }}>
+                Cockpit {'\u00e9'}ditorial pour publier mieux, plus clairement.
+              </div>
+              <div style={{ fontSize: 13, marginTop: 12 }}>
+                Un produit <a href="https://jabrilia.com" target="_blank" rel="noopener" style={{ color: t.cta, textDecoration: 'none', fontWeight: 500 }}>Jabrilia {'\u00c9'}ditions</a>
+              </div>
             </div>
-            <div className="flex items-center gap-6" style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
-              <span>Pipeline éditorial v2.1</span>
-              <span>·</span>
-              <span>10 titres · 28 ISBN · 21 modules</span>
-              <span>·</span>
-              <span>© 2026 Jabrilia Éditions</span>
+            <div>
+              <div style={{ fontWeight: 700, color: t.text, fontSize: 13, marginBottom: 12 }}>Produit</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <a href="#pipeline" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>Pipeline</a>
+                <a href="#modules" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>Modules</a>
+                <a href="#tarifs" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>Tarifs</a>
+                <Link href="/demo" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>D{'\u00e9'}mo</Link>
+              </div>
             </div>
+            <div>
+              <div style={{ fontWeight: 700, color: t.text, fontSize: 13, marginBottom: 12 }}>Communaut{'\u00e9'}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <a href="https://www.facebook.com/LesPageDeJade" target="_blank" rel="noopener" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>Les Pages de Jade</a>
+                <a href="https://www.linkedin.com/in/steve-moradel/" target="_blank" rel="noopener" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>LinkedIn</a>
+                <a href="mailto:contact@jabrilia.com" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>Contact</a>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, color: t.text, fontSize: 13, marginBottom: 12 }}>L{'\u00e9'}gal</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <a href="/mentions-legales" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>Mentions l{'\u00e9'}gales</a>
+                <a href="/confidentialite" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>Confidentialit{'\u00e9'}</a>
+              </div>
+            </div>
+          </div>
+          <div style={{ marginTop: 32, paddingTop: 20, borderTop: '1px solid #E8E4DF', fontSize: 13, color: t.text2, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <span>{'\u00a9'} 2026 Jabrilia {'\u00c9'}ditions. Tous droits r{'\u00e9'}serv{'\u00e9'}s.</span>
+            <span>Fait avec soin en Guadeloupe &amp; Paris.</span>
           </div>
         </div>
       </footer>
+
+      {/* RESPONSIVE CSS */}
+      <style>{`
+        @media (max-width: 900px) {
+          .hero-grid { grid-template-columns: 1fr !important; }
+          .hero-preview { margin-top: 20px; }
+          .grid-responsive { grid-template-columns: 1fr !important; }
+          .grid-footer { grid-template-columns: 1fr 1fr !important; gap: 24px !important; }
+        }
+        @media (max-width: 600px) {
+          .grid-footer { grid-template-columns: 1fr !important; }
+          .hide-mobile-preview { display: none !important; }
+        }
+        @media (max-width: 820px) {
+          .hide-mobile { display: none !important; }
+          .show-mobile { display: inline-flex !important; }
+        }
+        @media (min-width: 821px) {
+          .show-mobile { display: none !important; }
+        }
+        html { scroll-behavior: smooth; }
+      `}</style>
     </div>
   );
 }

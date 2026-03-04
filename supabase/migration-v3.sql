@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS authors (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
-  display_name TEXT GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
+  display_name TEXT DEFAULT '',
   bio TEXT DEFAULT '',
   email TEXT,
   website TEXT,
