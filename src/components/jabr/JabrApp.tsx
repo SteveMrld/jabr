@@ -1055,15 +1055,15 @@ const CoverSpecPanel = ({ pages, genre, title }: { pages: number; genre: string;
     : calcFRCover(frTrim, pages, frGsm);
 
   const Row = ({ label, value, mono }: { label: string; value: string; mono?: boolean }) => (
-    <div className="flex justify-between py-1.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
-      <span className="text-[12px]" style={{ color: c.gr }}>{label}</span>
-      <span className="text-[12px] font-semibold" style={{ color: c.mv, fontFamily: mono ? "'JetBrains Mono', monospace" : undefined }}>{value}</span>
+    <div className="flex justify-between items-baseline gap-2 py-1.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
+      <span className="text-[11px] md:text-[12px] shrink-0" style={{ color: c.gr }}>{label}</span>
+      <span className="text-[11px] md:text-[12px] font-semibold text-right" style={{ color: c.mv, fontFamily: mono ? "'JetBrains Mono', monospace" : undefined }}>{value}</span>
     </div>
   );
 
   return (
-    <Card hover={false} className="p-6 mt-5">
-      <div className="flex justify-between items-center mb-4">
+    <Card hover={false} className="p-4 md:p-6 mt-4">
+      <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
         <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Gabarit Couverture</div>
         <div className="flex gap-1">
           {(['kdp', 'fr'] as const).map(ch => (
@@ -1128,7 +1128,7 @@ const CoverSpecPanel = ({ pages, genre, title }: { pages: number; genre: string;
         <div className="text-[11px] font-semibold mb-3" style={{ color: c.mv }}>
           Dimensions calculées — {title} ({pages} pages)
         </div>
-        <div className="grid grid-cols-2 gap-x-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
           <div>
             <Row label="Couverture totale" value={`${specs.totalWidthMm.toFixed(1)} × ${specs.totalHeightMm.toFixed(1)} mm`} mono />
             <Row label="En pouces" value={`${specs.totalWidthIn.toFixed(4)}" × ${specs.totalHeightIn.toFixed(4)}"`} mono />
@@ -1280,11 +1280,11 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <button onClick={onBack} className="flex items-center gap-1 text-[13px] cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>
           {icons.chevL} Projets
         </button>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           <Btn variant="secondary" onClick={() => {
             const w = window.open('', '_blank');
             if (!w) return;
@@ -1433,7 +1433,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
       </Card>
 
       {/* Diagnostic */}
-      <Card hover={false} className="p-6">
+      <Card hover={false} className="p-4 md:p-6">
         <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Diagnostic couverture</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
           {Object.entries(DIAG_LABELS).map(([key, label]) => (
@@ -1461,7 +1461,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
       </Card>
 
       {/* 4e de couverture — éditable */}
-      <Card hover={false} className="p-6 mt-5">
+      <Card hover={false} className="p-4 md:p-6 mt-4">
         <div className="flex justify-between items-center mb-3">
           <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Texte 4e de couverture</div>
           {!editing && (
@@ -1494,7 +1494,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
       </Card>
 
       {/* Notes éditoriales */}
-      <Card hover={false} className="p-6 mt-5">
+      <Card hover={false} className="p-4 md:p-6 mt-4">
         <div className="flex justify-between items-center mb-3">
           <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Notes éditoriales</div>
           {!editing && (
@@ -1526,7 +1526,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
         const linked = [...seriesBooks, ...collectionBooks.filter(b => !seriesBooks.find(s => s.id === b.id))];
         if (linked.length === 0) return null;
         return (
-          <Card hover={false} className="p-6 mt-5">
+          <Card hover={false} className="p-4 md:p-6 mt-4">
             <div className="flex justify-between items-center mb-4">
               <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>
                 {p.series ? `Série : ${p.series}` : `Collection : ${p.collection}`}
@@ -1587,14 +1587,14 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
       <CoverSpecPanel pages={p.pages} genre={p.genre} title={p.title} />
 
       {/* Éditions / ISBN */}
-      <Card hover={false} className="p-6 mt-5">
+      <Card hover={false} className="p-4 md:p-6 mt-4">
         <div className="flex justify-between items-center mb-4">
           <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Éditions &amp; ISBN</div>
           <span className="text-[12px] font-semibold" style={{ color: c.vm }}>{p.editions.length} format{p.editions.length > 1 ? 's' : ''} · {p.editions.length} ISBN</span>
         </div>
         <div className="space-y-2">
           {p.editions.map((ed, i) => (
-            <div key={i} className="flex items-center gap-4 p-3 rounded-lg" style={{ background: c.ft }}>
+            <div key={i} className="flex flex-wrap items-center gap-2 md:gap-4 p-3 rounded-lg" style={{ background: c.ft }}>
               <span className="text-xl">{FORMAT_LABELS[ed.format]?.icon}</span>
               <div className="flex-1">
                 <div className="text-[13px] font-semibold" style={{ color: c.mv }}>{FORMAT_LABELS[ed.format]?.label}</div>
@@ -1610,7 +1610,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
       </Card>
 
       {/* Manuscrit */}
-      <Card hover={false} className="p-6 mt-5">
+      <Card hover={false} className="p-4 md:p-6 mt-4">
         <div className="flex justify-between items-center mb-4">
           <div className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Manuscrit</div>
           <Badge bg={MANUSCRIPT_STATUS_LABELS[p.manuscriptStatus || 'none'].bg} color={MANUSCRIPT_STATUS_LABELS[p.manuscriptStatus || 'none'].color}>
