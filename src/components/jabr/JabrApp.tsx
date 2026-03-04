@@ -9,6 +9,7 @@ import { type Author } from '@/lib/authors';
 import { generateBudgetPlan, generateObjectivePlan, compareAB, type MediaPlan, type MediaPlanInput } from '@/lib/mediaEngine';
 import { DISTRIBUTORS, TRIM_SIZES, calculateCoverDimensions, calculateSpineWidth, auditCover, generateCoverSpec, compareDistributorSpecs, type Distributor, type ProjectCoverData, type CoverSpec, type CoverDimensions, type CoverAudit } from '@/lib/coverSpecs';
 import { JABRILIA_CHARTER, getCoverTypoRecommendation, auditCoverAgainstCharter, type PublisherCharter, type CollectionSpec } from '@/lib/publisherCharter';
+import { SOCIAL_FORMATS, generateCoverLayout, generateCoverImagePrompt, generateTrailerBrief, generateMarketingTexts, type CoverProject, type CoverStudioStep, type SocialAsset, type TrailerBrief, type APIConfig } from '@/lib/coverStudio';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
@@ -204,6 +205,7 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['analyse', 'Analyse', 'analyse'],
   ['calibrage', 'Calibrage', 'calibrage'],
   ['couvertures', 'Couvertures', 'couvertures'],
+  ['cover-studio', '◆ Cover Studio', 'cover-studio'],
   ['audiobooks', 'Audiobooks', 'audiobooks'],
   ['distribution', 'Distribution', 'distribution'],
   ['marketing', 'Marketing', 'marketing'],
@@ -2187,6 +2189,637 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
           ))}
         </div>
       </Card>
+    </div>
+  );
+};
+
+// --- COVER STUDIO ---
+const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+  const [step, setStep] = useState<CoverStudioStep>('upload');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedDist, setSelectedDist] = useState<Distributor>('pollen');
+  const [coverStyle, setCoverStyle] = useState<'literary' | 'commercial' | 'artistic' | 'minimalist'>('literary');
+  const [showPrompts, setShowPrompts] = useState(false);
+  const [showTrailer, setShowTrailer] = useState(false);
+  const [showSocial, setShowSocial] = useState(false);
+
+  const charter = JABRILIA_CHARTER;
+
+  const coverProject = useMemo((): CoverProject | null => {
+    if (!selectedProject) return null;
+    return {
+      title: selectedProject.title,
+      subtitle: selectedProject.subtitle,
+      author: selectedProject.author,
+      genre: selectedProject.genre,
+      collection: selectedProject.collection || undefined,
+      pages: selectedProject.pages,
+      isbn: selectedProject.editions[0]?.isbn,
+      price: selectedProject.editions.find(e => e.price)?.price,
+      backCoverText: selectedProject.backCover || undefined,
+      publisherName: charter.fullName,
+      coverImageUrl: selectedProject.coverImage || undefined,
+      coverImageSource: selectedProject.coverImage ? 'upload' : undefined,
+      distributor: selectedDist,
+      trimSizeKey: 'roman-fr',
+      paperGSM: 80,
+    };
+  }, [selectedProject, selectedDist]);
+
+  const layout = useMemo(() => {
+    if (!coverProject) return null;
+    return generateCoverLayout(coverProject, charter);
+  }, [coverProject]);
+
+  const prompts = useMemo(() => {
+    if (!coverProject) return null;
+    return generateCoverImagePrompt(coverProject, coverStyle);
+  }, [coverProject, coverStyle]);
+
+  const trailer = useMemo(() => {
+    if (!coverProject) return null;
+    return generateTrailerBrief(coverProject, 15);
+  }, [coverProject]);
+
+  const marketingTexts = useMemo(() => {
+    if (!coverProject) return null;
+    return generateMarketingTexts(coverProject);
+  }, [coverProject]);
+
+  const steps: { id: CoverStudioStep; label: string; num: number }[] = [
+    { id: 'upload', label: 'Sélection', num: 1 },
+    { id: 'audit', label: 'Audit', num: 2 },
+    { id: 'assemble', label: 'Assemblage', num: 3 },
+    { id: 'marketing', label: 'Marketing Pack', num: 4 },
+    { id: 'trailer', label: 'Bande-annonce', num: 5 },
+    { id: 'export', label: 'Export', num: 6 },
+  ];
+
+  return (
+    <div>
+      <h2 className="text-2xl mb-1" style={{ color: c.mv }}>Cover Studio</h2>
+      <p className="mb-4" style={{ color: c.gr, fontSize: 13 }}>
+        De la couverture vierge au pack marketing complet
+      </p>
+
+      {/* Progress steps */}
+      <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-2">
+        {steps.map((s, i) => (
+          <div key={s.id} className="flex items-center">
+            <button onClick={() => setStep(s.id)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold whitespace-nowrap"
+              style={{
+                background: step === s.id ? c.or : c.ft,
+                color: step === s.id ? 'white' : c.mv,
+                border: step === s.id ? 'none' : `1px solid ${c.gc}`,
+              }}>
+              <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px]"
+                style={{ background: step === s.id ? 'rgba(255,255,255,0.3)' : c.gc, color: step === s.id ? 'white' : c.gr }}>
+                {s.num}
+              </span>
+              {s.label}
+            </button>
+            {i < steps.length - 1 && <span className="text-[10px] mx-1" style={{ color: c.gc }}>→</span>}
+          </div>
+        ))}
+      </div>
+
+      {/* STEP 1: Select project */}
+      {step === 'upload' && (
+        <div>
+          <Card hover={false} className="mb-4">
+            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
+              <span className="text-[12px] font-bold" style={{ color: c.mv }}>1. Choisir un titre</span>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {projects.map(p => (
+                  <div key={p.id}
+                    className="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all"
+                    style={{
+                      background: selectedProject?.id === p.id ? '#F0EBE0' : 'white',
+                      border: `2px solid ${selectedProject?.id === p.id ? c.or : c.gc}`,
+                    }}
+                    onClick={() => setSelectedProject(p)}>
+                    <CoverThumb emoji={p.cover} coverImage={p.coverImage} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12px] font-semibold truncate" style={{ color: c.mv }}>{p.title}</div>
+                      <div className="text-[10px]" style={{ color: c.gr }}>{p.genre} · {p.pages}p</div>
+                      <div className="text-[10px] mt-0.5" style={{ color: p.coverImage ? c.ok : c.og }}>
+                        {p.coverImage ? '✓ Artwork' : '○ Sans couverture'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          {selectedProject && (
+            <>
+              {/* Distributor + No cover? */}
+              <div className="flex gap-3 mb-4">
+                <Card hover={false} className="flex-1">
+                  <div className="p-4">
+                    <div className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Distributeur cible</div>
+                    <div className="flex gap-2">
+                      {(['pollen', 'kdp', 'ingramspark'] as Distributor[]).map(d => (
+                        <button key={d} onClick={() => setSelectedDist(d)}
+                          className="px-3 py-1.5 rounded-lg text-[11px] font-semibold"
+                          style={{ background: selectedDist === d ? c.or : c.ft, color: selectedDist === d ? 'white' : c.mv }}>
+                          {DISTRIBUTORS[d].name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              {/* No cover? Generate with AI */}
+              {!selectedProject.coverImage && (
+                <Card hover={false} className="mb-4">
+                  <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
+                    <span className="text-[12px] font-bold" style={{ color: c.vm }}>Pas de couverture ? Générez-en une</span>
+                  </div>
+                  <div className="p-4">
+                    <div className="text-[11px] mb-3" style={{ color: c.nr }}>
+                      Choisissez un style et copiez le prompt vers DALL-E ou Midjourney.
+                    </div>
+                    <div className="flex gap-2 mb-4">
+                      {(['literary', 'commercial', 'artistic', 'minimalist'] as const).map(s => (
+                        <button key={s} onClick={() => { setCoverStyle(s); setShowPrompts(true); }}
+                          className="px-3 py-2 rounded-lg text-[11px] font-semibold"
+                          style={{ background: coverStyle === s ? c.vm : c.ft, color: coverStyle === s ? 'white' : c.mv }}>
+                          {s === 'literary' ? 'Littéraire' : s === 'commercial' ? 'Commercial' : s === 'artistic' ? 'Artistique' : 'Minimaliste'}
+                        </button>
+                      ))}
+                    </div>
+                    {showPrompts && prompts && (
+                      <div className="space-y-3">
+                        <div className="p-3 rounded-lg" style={{ background: '#F5F0FF', border: `1px solid #D0C0FF` }}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-bold" style={{ color: c.vm }}>Prompt DALL-E 3</span>
+                            <button onClick={() => { navigator.clipboard.writeText(prompts.dalle); onToast('Prompt DALL-E copié'); }}
+                              className="text-[10px] px-2 py-0.5 rounded" style={{ background: c.vm, color: 'white' }}>Copier</button>
+                          </div>
+                          <div className="text-[10px] leading-relaxed" style={{ color: c.nr }}>{prompts.dalle}</div>
+                        </div>
+                        <div className="p-3 rounded-lg" style={{ background: '#F0F5FF', border: `1px solid #C0D0FF` }}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-bold" style={{ color: '#1E40AF' }}>Prompt Midjourney</span>
+                            <button onClick={() => { navigator.clipboard.writeText(prompts.midjourney); onToast('Prompt Midjourney copié'); }}
+                              className="text-[10px] px-2 py-0.5 rounded" style={{ background: '#1E40AF', color: 'white' }}>Copier</button>
+                          </div>
+                          <div className="text-[10px] leading-relaxed font-mono" style={{ color: c.nr }}>{prompts.midjourney}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              )}
+
+              <button onClick={() => setStep('audit')}
+                className="px-6 py-2.5 rounded-lg text-[13px] font-semibold"
+                style={{ background: c.or, color: 'white' }}>
+                Suivant → Audit couverture
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* STEP 2: Audit */}
+      {step === 'audit' && layout && coverProject && (
+        <div>
+          <Card hover={false} className="mb-4">
+            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+              <span className="text-[12px] font-bold" style={{ color: c.mv }}>
+                2. Audit — Ce que JABR va ajouter sur la couverture
+              </span>
+            </div>
+            <div className="p-4">
+              <div className="text-[11px] mb-4" style={{ color: c.gr }}>
+                JABR va assembler tous ces éléments selon les specs {DISTRIBUTORS[selectedDist].name} + la charte {charter.name}.
+              </div>
+
+              {/* What will be placed */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Front */}
+                <div className="p-3 rounded-lg" style={{ background: '#F5FAF5', border: '1px solid #C0E0C0' }}>
+                  <div className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: c.ok }}>1re de couverture (C1)</div>
+                  {[
+                    ['Titre', layout.front.title.text, `${layout.front.title.fontFamily} ${layout.front.title.sizePt}pt`],
+                    ['Auteur', layout.front.author.text, `${layout.front.author.fontFamily} ${layout.front.author.sizePt}pt`],
+                    ['Logo éditeur', charter.fullName, `Position: bas centre`],
+                    layout.front.genre ? ['Collection', layout.front.genre.text, `${layout.front.genre.sizePt}pt`] : null,
+                  ].filter(Boolean).map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[12px]" style={{ color: c.ok }}>✓</span>
+                      <div>
+                        <div className="text-[11px] font-semibold" style={{ color: c.mv }}>{(item as string[])[0]}</div>
+                        <div className="text-[10px]" style={{ color: c.gr }}>{(item as string[])[1]} — {(item as string[])[2]}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Spine */}
+                <div className="p-3 rounded-lg" style={{ background: '#FFF8F0', border: '1px solid #F0D0A0' }}>
+                  <div className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: c.og }}>
+                    Dos ({layout.spine.widthMm.toFixed(1)} mm)
+                  </div>
+                  {layout.spine.canHaveText ? (
+                    <>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[12px]" style={{ color: c.ok }}>✓</span>
+                        <div>
+                          <div className="text-[11px] font-semibold" style={{ color: c.mv }}>Titre</div>
+                          <div className="text-[10px]" style={{ color: c.gr }}>{layout.spine.title?.text}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[12px]" style={{ color: c.ok }}>✓</span>
+                        <div>
+                          <div className="text-[11px] font-semibold" style={{ color: c.mv }}>Auteur</div>
+                          <div className="text-[10px]" style={{ color: c.gr }}>{layout.spine.author?.text}</div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-[11px]" style={{ color: c.og }}>
+                      Dos trop fin — pas de texte
+                    </div>
+                  )}
+                </div>
+
+                {/* Back */}
+                <div className="p-3 rounded-lg" style={{ background: '#F5F0FF', border: '1px solid #D0C0FF' }}>
+                  <div className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: c.vm }}>4e de couverture (C4)</div>
+                  {[
+                    ['Texte 4e', coverProject.backCoverText ? `${coverProject.backCoverText.length} car.` : 'À rédiger', `${layout.back.backText.fontFamily} ${layout.back.backText.sizePt}pt`],
+                    ['ISBN', layout.back.isbn.text, 'JetBrains Mono 8pt'],
+                    ['Code-barres EAN', selectedDist === 'kdp' ? 'Auto KDP' : `${layout.back.barcode.widthMm}×${layout.back.barcode.heightMm}mm`, selectedDist === 'kdp' ? 'Ajouté par KDP' : 'Noir 100%K sur blanc'],
+                    ['Prix TTC', coverProject.price || 'À définir', 'JetBrains Mono 9pt'],
+                    ['Éditeur', charter.fullName, `${layout.back.publisherName.sizePt}pt`],
+                    layout.back.depotLegal ? ['Dépôt légal', layout.back.depotLegal.text, '7pt'] : null,
+                    layout.back.legalNotice ? ['Mention légale', layout.back.legalNotice.text, '7pt'] : null,
+                  ].filter(Boolean).map((item, i) => {
+                    const arr = item as string[];
+                    const isMissing = arr[1].includes('rédiger') || arr[1].includes('définir');
+                    return (
+                      <div key={i} className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[12px]" style={{ color: isMissing ? c.er : c.ok }}>{isMissing ? '✗' : '✓'}</span>
+                        <div>
+                          <div className="text-[11px] font-semibold" style={{ color: c.mv }}>{arr[0]}</div>
+                          <div className="text-[10px]" style={{ color: c.gr }}>{arr[1]} — {arr[2]}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Dimensions summary */}
+              <div className="mt-4 p-3 rounded-lg" style={{ background: c.ft }}>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {[
+                    ['Planche', `${layout.dimensions.totalWidthMm.toFixed(1)} × ${layout.dimensions.totalHeightMm.toFixed(1)} mm`],
+                    ['Pixels', `${layout.dimensions.totalWidthPx} × ${layout.dimensions.totalHeightPx}`],
+                    ['Dos', `${layout.dimensions.spineWidthMm.toFixed(1)} mm`],
+                    ['Bleed', `${layout.dimensions.bleedMm} mm`],
+                    ['PDF', DISTRIBUTORS[selectedDist].pdfFormat],
+                  ].map(([l, v]) => (
+                    <div key={l as string}>
+                      <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>{l}</div>
+                      <div className="text-[11px] font-bold" style={{ color: c.mv, fontFamily: "'JetBrains Mono', monospace" }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex gap-2">
+            <button onClick={() => setStep('upload')} className="px-4 py-2 rounded-lg text-[12px]" style={{ border: `1px solid ${c.gc}`, color: c.mv }}>← Retour</button>
+            <button onClick={() => setStep('assemble')} className="px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Assemblage</button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3: Assembly preview */}
+      {step === 'assemble' && layout && coverProject && selectedProject && (
+        <div>
+          <Card hover={false} className="mb-4">
+            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
+              <span className="text-[12px] font-bold" style={{ color: c.mv }}>
+                3. Prévisualisation couverture assemblée
+              </span>
+            </div>
+            <div className="p-6 flex justify-center" style={{ background: '#E8E4DE' }}>
+              {/* Full cover preview */}
+              {(() => {
+                const d = layout.dimensions;
+                const scale = 1.4;
+                const totalW = Math.round(d.totalWidthMm * scale);
+                const totalH = Math.round(d.totalHeightMm * scale);
+                const bleedPx = Math.round(d.bleedMm * scale);
+                const coverW = Math.round(d.trimWidthMm * scale);
+                const spineW = Math.round(d.spineWidthMm * scale);
+
+                return (
+                  <div className="relative" style={{ width: totalW, height: totalH }}>
+                    {/* Bleed zone */}
+                    <div className="absolute inset-0 rounded-sm" style={{ background: '#D4CFC6', border: '1px dashed #B0A898' }} />
+
+                    {/* 4e (back) */}
+                    <div className="absolute flex flex-col justify-between p-4" style={{
+                      left: bleedPx, top: bleedPx, width: coverW, height: totalH - bleedPx * 2,
+                      background: 'white', borderRight: `1px solid ${c.gc}`
+                    }}>
+                      <div>
+                        <div className="text-[9px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>4e de couverture</div>
+                        <div className="text-[8px] leading-relaxed" style={{ color: c.nr, fontFamily: layout.back.backText.fontFamily }}>
+                          {coverProject.backCoverText ? coverProject.backCoverText.slice(0, 280) + (coverProject.backCoverText.length > 280 ? '…' : '') : 'Texte de 4e non renseigné — sera généré par Claude'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[7px] mb-1" style={{ color: c.gr }}>{charter.fullName}</div>
+                        <div className="text-center">
+                          <div className="text-[7px] tracking-wider" style={{ color: c.gr }}>ISBN</div>
+                          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: c.mv }}>
+                            {coverProject.isbn || '978-2-488647-XX-X'}
+                          </div>
+                          <div className="mt-1 mx-auto" style={{ width: 60, height: 20, background: c.ft, border: `1px solid ${c.gc}` }}>
+                            <div className="text-[6px] text-center pt-1" style={{ color: c.gr }}>EAN-13</div>
+                          </div>
+                          {coverProject.price && (
+                            <div className="text-[8px] mt-1 font-semibold" style={{ color: c.mv }}>{coverProject.price}</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Spine */}
+                    <div className="absolute flex items-center justify-center" style={{
+                      left: bleedPx + coverW, top: bleedPx, width: spineW, height: totalH - bleedPx * 2,
+                      background: '#F5F0E8', borderLeft: `1px solid ${c.gc}`, borderRight: `1px solid ${c.gc}`
+                    }}>
+                      {layout.spine.canHaveText ? (
+                        <div className="font-semibold" style={{
+                          writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)',
+                          fontSize: Math.min(9, spineW * 0.35), color: c.mv, letterSpacing: 1,
+                          overflow: 'hidden', maxHeight: totalH - bleedPx * 2 - 20,
+                        }}>
+                          {layout.spine.title?.text} — {layout.spine.author?.text}
+                        </div>
+                      ) : (
+                        <div className="text-[6px] text-center" style={{ color: c.gr, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>DOS</div>
+                      )}
+                    </div>
+
+                    {/* Front (C1) */}
+                    <div className="absolute flex flex-col items-center justify-center" style={{
+                      left: bleedPx + coverW + spineW, top: bleedPx, width: coverW, height: totalH - bleedPx * 2,
+                      background: selectedProject.coverImage ? undefined : '#FDFAF5',
+                      backgroundImage: selectedProject.coverImage ? `url(${selectedProject.coverImage})` : undefined,
+                      backgroundSize: 'cover', backgroundPosition: 'center',
+                    }}>
+                      {!selectedProject.coverImage && (
+                        <>
+                          <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: c.gr, fontFamily: layout.front.author.fontFamily }}>
+                            {layout.front.author.text}
+                          </div>
+                          <div className="text-[14px] font-bold text-center px-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>
+                            {layout.front.title.text}
+                          </div>
+                          {coverProject.subtitle && (
+                            <div className="text-[9px] mt-1 italic text-center" style={{ color: c.gr }}>{coverProject.subtitle}</div>
+                          )}
+                          <div className="text-[8px] mt-2 italic" style={{ color: c.gr }}>{selectedProject.genre.toLowerCase()}</div>
+                          <div className="absolute bottom-3 text-[7px] tracking-widest uppercase" style={{ color: c.gr }}>{charter.fullName}</div>
+                        </>
+                      )}
+                      {selectedProject.coverImage && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-between py-4 px-3" style={{ background: 'rgba(0,0,0,0.15)' }}>
+                          <div className="text-[10px] uppercase tracking-wider font-semibold text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+                            {layout.front.author.text}
+                          </div>
+                          <div className="text-[14px] font-bold text-center text-white" style={{ fontFamily: "'Playfair Display', serif", textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                            {layout.front.title.text}
+                          </div>
+                          <div className="text-[7px] tracking-widest uppercase text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                            {charter.fullName}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Labels */}
+                    <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverW / 2, top: -14, transform: 'translateX(-50%)', color: c.gr }}>← C4 →</div>
+                    <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverW + spineW / 2, top: -14, transform: 'translateX(-50%)', color: c.or }}>Dos</div>
+                    <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverW + spineW + coverW / 2, top: -14, transform: 'translateX(-50%)', color: c.gr }}>← C1 →</div>
+                  </div>
+                );
+              })()}
+            </div>
+          </Card>
+
+          <div className="flex gap-2">
+            <button onClick={() => setStep('audit')} className="px-4 py-2 rounded-lg text-[12px]" style={{ border: `1px solid ${c.gc}`, color: c.mv }}>← Retour</button>
+            <button onClick={() => setStep('marketing')} className="px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Marketing Pack</button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 4: Marketing Pack */}
+      {step === 'marketing' && coverProject && marketingTexts && (
+        <div>
+          <Card hover={false} className="mb-4">
+            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
+              <span className="text-[12px] font-bold" style={{ color: c.mv }}>4. Pack Marketing — Déclinaisons</span>
+            </div>
+            <div className="p-4">
+              {/* Social formats grid */}
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>
+                Formats réseaux sociaux ({SOCIAL_FORMATS.length} déclinaisons)
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5">
+                {SOCIAL_FORMATS.map(f => (
+                  <div key={f.id} className="p-2 rounded-lg text-center" style={{ background: c.ft, border: `1px solid ${c.gc}` }}>
+                    <div className="text-[11px] font-semibold" style={{ color: c.mv }}>{f.label}</div>
+                    <div className="text-[9px]" style={{ color: c.gr }}>{f.widthPx} × {f.heightPx}px</div>
+                    <div className="text-[9px]" style={{ color: c.or }}>{f.platform}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Marketing texts */}
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>
+                Textes marketing générés
+              </div>
+              <div className="space-y-3">
+                {[
+                  ['Instagram', marketingTexts.instagramCaption],
+                  ['LinkedIn', marketingTexts.linkedinPost],
+                  ['Newsletter', marketingTexts.newsletterBlurb],
+                  ['Communiqué de presse', marketingTexts.pressRelease],
+                ].map(([label, text]) => (
+                  <div key={label as string} className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.gc}` }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-bold" style={{ color: c.vm }}>{label}</span>
+                      <button onClick={() => { navigator.clipboard.writeText(text as string); onToast(`${label} copié`); }}
+                        className="text-[9px] px-2 py-0.5 rounded" style={{ background: c.ft, color: c.mv }}>Copier</button>
+                    </div>
+                    <div className="text-[10px] leading-relaxed whitespace-pre-wrap" style={{ color: c.nr }}>{(text as string).slice(0, 300)}{(text as string).length > 300 ? '…' : ''}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Hashtags */}
+              <div className="mt-3 flex flex-wrap gap-1">
+                {marketingTexts.hashtags.map(h => (
+                  <span key={h} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: '#F0EAFF', color: c.vm }}>{h}</span>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex gap-2">
+            <button onClick={() => setStep('assemble')} className="px-4 py-2 rounded-lg text-[12px]" style={{ border: `1px solid ${c.gc}`, color: c.mv }}>← Retour</button>
+            <button onClick={() => setStep('trailer')} className="px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Bande-annonce</button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 5: Trailer */}
+      {step === 'trailer' && coverProject && trailer && (
+        <div>
+          <Card hover={false} className="mb-4">
+            <div className="px-5 py-3" style={{ borderBottom: `2px solid #D94452` }}>
+              <span className="text-[12px] font-bold" style={{ color: c.mv }}>5. Bande-annonce — Brief Runway</span>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="p-3 rounded-lg" style={{ background: c.ft }}>
+                  <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Durée</div>
+                  <div className="text-[14px] font-bold" style={{ color: c.mv }}>{trailer.duration}s</div>
+                </div>
+                <div className="p-3 rounded-lg" style={{ background: c.ft }}>
+                  <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Musique</div>
+                  <div className="text-[11px]" style={{ color: c.mv }}>{trailer.musicMood}</div>
+                </div>
+                <div className="p-3 rounded-lg" style={{ background: c.ft }}>
+                  <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Color grading</div>
+                  <div className="text-[11px]" style={{ color: c.mv }}>{trailer.colorGrading}</div>
+                </div>
+              </div>
+
+              {/* Scenes timeline */}
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Storyboard ({trailer.scenes.length} scènes)</div>
+              <div className="space-y-2 mb-4">
+                {trailer.scenes.map((scene, i) => (
+                  <div key={i} className="flex gap-3 p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.gc}` }}>
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold"
+                      style={{ background: c.or, color: 'white' }}>{scene.order}</div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-semibold" style={{ color: c.mv }}>{scene.durationSec.toFixed(1)}s</span>
+                        <span className="text-[9px] px-2 py-0.5 rounded" style={{ background: '#FFF5E0', color: c.og }}>{scene.transition}</span>
+                      </div>
+                      <div className="text-[10px] leading-relaxed" style={{ color: c.nr }}>{scene.visual}</div>
+                      {scene.text && (
+                        <div className="text-[10px] mt-1 italic" style={{ color: c.vm }}>Texte : "{scene.text}"</div>
+                      )}
+                      <button onClick={() => { navigator.clipboard.writeText(scene.visual); onToast(`Prompt scène ${scene.order} copié`); }}
+                        className="text-[9px] mt-1 px-2 py-0.5 rounded" style={{ background: c.ft, color: c.mv }}>
+                        Copier le prompt Runway
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* End card */}
+              <div className="p-3 rounded-lg" style={{ background: '#1A1018', color: 'white' }}>
+                <div className="text-[9px] uppercase tracking-wider mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>Carton de fin</div>
+                <div className="text-center">
+                  <div className="text-[16px] font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>{trailer.endCard.title}</div>
+                  <div className="text-[11px] mt-1 opacity-60">{trailer.endCard.author}</div>
+                  <div className="text-[10px] mt-2 opacity-40">{charter.fullName}</div>
+                </div>
+              </div>
+
+              <div className="mt-3 p-3 rounded-lg" style={{ background: '#FFF5F0', border: '1px solid #FFD0C0' }}>
+                <div className="text-[11px]" style={{ color: '#7A3A00' }}>
+                  <strong>Pour générer :</strong> Copiez chaque prompt de scène dans Runway Gen-3 Alpha avec la couverture comme image source.
+                  L'intégration directe API Runway est prête — configurez votre clé API dans les paramètres.
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex gap-2">
+            <button onClick={() => setStep('marketing')} className="px-4 py-2 rounded-lg text-[12px]" style={{ border: `1px solid ${c.gc}`, color: c.mv }}>← Retour</button>
+            <button onClick={() => setStep('export')} className="px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Export</button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 6: Export */}
+      {step === 'export' && coverProject && (
+        <div>
+          <Card hover={false} className="mb-4">
+            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
+              <span className="text-[12px] font-bold" style={{ color: c.mv }}>6. Export — Tout est prêt</span>
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {[
+                  { label: 'Couverture PDF (print)', desc: `PDF ${DISTRIBUTORS[selectedDist].pdfFormat} — ${layout?.dimensions.totalWidthPx} × ${layout?.dimensions.totalHeightPx}px @300dpi`, icon: '📄', ready: !!selectedProject?.coverImage },
+                  { label: 'Pack réseaux sociaux', desc: `${SOCIAL_FORMATS.length} déclinaisons (Instagram, Facebook, LinkedIn, TikTok…)`, icon: '📱', ready: !!selectedProject?.coverImage },
+                  { label: 'Bande-annonce', desc: `${trailer?.scenes.length} scènes, ${trailer?.duration}s — prompts Runway prêts`, icon: '🎬', ready: !!selectedProject?.coverImage },
+                  { label: 'Textes marketing', desc: 'Instagram, LinkedIn, newsletter, communiqué de presse', icon: '✍️', ready: true },
+                  { label: 'Mockup 3D', desc: 'Rendu 3D du livre pour sites web et présentations', icon: '📦', ready: !!selectedProject?.coverImage },
+                  { label: 'Marque-page', desc: '50 × 150 mm @300dpi, prêt à imprimer', icon: '🔖', ready: !!selectedProject?.coverImage },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: item.ready ? '#F5FAF5' : '#FFF5F0', border: `1px solid ${item.ready ? '#C0E0C0' : '#FFD0C0'}` }}>
+                    <span className="text-[20px]">{item.icon}</span>
+                    <div className="flex-1">
+                      <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{item.label}</div>
+                      <div className="text-[10px]" style={{ color: c.gr }}>{item.desc}</div>
+                    </div>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded"
+                      style={{ background: item.ready ? '#D4F0E0' : '#FFE0D0', color: item.ready ? c.ok : c.er }}>
+                      {item.ready ? 'Prêt' : 'Image requise'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 p-3 rounded-lg" style={{ background: '#F0F5FF', border: '1px solid #C0D0FF' }}>
+                <div className="text-[11px] font-semibold mb-1" style={{ color: '#1E40AF' }}>Intégrations API</div>
+                <div className="text-[10px]" style={{ color: c.nr }}>
+                  Pour la génération automatique, configurez vos clés API dans Paramètres :
+                  <strong> OpenAI</strong> (DALL-E 3) · <strong>Runway</strong> (Gen-3 Alpha) · <strong>Midjourney</strong> (via proxy).
+                  Claude est intégré nativement pour la mise en page et les textes marketing.
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <button onClick={() => setStep('upload')} className="px-4 py-2 rounded-lg text-[12px]" style={{ border: `1px solid ${c.gc}`, color: c.mv }}>← Recommencer</button>
+        </div>
+      )}
+
+      {/* No project selected fallback */}
+      {!selectedProject && step !== 'upload' && (
+        <div className="text-center p-8">
+          <div className="text-[14px]" style={{ color: c.gr }}>Sélectionnez d'abord un titre</div>
+          <button onClick={() => setStep('upload')} className="mt-3 px-4 py-2 rounded-lg text-[12px]" style={{ background: c.or, color: 'white' }}>
+            ← Retour à la sélection
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -7481,6 +8114,7 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
       ['analyse', 'Analyse IA', 'Scanner 6D, détection patterns, score IA'],
       ['calibrage', 'Calibrage', 'Gabarit couverture, dos, format Jabrilia'],
       ['couvertures', 'Couvertures', 'Diagnostic, corrections, gabarit'],
+      ['cover-studio', '◆ Cover Studio', 'Couverture → Pack marketing → Bande-annonce'],
       ['audiobooks', 'Audiobooks', 'Pipeline audio, voix, chapitres'],
       ['distribution', 'Distribution', 'KDP, Pollen, IngramSpark, Apple, Kobo, Spotify'],
       ['marketing', 'Marketing', 'Kit réseaux sociaux, fiches produit'],
@@ -8043,6 +8677,7 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
       case 'projets': return <DashboardView onProject={openProject} onNew={() => setModalOpen(true)} projects={filtered} allProjects={projects} onNav={navigate} onUpdateProject={handleUpdate} />;
       case 'orchestration': return <OrchestrationView projects={projects} onProject={openProject} onNav={navigate} />;
       case 'couvertures': return <CouverturesView onProject={openProject} projects={filtered} />;
+      case 'cover-studio': return <CoverStudioView projects={filtered} onToast={showToast} />;
       case 'isbn': return <ISBNView projects={filtered} onToast={showToast} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
       case 'droits': return <DroitsView projects={projects} onToast={showToast} />;
