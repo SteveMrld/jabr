@@ -157,6 +157,262 @@ const NAV_ITEMS = [
   { href: '#tarifs', label: 'Tarifs' },
 ];
 
+// ── Interactive demo walkthrough ──
+const DEMO_SCREENS = [
+  {
+    tab: 'Dashboard',
+    title: 'Vue d\u2019ensemble du catalogue',
+    desc: '12 KPIs, statuts en temps r\u00e9el, revenus estim\u00e9s, actions prioritaires.',
+    content: () => (
+      <div style={{ padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div><div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>Dashboard</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>Jabrilia \u00c9ditions \u2014 Mars 2026</div></div>
+          <div style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: 600, color: 'white', background: '#C8952E' }}>+ Nouveau projet</div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+          {[['10', 'Titres', '#C8952E'], ['4', 'En cours', '#E07A2F'], ['29', 'ISBN', '#5B3E8A'], ['72%', 'Readiness', '#059669']].map(([v, l, c]) => (
+            <div key={l} style={{ padding: '10px 8px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 700, color: c }}>{v}</div>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>{l}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ padding: 12, borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>R\u00e9partition statut</div>
+            <svg viewBox="0 0 80 80" width="70" height="70" style={{ display: 'block', margin: '0 auto' }}>
+              <circle cx="40" cy="40" r="30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
+              <circle cx="40" cy="40" r="30" fill="none" stroke="#E07A2F" strokeWidth="8" strokeDasharray="75 189" strokeDashoffset="0" strokeLinecap="round" />
+              <circle cx="40" cy="40" r="30" fill="none" stroke="#059669" strokeWidth="8" strokeDasharray="38 189" strokeDashoffset="-75" strokeLinecap="round" />
+              <circle cx="40" cy="40" r="30" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" strokeDasharray="76 189" strokeDashoffset="-113" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div style={{ padding: 12, borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Pipeline</div>
+            {['ISBN', 'Artwork', '4e couv.', 'Analyse'].map((label, i) => (
+              <div key={label} style={{ marginBottom: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'rgba(255,255,255,0.4)', marginBottom: 2 }}><span>{label}</span><span>{[28, 60, 40, 70][i]}%</span></div>
+                <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.06)' }}>
+                  <div style={{ height: '100%', borderRadius: 2, background: ['#C8952E', '#5B3E8A', '#E07A2F', '#059669'][i], width: `${[28, 60, 40, 70][i]}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    tab: 'Catalogue',
+    title: 'Vos titres et \u00e9ditions',
+    desc: 'Chaque livre avec ses formats, ISBN, couverture, score de readiness.',
+    content: () => (
+      <div style={{ padding: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>Catalogue \u2014 10 titres</div>
+        {[
+          { title: 'Le Lion D\u00e9chu', genre: 'Fantasy', editions: 4, status: 'En cours', readiness: 72, color: '#C8952E' },
+          { title: 'Mon petit livre anti-stress', genre: 'Jeunesse', editions: 3, status: 'BAT', readiness: 88, color: '#059669' },
+          { title: 'Les M\u00e9moires Reli\u00e9es', genre: 'Roman', editions: 3, status: 'Corrections', readiness: 45, color: '#1E40AF' },
+          { title: 'L\u2019\u00c9cho d\u2019une autre vie', genre: 'Roman', editions: 2, status: 'En cours', readiness: 62, color: '#E07A2F' },
+          { title: 'Le Dernier Rivage', genre: 'Roman', editions: 3, status: 'Brouillon', readiness: 31, color: '#6B645B' },
+        ].map((b, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, marginBottom: 4, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+            <div style={{ width: 28, height: 38, borderRadius: 4, background: 'linear-gradient(135deg, #2D1B4E, rgba(200,149,46,0.3))', flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.title}</div>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>{b.genre} \u00b7 {b.editions} \u00e9d.</div>
+            </div>
+            <div style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, background: b.color + '20', color: b.color, fontWeight: 600 }}>{b.status}</div>
+            <div style={{ width: 60, height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.06)', flexShrink: 0 }}>
+              <div style={{ height: '100%', borderRadius: 3, background: b.color, width: `${b.readiness}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    tab: 'ISBN',
+    title: 'Registre ISBN centralis\u00e9',
+    desc: 'Attribution automatique, pr\u00e9fixe \u00e9diteur, export CSV et ONIX 3.0.',
+    content: () => (
+      <div style={{ padding: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 4 }}>Registre ISBN</div>
+        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginBottom: 12 }}>Pr\u00e9fixe : 978-2-488647 \u00b7 29/100 utilis\u00e9s</div>
+        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 0.8fr', gap: 0, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            {['Titre', 'ISBN', 'Format', 'Prix'].map(h => (
+              <div key={h} style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
+            ))}
+          </div>
+          {[
+            ['Le Lion D\u00e9chu', '978-2-488647-01-6', 'Broch\u00e9', '22,90\u20ac'],
+            ['Le Lion D\u00e9chu', '978-2-488647-02-3', 'ePub', '9,99\u20ac'],
+            ['Anti-stress', '978-2-488647-10-8', 'Broch\u00e9', '18,90\u20ac'],
+            ['M\u00e9moires Reli\u00e9es', '978-2-488647-04-7', 'Broch\u00e9', '21,00\u20ac'],
+            ['\u00c9cho autre vie', '978-2-488647-05-4', 'Poche', '8,90\u20ac'],
+          ].map((row, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 0.8fr', gap: 0, padding: '7px 12px', borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
+              <div style={{ fontSize: 10, color: 'white', fontWeight: 500 }}>{row[0]}</div>
+              <div style={{ fontSize: 10, color: '#C8952E', fontFamily: "'JetBrains Mono', monospace" }}>{row[1]}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{row[2]}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontFamily: "'JetBrains Mono', monospace" }}>{row[3]}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+  {
+    tab: 'Distribution',
+    title: 'Matrice de distribution',
+    desc: 'Quel titre, quel format, sur quel canal. Readiness en un coup d\u2019\u0153il.',
+    content: () => (
+      <div style={{ padding: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>Distribution \u00d7 Canaux</div>
+        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', gap: 0, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            {['Titre', 'KDP', 'Pollen', 'Ingram', 'Apple'].map(h => (
+              <div key={h} style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: h === 'Titre' ? 'left' : 'center' }}>{h}</div>
+            ))}
+          </div>
+          {[
+            ['Le Lion D\u00e9chu', true, true, false, true],
+            ['Anti-stress', true, true, true, false],
+            ['M\u00e9moires Reli\u00e9es', false, true, false, false],
+            ['\u00c9cho autre vie', true, false, false, true],
+            ['Dernier Rivage', false, false, false, false],
+          ].map((row, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', gap: 0, padding: '7px 12px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+              <div style={{ fontSize: 10, color: 'white', fontWeight: 500 }}>{row[0] as string}</div>
+              {(row.slice(1) as boolean[]).map((ok, j) => (
+                <div key={j} style={{ textAlign: 'center', fontSize: 12 }}>
+                  {ok ? <Check size={13} color="#059669" /> : <span style={{ color: 'rgba(255,255,255,0.1)' }}>\u2014</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+  {
+    tab: 'Orchestration',
+    title: 'Copilote strat\u00e9gique',
+    desc: 'Score 5D, priorit\u00e9s, goulots d\u2019\u00e9tranglement, recommandations.',
+    content: () => (
+      <div style={{ padding: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>Orchestration \u2014 Le Lion D\u00e9chu</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ padding: 12, borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Score 5D</div>
+            <svg viewBox="0 0 120 120" width="100" height="100" style={{ display: 'block', margin: '0 auto' }}>
+              {/* Pentagon background */}
+              <polygon points="60,15 105,45 92,95 28,95 15,45" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+              <polygon points="60,30 90,50 82,85 38,85 30,50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+              {/* Data polygon */}
+              <polygon points="60,22 98,48 70,90 35,78 22,42" fill="rgba(200,149,46,0.15)" stroke="#C8952E" strokeWidth="1.5" />
+              {/* Labels */}
+              <text x="60" y="10" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7">{'\u00c9'}ditorial</text>
+              <text x="112" y="48" textAnchor="start" fill="rgba(255,255,255,0.4)" fontSize="7">Prod.</text>
+              <text x="96" y="102" textAnchor="start" fill="rgba(255,255,255,0.4)" fontSize="7">Distrib.</text>
+              <text x="24" y="102" textAnchor="end" fill="rgba(255,255,255,0.4)" fontSize="7">Market.</text>
+              <text x="8" y="48" textAnchor="end" fill="rgba(255,255,255,0.4)" fontSize="7">Intl.</text>
+            </svg>
+          </div>
+          <div style={{ padding: 12, borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Priorit{'\u00e9'}s</div>
+            {[
+              { label: 'Finaliser couverture', impact: 'Critique', color: '#D94452' },
+              { label: 'Attribuer ISBN poche', impact: 'Haute', color: '#E07A2F' },
+              { label: 'Pr\u00e9parer plan m\u00e9dia', impact: 'Moyenne', color: '#C8952E' },
+            ].map((p, i) => (
+              <div key={i} style={{ padding: '6px 8px', borderRadius: 6, marginBottom: 4, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ fontSize: 10, color: 'white', fontWeight: 500 }}>{p.label}</div>
+                <div style={{ fontSize: 8, color: p.color, fontWeight: 600, marginTop: 2 }}>{p.impact}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    ),
+  },
+];
+
+const DemoWalkthrough = () => {
+  const [active, setActive] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setActive(a => (a + 1) % DEMO_SCREENS.length);
+    }, 5000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
+  const select = (i: number) => {
+    setActive(i);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setActive(a => (a + 1) % DEMO_SCREENS.length);
+    }, 5000);
+  };
+
+  const screen = DEMO_SCREENS[active];
+
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, justifyContent: 'center', flexWrap: 'wrap' }}>
+        {DEMO_SCREENS.map((s, i) => (
+          <button key={s.tab} onClick={() => select(i)} style={{
+            padding: '8px 16px', borderRadius: 999, fontSize: 13, fontWeight: 500,
+            border: 'none', cursor: 'pointer', transition: 'all 0.3s',
+            background: i === active ? '#C8952E' : 'rgba(255,255,255,0.06)',
+            color: i === active ? 'white' : 'rgba(255,255,255,0.4)',
+          }}>
+            {s.tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Screen */}
+      <div style={{ borderRadius: 16, overflow: 'hidden', background: '#0F0A1A', border: '1px solid rgba(200,149,46,0.15)', boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}>
+        {/* Browser bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: 'rgba(15,10,26,0.95)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F56' }} />
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FFBD2E' }} />
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#27C93F' }} />
+          <div style={{ flex: 1, margin: '0 12px', padding: '4px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: "'JetBrains Mono', monospace" }}>
+            jabr-eta.vercel.app
+          </div>
+        </div>
+        {/* Content */}
+        <div style={{ minHeight: 320 }}>
+          {screen.content()}
+        </div>
+      </div>
+
+      {/* Caption */}
+      <div style={{ textAlign: 'center', marginTop: 20 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'white' }}>{screen.title}</div>
+        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>{screen.desc}</div>
+      </div>
+
+      {/* Progress dots */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 16 }}>
+        {DEMO_SCREENS.map((_, i) => (
+          <div key={i} onClick={() => select(i)} style={{
+            width: i === active ? 24 : 8, height: 8, borderRadius: 4, cursor: 'pointer',
+            background: i === active ? '#C8952E' : 'rgba(255,255,255,0.15)',
+            transition: 'all 0.3s',
+          }} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -281,13 +537,13 @@ export default function Home() {
                 }}>
                   Commencer un projet <ArrowRight size={16} />
                 </Link>
-                <Link href="/demo" style={{
+                <a href="#demo" style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8, height: 48, padding: '0 24px',
                   borderRadius: 999, border: '1px solid #E8E4DF', background: 'white',
                   color: t.text, fontSize: 15, fontWeight: 500, textDecoration: 'none',
                 }}>
                   Voir la d{'\u00e9'}mo
-                </Link>
+                </a>
               </div>
             </FadeIn>
             <FadeIn delay={0.4}>
@@ -371,6 +627,28 @@ export default function Home() {
         </div>
       </section>
 
+      {/* DEMO INTERACTIVE */}
+      <section id="demo" style={{ padding: '72px 0', background: `linear-gradient(160deg, ${t.dark}, ${t.violet})`, borderTop: '1px solid #E8E4DF' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px' }}>
+          <FadeIn>
+            <div style={{ textAlign: 'center', marginBottom: 40 }}>
+              <div style={{ fontSize: 14, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 500, color: 'rgba(200,149,46,0.8)', marginBottom: 8 }}>
+                D{'\u00e9'}mo
+              </div>
+              <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 'clamp(26px, 2.8vw, 38px)', lineHeight: 1.15, fontWeight: 700, color: 'white', margin: '0 0 10px' }}>
+                D{'\u00e9'}couvrez JABR en action
+              </h2>
+              <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 16, lineHeight: 1.6, maxWidth: '50ch', margin: '0 auto' }}>
+                Explorez les modules cl{'\u00e9'}s du cockpit {'\u00e9'}ditorial.
+              </p>
+            </div>
+          </FadeIn>
+          <FadeIn delay={0.2}>
+            <DemoWalkthrough />
+          </FadeIn>
+        </div>
+      </section>
+
       {/* PIPELINE */}
       <section id="pipeline" style={{ padding: '72px 0' }}>
         <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px' }}>
@@ -428,13 +706,13 @@ export default function Home() {
           </div>
           <FadeIn delay={0.3}>
             <div style={{ marginTop: 24 }}>
-              <Link href="/demo" style={{
+              <a href="#demo" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6, height: 44, padding: '0 20px',
                 borderRadius: 999, border: '1px solid #E8E4DF', background: 'white',
                 color: t.text, fontSize: 14, fontWeight: 500, textDecoration: 'none',
               }}>
                 Voir les 22 modules <ChevronRight size={14} />
-              </Link>
+              </a>
             </div>
           </FadeIn>
         </div>
@@ -602,7 +880,7 @@ export default function Home() {
                 <a href="#pipeline" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>Pipeline</a>
                 <a href="#modules" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>Modules</a>
                 <a href="#tarifs" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>Tarifs</a>
-                <Link href="/demo" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>D{'\u00e9'}mo</Link>
+                <a href="#demo" style={{ fontSize: 14, color: t.text2, textDecoration: 'none' }}>D{'\u00e9'}mo</a>
               </div>
             </div>
             <div>
