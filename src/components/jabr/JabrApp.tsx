@@ -74,6 +74,7 @@ const icons: Record<string, React.ReactNode> = {
   upload: sv(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>),
   presse: sv(<><path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9c0-1.1.9-2 2-2h2" /><path d="M18 14h-8" /><path d="M15 18h-5" /><path d="M10 6h8v4h-8z" /></>),
   calendrier: sv(<><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" /></>),
+  'cover-studio': sv(<><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /><circle cx="15" cy="15" r="2" /><path d="M15 11v2" /></>),
   image: sv(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>),
   share: sv(<><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></>),
 };
@@ -277,8 +278,8 @@ const Sidebar = ({ active, onNav, projects, persisted, open, onToggle, lang, onT
             onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(62,39,104,0.5)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; } }}
             onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; } }}>
             {isActive && <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r" style={{ background: c.or }} />}
-            <span className="flex" style={{ color: isActive ? c.or : 'inherit' }}>{icons[iconKey]}</span>
-            <span className="flex-1">{label}</span>
+            <span className="flex" style={{ color: isActive ? c.or : id === 'cover-studio' ? c.or : 'inherit' }}>{icons[iconKey]}</span>
+            <span className="flex-1" style={id === 'cover-studio' && !isActive ? { color: c.or, fontWeight: 600 } : undefined}>{label}</span>
             {badge !== undefined && badge > 0 && (
               <span className="min-w-[20px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold px-1"
                 style={{ background: id === 'couvertures' && corrCount > 0 ? 'rgba(217,68,82,0.8)' : 'rgba(255,255,255,0.12)', color: id === 'couvertures' && corrCount > 0 ? 'white' : 'rgba(255,255,255,0.5)' }}>
@@ -1435,23 +1436,23 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
       {/* Diagnostic */}
       <Card hover={false} className="p-4 md:p-6">
         <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Diagnostic couverture</div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 mb-4">
           {Object.entries(DIAG_LABELS).map(([key, label]) => (
-            <div key={key} className="flex items-center gap-1.5 text-xs">
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: p.diag[key] ? c.ok : c.er }} />
+            <div key={key} className="flex items-center gap-2 text-xs">
+              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.diag[key] ? c.ok : c.er }} />
               <span className="font-medium" style={{ color: p.diag[key] ? c.ok : c.er }}>{label}</span>
             </div>
           ))}
         </div>
         {p.corrections.length > 0 ? (
-          <div className="rounded-lg p-3.5" style={{ background: '#FFF8F0', border: '1px solid #F4A55A' }}>
+          <div className="rounded-lg p-3" style={{ background: '#FFF8F0', border: '1px solid #F4A55A' }}>
             <div className="flex items-center gap-1.5 font-semibold text-xs mb-2" style={{ color: c.og }}>
               {icons.warn} {p.corrections.length} correction{p.corrections.length > 1 ? 's' : ''} requise{p.corrections.length > 1 ? 's' : ''}
             </div>
             {p.corrections.map((fix, i) => (
-              <div key={i} className="text-xs pl-4 py-0.5 relative" style={{ color: c.nr }}>
-                <span className="absolute left-1 top-2 w-1.5 h-1.5 rounded-full" style={{ background: c.er }} />
-                {fix}
+              <div key={i} className="flex items-start gap-2 text-xs py-0.5" style={{ color: c.nr }}>
+                <div className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" style={{ background: c.er }} />
+                <span>{fix}</span>
               </div>
             ))}
           </div>
@@ -1473,8 +1474,8 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
           )}
         </div>
         {p.backCover ? (
-          <div className="rounded-lg p-4" style={{ background: c.ft, border: `1px solid ${c.gc}` }}>
-            <div className="text-[13px] leading-relaxed whitespace-pre-line" style={{ color: c.nr }}>{p.backCover}</div>
+          <div className="rounded-lg p-3 md:p-4" style={{ background: c.ft, border: `1px solid ${c.gc}` }}>
+            <div className="text-[13px] leading-relaxed whitespace-pre-line" style={{ color: c.nr, overflowWrap: 'break-word', wordBreak: 'break-word' }}>{p.backCover}</div>
           </div>
         ) : (
           <div className="rounded-lg p-4 text-center cursor-pointer hover:bg-[#FAF7F2] transition-colors"
