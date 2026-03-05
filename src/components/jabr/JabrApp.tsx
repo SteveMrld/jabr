@@ -147,7 +147,7 @@ const StatCard = ({ value, label, accent }: { value: string | number; label: str
 );
 
 const Card = ({ children, className = '', hover = true, onClick, style }: { children: React.ReactNode; className?: string; hover?: boolean; onClick?: () => void; style?: React.CSSProperties }) => (
-  <div onClick={onClick} className={`bg-white rounded-xl border overflow-hidden transition-all duration-200 max-w-full ${hover ? 'hover:border-[#C8952E] hover:shadow-md' : ''} ${className}`} style={{ borderColor: c.gc, ...style }}>
+  <div onClick={onClick} className={`bg-white rounded-xl border transition-all duration-200 ${hover ? 'hover:border-[#C8952E] hover:shadow-md' : ''} ${className}`} style={{ borderColor: c.gc, maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box', ...style }}>
     {children}
   </div>
 );
@@ -644,7 +644,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
   if (noMarketing > 0) priorities.push({ label: `${noMarketing} titres prêts pour Cover Studio`, count: noMarketing, color: c.vm, nav: 'cover-studio' });
 
   return (
-    <div className="max-w-full overflow-hidden">
+    <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
       <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div className="min-w-0">
           <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Dashboard</h2>
@@ -722,7 +722,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
       </div>
 
       {/* Real-time dashboard */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5" style={{ maxWidth: '100%', overflow: 'hidden' }}>
         {/* Status donut */}
         <Card hover={false} className="p-5">
           <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>Répartition statut</div>
@@ -8753,11 +8753,11 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
   };
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden" style={{ fontFamily: "'Inter', sans-serif", background: c.bc }}>
+    <div className="flex min-h-screen" style={{ overflow: 'hidden', maxWidth: '100vw', fontFamily: "'Inter', sans-serif", background: c.bc }}>
       <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} persisted={persisted} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} lang={lang} onToggleLang={toggleLang} author={author} onSwitchAuthor={onSwitchAuthor} />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden lg:ml-0">
+      <div className="flex-1 flex flex-col" style={{ minWidth: 0, overflow: 'hidden' }}>
         {/* TOP BAR */}
-        <div className="flex gap-2 items-center px-3 md:px-8 py-2 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>
+        <div className="flex gap-2 items-center py-2 bg-white" style={{ padding: '8px 12px', borderBottom: `1px solid ${c.gc}`, maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>
           {/* Hamburger for mobile */}
           <button className="md:hidden shrink-0 cursor-pointer bg-transparent border-none p-1" style={{ color: c.mv }} onClick={() => setSidebarOpen(true)}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -8826,8 +8826,8 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
             <NotifPanel open={notifOpen} onClose={() => setNotifOpen(false)} projects={projects} />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto overflow-x-hidden" onClick={() => notifOpen && setNotifOpen(false)}>
-          <div className="p-3 sm:p-4 md:p-7 max-w-full overflow-hidden">
+        <div className="flex-1 overflow-y-auto" style={{ overflowX: 'hidden' }} onClick={() => notifOpen && setNotifOpen(false)}>
+          <div style={{ padding: 16, maxWidth: '100%', overflow: 'hidden', boxSizing: 'border-box' }}>
             <div key={project ? `p-${project.id}` : page} className="max-w-full overflow-hidden" style={{ animation: 'pageIn 0.3s ease-out' }}>{renderContent()}</div>
           </div>
         </div>

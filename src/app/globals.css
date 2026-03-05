@@ -21,8 +21,8 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { overflow-x: hidden; max-width: 100vw; }
-body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--blanc-casse); color: var(--noir); }
+html { overflow-x: hidden !important; max-width: 100vw !important; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--blanc-casse); color: var(--noir); overflow-x: hidden !important; max-width: 100vw !important; width: 100vw !important; }
 h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; }
 
 /* Scrollbar */
