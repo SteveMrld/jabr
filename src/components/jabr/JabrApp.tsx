@@ -147,7 +147,7 @@ const StatCard = ({ value, label, accent }: { value: string | number; label: str
 );
 
 const Card = ({ children, className = '', hover = true, onClick, style }: { children: React.ReactNode; className?: string; hover?: boolean; onClick?: () => void; style?: React.CSSProperties }) => (
-  <div onClick={onClick} className={`bg-white rounded-xl border overflow-hidden transition-all duration-200 ${hover ? 'hover:border-[#C8952E] hover:shadow-md' : ''} ${className}`} style={{ borderColor: c.gc, ...style }}>
+  <div onClick={onClick} className={`bg-white rounded-xl border overflow-hidden transition-all duration-200 max-w-full ${hover ? 'hover:border-[#C8952E] hover:shadow-md' : ''} ${className}`} style={{ borderColor: c.gc, ...style }}>
     {children}
   </div>
 );
@@ -833,8 +833,8 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
 
       {/* Catalogue */}
       <Card hover={false}>
-        <div className="flex justify-between items-center px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap justify-between items-center gap-2 px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <div className="flex items-center gap-2">
             <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Catalogue</span>
             {/* View toggle */}
             <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${c.gc}` }}>
@@ -852,7 +852,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4 flex-wrap">
             {viewMode === 'list' && <><SortBtn label="Titre" k="title" /><SortBtn label="Score" k="score" /><SortBtn label="Statut" k="status" /><SortBtn label="Éditions" k="editions" /></>}
             <span style={{ fontSize: 11, color: c.gr }}>{projects.length} titre{projects.length > 1 ? 's' : ''}</span>
           </div>
@@ -861,7 +861,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
         {/* LIST VIEW */}
         {viewMode === 'list' && sorted.map(p => (
           <div key={p.id} onClick={() => onProject(p)}
-            className="flex items-center gap-3.5 px-5 py-3 cursor-pointer transition-colors hover:bg-[#FAF7F2]"
+            className="flex items-center gap-2.5 md:gap-3.5 px-3 md:px-5 py-3 cursor-pointer transition-colors hover:bg-[#FAF7F2]"
             style={{ borderBottom: `1px solid ${c.ft}` }}>
             <CoverThumb emoji={p.cover} coverImage={p.coverImage} />
             <div className="flex-1 min-w-0">
@@ -875,15 +875,15 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
               </div>
             </div>
             <Badge bg={c.ft} color={c.vm}>{p.editions.length} éd.</Badge>
-            <div className="w-[110px]"><ScoreBar score={p.score} max={p.maxScore} /></div>
+            <div className="hidden sm:block w-[110px]"><ScoreBar score={p.score} max={p.maxScore} /></div>
             <StatusBadge status={p.status} />
             {p.corrections.length > 0 && <Badge bg="#FDE0E3" color="#A0303D">{p.corrections.length}</Badge>}
             {p.analysis && (
-              <span className="text-[9px] font-bold" style={{ color: p.analysis.iaScore > 30 ? c.er : p.analysis.iaScore > 15 ? c.og : c.ok }}>
+              <span className="hidden sm:inline text-[9px] font-bold" style={{ color: p.analysis.iaScore > 30 ? c.er : p.analysis.iaScore > 15 ? c.og : c.ok }}>
                 IA:{p.analysis.iaScore}%
               </span>
             )}
-            <div style={{ color: c.gr }}>{icons.chevR}</div>
+            <div className="hidden sm:block" style={{ color: c.gr }}>{icons.chevR}</div>
           </div>
         ))}
 
@@ -8757,12 +8757,12 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
       <Sidebar active={project ? 'projets' : page} onNav={navigate} projects={projects} persisted={persisted} open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} lang={lang} onToggleLang={toggleLang} author={author} onSwitchAuthor={onSwitchAuthor} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden lg:ml-0">
         {/* TOP BAR */}
-        <div className="flex flex-wrap gap-2 justify-between items-center px-4 md:px-8 py-2.5 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>
+        <div className="flex gap-2 items-center px-3 md:px-8 py-2 bg-white" style={{ borderBottom: `1px solid ${c.gc}` }}>
           {/* Hamburger for mobile */}
-          <button className="md:hidden mr-3 cursor-pointer bg-transparent border-none p-1" style={{ color: c.mv }} onClick={() => setSidebarOpen(true)}>
+          <button className="md:hidden shrink-0 cursor-pointer bg-transparent border-none p-1" style={{ color: c.mv }} onClick={() => setSidebarOpen(true)}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg flex-1 max-w-sm" style={{ background: c.ft }}>
+          <div className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-lg flex-1 min-w-0" style={{ background: c.ft }}>
             <span style={{ color: c.gr }}>{icons.search}</span>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un titre, un genre, un auteur…"
               className="bg-transparent outline-none text-sm flex-1" style={{ color: c.nr }} />
@@ -8826,8 +8826,10 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
             <NotifPanel open={notifOpen} onClose={() => setNotifOpen(false)} projects={projects} />
           </div>
         </div>
-        <div className="flex-1 p-3 sm:p-4 md:p-7 overflow-y-auto overflow-x-hidden" onClick={() => notifOpen && setNotifOpen(false)}>
-          <div key={project ? `p-${project.id}` : page} style={{ animation: 'pageIn 0.3s ease-out' }}>{renderContent()}</div>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden" onClick={() => notifOpen && setNotifOpen(false)}>
+          <div className="p-3 sm:p-4 md:p-7 max-w-full overflow-hidden">
+            <div key={project ? `p-${project.id}` : page} className="max-w-full overflow-hidden" style={{ animation: 'pageIn 0.3s ease-out' }}>{renderContent()}</div>
+          </div>
         </div>
       </div>
       <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={handleAdd} />
