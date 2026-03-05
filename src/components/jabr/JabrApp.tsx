@@ -2542,120 +2542,186 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
       )}
 
       {/* STEP 3: Assembly preview */}
-      {step === 'assemble' && layout && coverProject && selectedProject && (
+      {step === 'assemble' && layout && coverProject && selectedProject && (() => {
+        const d = layout.dimensions;
+        const col = getCoverTypoRecommendation(coverProject.genre, coverProject.collection, charter);
+        const palette = col.collection?.palette || { primary: c.mv, secondary: c.or, accent: '#5B3E8A', background: '#FAF7F2', text: c.mv, muted: c.gr };
+        const hasCover = !!selectedProject.coverImage;
+        return (
         <div>
+          {/* ═══ FRONT COVER — Hero Preview ═══ */}
           <Card hover={false} className="mb-4">
             <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
               <span className="text-[12px] font-bold" style={{ color: c.mv }}>
-                3. Prévisualisation couverture assemblée
+                3. Couverture assemblée — Rendu éditorial
               </span>
             </div>
-            <div className="p-6 flex justify-center" style={{ background: '#E8E4DE' }}>
-              {/* Full cover preview */}
-              {(() => {
-                const d = layout.dimensions;
-                const scale = 1.4;
-                const totalW = Math.round(d.totalWidthMm * scale);
-                const totalH = Math.round(d.totalHeightMm * scale);
-                const bleedPx = Math.round(d.bleedMm * scale);
-                const coverW = Math.round(d.trimWidthMm * scale);
-                const spineW = Math.round(d.spineWidthMm * scale);
 
-                return (
-                  <div className="relative" style={{ width: totalW, height: totalH }}>
-                    {/* Bleed zone */}
-                    <div className="absolute inset-0 rounded-sm" style={{ background: '#D4CFC6', border: '1px dashed #B0A898' }} />
-
-                    {/* 4e (back) */}
-                    <div className="absolute flex flex-col justify-between p-4" style={{
-                      left: bleedPx, top: bleedPx, width: coverW, height: totalH - bleedPx * 2,
-                      background: 'white', borderRight: `1px solid ${c.gc}`
-                    }}>
-                      <div>
-                        <div className="text-[9px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>4e de couverture</div>
-                        <div className="text-[8px] leading-relaxed" style={{ color: c.nr, fontFamily: layout.back.backText.fontFamily }}>
-                          {coverProject.backCoverText ? coverProject.backCoverText.slice(0, 280) + (coverProject.backCoverText.length > 280 ? '…' : '') : 'Texte de 4e non renseigné — sera généré par Claude'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[7px] mb-1" style={{ color: c.gr }}>{charter.fullName}</div>
-                        <div className="text-center">
-                          <div className="text-[7px] tracking-wider" style={{ color: c.gr }}>ISBN</div>
-                          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: c.mv }}>
-                            {coverProject.isbn || '978-2-488647-XX-X'}
-                          </div>
-                          <div className="mt-1 mx-auto" style={{ width: 60, height: 20, background: c.ft, border: `1px solid ${c.gc}` }}>
-                            <div className="text-[6px] text-center pt-1" style={{ color: c.gr }}>EAN-13</div>
-                          </div>
-                          {coverProject.price && (
-                            <div className="text-[8px] mt-1 font-semibold" style={{ color: c.mv }}>{coverProject.price}</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Spine */}
-                    <div className="absolute flex items-center justify-center" style={{
-                      left: bleedPx + coverW, top: bleedPx, width: spineW, height: totalH - bleedPx * 2,
-                      background: '#F5F0E8', borderLeft: `1px solid ${c.gc}`, borderRight: `1px solid ${c.gc}`
-                    }}>
-                      {layout.spine.canHaveText ? (
-                        <div className="font-semibold" style={{
-                          writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)',
-                          fontSize: Math.min(9, spineW * 0.35), color: c.mv, letterSpacing: 1,
-                          overflow: 'hidden', maxHeight: totalH - bleedPx * 2 - 20,
-                        }}>
-                          {layout.spine.title?.text} — {layout.spine.author?.text}
-                        </div>
-                      ) : (
-                        <div className="text-[6px] text-center" style={{ color: c.gr, writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>DOS</div>
-                      )}
-                    </div>
-
-                    {/* Front (C1) */}
-                    <div className="absolute flex flex-col items-center justify-center" style={{
-                      left: bleedPx + coverW + spineW, top: bleedPx, width: coverW, height: totalH - bleedPx * 2,
-                      background: selectedProject.coverImage ? undefined : '#FDFAF5',
-                      backgroundImage: selectedProject.coverImage ? `url(${selectedProject.coverImage})` : undefined,
-                      backgroundSize: 'cover', backgroundPosition: 'center',
-                    }}>
-                      {!selectedProject.coverImage && (
-                        <>
-                          <div className="text-[10px] uppercase tracking-wider mb-1" style={{ color: c.gr, fontFamily: layout.front.author.fontFamily }}>
-                            {layout.front.author.text}
-                          </div>
-                          <div className="text-[14px] font-bold text-center px-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>
-                            {layout.front.title.text}
-                          </div>
-                          {coverProject.subtitle && (
-                            <div className="text-[9px] mt-1 italic text-center" style={{ color: c.gr }}>{coverProject.subtitle}</div>
-                          )}
-                          <div className="text-[8px] mt-2 italic" style={{ color: c.gr }}>{selectedProject.genre.toLowerCase()}</div>
-                          <div className="absolute bottom-3 text-[7px] tracking-widest uppercase" style={{ color: c.gr }}>{charter.fullName}</div>
-                        </>
-                      )}
-                      {selectedProject.coverImage && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-between py-4 px-3" style={{ background: 'rgba(0,0,0,0.15)' }}>
-                          <div className="text-[10px] uppercase tracking-wider font-semibold text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-                            {layout.front.author.text}
-                          </div>
-                          <div className="text-[14px] font-bold text-center text-white" style={{ fontFamily: "'Playfair Display', serif", textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-                            {layout.front.title.text}
-                          </div>
-                          <div className="text-[7px] tracking-widest uppercase text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                            {charter.fullName}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Labels */}
-                    <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverW / 2, top: -14, transform: 'translateX(-50%)', color: c.gr }}>← C4 →</div>
-                    <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverW + spineW / 2, top: -14, transform: 'translateX(-50%)', color: c.or }}>Dos</div>
-                    <div className="absolute text-[7px] font-bold" style={{ left: bleedPx + coverW + spineW + coverW / 2, top: -14, transform: 'translateX(-50%)', color: c.gr }}>← C1 →</div>
+            {/* Front cover — large, centered */}
+            <div className="flex justify-center py-6 md:py-8" style={{ background: '#E8E4DE' }}>
+              <div style={{
+                width: 240, minHeight: 360,
+                borderRadius: '2px 6px 6px 2px',
+                boxShadow: '8px 8px 24px rgba(0,0,0,0.25), 2px 2px 8px rgba(0,0,0,0.15), inset -2px 0 6px rgba(0,0,0,0.08)',
+                overflow: 'hidden', position: 'relative',
+                background: hasCover ? undefined : palette.background,
+                backgroundImage: hasCover ? `url(${selectedProject.coverImage})` : undefined,
+                backgroundSize: 'cover', backgroundPosition: 'center',
+              }}>
+                {/* Overlay for text on image */}
+                <div style={{
+                  position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+                  justifyContent: 'space-between', padding: '24px 20px',
+                  background: hasCover ? 'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.05) 65%, rgba(0,0,0,0.5) 100%)' : 'none',
+                }}>
+                  {/* Author — top */}
+                  <div style={{
+                    textAlign: 'center', fontFamily: "'EB Garamond', 'Garamond', Georgia, serif",
+                    fontSize: 12, letterSpacing: 3, textTransform: 'uppercase',
+                    color: hasCover ? 'rgba(255,255,255,0.9)' : palette.text,
+                    textShadow: hasCover ? '0 1px 4px rgba(0,0,0,0.6)' : 'none',
+                  }}>
+                    {coverProject.author}
                   </div>
-                );
-              })()}
+
+                  {/* Title — center */}
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{
+                      fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700,
+                      fontSize: coverProject.title.length > 25 ? 20 : 24, lineHeight: 1.15,
+                      color: hasCover ? 'white' : palette.primary,
+                      textShadow: hasCover ? '0 2px 8px rgba(0,0,0,0.6), 0 0 20px rgba(0,0,0,0.3)' : 'none',
+                    }}>
+                      {coverProject.title}
+                    </div>
+                    {coverProject.subtitle && (
+                      <div style={{
+                        fontFamily: "'Playfair Display', Georgia, serif", fontStyle: 'italic',
+                        fontSize: 11, marginTop: 6, lineHeight: 1.3,
+                        color: hasCover ? 'rgba(255,255,255,0.85)' : palette.muted,
+                        textShadow: hasCover ? '0 1px 3px rgba(0,0,0,0.5)' : 'none',
+                      }}>
+                        {coverProject.subtitle}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Publisher — bottom */}
+                  <div style={{
+                    textAlign: 'center', fontFamily: "'Inter', sans-serif",
+                    fontSize: 8, letterSpacing: 4, textTransform: 'uppercase',
+                    color: hasCover ? 'rgba(255,255,255,0.7)' : palette.muted,
+                    textShadow: hasCover ? '0 1px 3px rgba(0,0,0,0.5)' : 'none',
+                  }}>
+                    {charter.fullName}
+                  </div>
+                </div>
+                {/* Book spine edge effect */}
+                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: 'linear-gradient(90deg, rgba(0,0,0,0.15), transparent)' }} />
+              </div>
+            </div>
+          </Card>
+
+          {/* ═══ FULL SPREAD — Technical view ═══ */}
+          <Card hover={false} className="mb-4">
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `1px solid ${c.gc}` }}>
+              <div className="flex flex-wrap justify-between items-center gap-2">
+                <span className="text-[11px] font-semibold" style={{ color: c.gr }}>Planche complète (C4 + Dos + C1)</span>
+                <span className="text-[10px] font-mono" style={{ color: c.or }}>
+                  {d.totalWidthMm.toFixed(0)} × {d.totalHeightMm.toFixed(0)} mm · {d.totalWidthPx} × {d.totalHeightPx} px
+                </span>
+              </div>
+            </div>
+            <div className="p-3 md:p-4 overflow-x-auto" style={{ background: '#F0EDE8' }}>
+              <div className="flex mx-auto" style={{ width: 'fit-content' }}>
+                {/* C4 — Back */}
+                <div style={{
+                  width: 160, minHeight: 240, padding: 12,
+                  background: 'white', borderRadius: '4px 0 0 4px',
+                  display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                  boxShadow: '-3px 3px 10px rgba(0,0,0,0.1)',
+                }}>
+                  <div>
+                    <div style={{ fontSize: 8, color: c.gr, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>4e de couverture</div>
+                    <div style={{ fontSize: 8, lineHeight: 1.5, color: c.nr, fontFamily: "'EB Garamond', Georgia, serif" }}>
+                      {coverProject.backCoverText ? coverProject.backCoverText.slice(0, 200) + '…' : 'Texte à rédiger…'}
+                    </div>
+                  </div>
+                  <div style={{ borderTop: `1px solid ${c.ft}`, paddingTop: 8 }}>
+                    <div style={{ fontSize: 7, color: c.gr, marginBottom: 4 }}>{charter.fullName}</div>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: c.mv }}>
+                      {coverProject.isbn || '978-2-488647-XX-X'}
+                    </div>
+                    <div style={{ width: 50, height: 16, background: '#F5F3EF', border: `1px solid ${c.gc}`, marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: 6, color: c.gr }}>EAN-13</span>
+                    </div>
+                    {coverProject.price && <div style={{ fontSize: 8, fontWeight: 700, color: c.mv, marginTop: 4 }}>{coverProject.price}</div>}
+                  </div>
+                </div>
+
+                {/* Spine */}
+                <div style={{
+                  width: Math.max(16, Math.round(d.spineWidthMm * 1.2)),
+                  minHeight: 240, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: hasCover ? palette.primary : '#F5F0E8',
+                  borderLeft: `1px solid rgba(0,0,0,0.1)`, borderRight: `1px solid rgba(0,0,0,0.1)`,
+                }}>
+                  {layout.spine.canHaveText && (
+                    <div style={{
+                      writingMode: 'vertical-rl', transform: 'rotate(180deg)',
+                      fontSize: 7, fontWeight: 600, letterSpacing: 0.5,
+                      color: hasCover ? 'rgba(255,255,255,0.9)' : c.mv,
+                      fontFamily: "'Playfair Display', serif",
+                      overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                      maxHeight: 220,
+                    }}>
+                      {coverProject.title} — {coverProject.author}
+                    </div>
+                  )}
+                </div>
+
+                {/* C1 — Front */}
+                <div style={{
+                  width: 160, minHeight: 240,
+                  borderRadius: '0 4px 4px 0',
+                  overflow: 'hidden', position: 'relative',
+                  background: hasCover ? undefined : palette.background,
+                  backgroundImage: hasCover ? `url(${selectedProject.coverImage})` : undefined,
+                  backgroundSize: 'cover', backgroundPosition: 'center',
+                  boxShadow: '3px 3px 10px rgba(0,0,0,0.15)',
+                }}>
+                  <div style={{
+                    position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+                    justifyContent: 'space-between', padding: 12,
+                    background: hasCover ? 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.4) 100%)' : 'none',
+                  }}>
+                    <div style={{ fontSize: 8, textAlign: 'center', letterSpacing: 2, textTransform: 'uppercase', color: hasCover ? 'rgba(255,255,255,0.85)' : palette.text, fontFamily: "'EB Garamond', Georgia, serif", textShadow: hasCover ? '0 1px 3px rgba(0,0,0,0.5)' : 'none' }}>
+                      {coverProject.author}
+                    </div>
+                    <div style={{ textAlign: 'center', fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: 14, color: hasCover ? 'white' : palette.primary, textShadow: hasCover ? '0 1px 6px rgba(0,0,0,0.6)' : 'none', lineHeight: 1.2 }}>
+                      {coverProject.title}
+                    </div>
+                    <div style={{ fontSize: 6, textAlign: 'center', letterSpacing: 3, textTransform: 'uppercase', color: hasCover ? 'rgba(255,255,255,0.6)' : palette.muted, textShadow: hasCover ? '0 1px 2px rgba(0,0,0,0.4)' : 'none' }}>
+                      {charter.fullName}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Specs summary */}
+            <div className="px-3 md:px-5 py-2 flex flex-wrap gap-3 md:gap-4" style={{ background: c.ft, borderTop: `1px solid ${c.gc}` }}>
+              {[
+                ['Dos', `${d.spineWidthMm.toFixed(1)} mm`],
+                ['Bleed', `${d.bleedMm} mm`],
+                ['PDF', DISTRIBUTORS[selectedDist].pdfFormat],
+                ['Couleurs', DISTRIBUTORS[selectedDist].colorProfile],
+              ].map(([l, v]) => (
+                <div key={l as string}>
+                  <span className="text-[9px] uppercase" style={{ color: c.gr }}>{l} </span>
+                  <span className="text-[10px] font-bold font-mono" style={{ color: c.mv }}>{v}</span>
+                </div>
+              ))}
             </div>
           </Card>
 
@@ -2664,7 +2730,8 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
             <button onClick={() => setStep('marketing')} className="px-4 md:px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Marketing Pack</button>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* STEP 4: Marketing Pack */}
       {step === 'marketing' && coverProject && marketingTexts && (
