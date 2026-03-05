@@ -11,6 +11,7 @@ import { DISTRIBUTORS, TRIM_SIZES, calculateCoverDimensions, calculateSpineWidth
 import { JABRILIA_CHARTER, getCoverTypoRecommendation, auditCoverAgainstCharter, type PublisherCharter, type CollectionSpec } from '@/lib/publisherCharter';
 import { SOCIAL_FORMATS, generateCoverLayout, generateCoverImagePrompt, generateTrailerBrief, generateMarketingTexts, type CoverProject, type CoverStudioStep, type SocialAsset, type TrailerBrief, type APIConfig } from '@/lib/coverStudio';
 import { assembleCover, exportCoverAsPNG, downloadBlob, generateSocialVisual, generateImageWithDALLE, generateVideoWithRunway, checkRunwayStatus, type CoverAssemblyConfig, type SocialVisualConfig } from '@/lib/coverAssembly';
+import { splitIntoChapters, generateFullAudiobook, fetchVoices, downloadChapterAudio, downloadAllChapters, estimateCost, validateACXSpecs, type AudioChapter, type AudiobookProject, type ElevenLabsVoice } from '@/lib/audiobookEngine';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
@@ -7126,6 +7127,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
             </p>
             <Field label="OpenAI API Key (DALL-E 3)" k="openaiKey" mono />
             <Field label="Runway API Key (Gen-3 Alpha)" k="runwayKey" mono />
+            <Field label="ElevenLabs API Key (TTS Audiobooks)" k="elevenLabsKey" mono />
             <Field label="Midjourney API Key (proxy)" k="midjourneyKey" mono />
             <div className="mt-3 p-3 rounded-lg" style={{ background: '#F0F5FF', border: '1px solid #C0D0FF' }}>
               <div className="text-[10px]" style={{ color: c.nr }}>
@@ -7187,6 +7189,26 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
   const withoutAudio = projects.filter(p => p.genre !== 'BD' && !p.editions.some(e => e.format === 'audiobook'));
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
+  // Real audiobook state
+  const [generatingId, setGeneratingId] = useState<number | null>(null);
+  const [audioChapters, setAudioChapters] = useState<Record<number, AudioChapter[]>>({});
+  const [genProgress, setGenProgress] = useState<{ current: number; total: number } | null>(null);
+  const [playingChapter, setPlayingChapter] = useState<string | null>(null);
+  const [elevenLabsVoices, setElevenLabsVoices] = useState<ElevenLabsVoice[]>([]);
+
+  // Load API key
+  const getApiKey = (key: string): string | null => {
+    try { const s = localStorage.getItem('jabr-settings'); return s ? JSON.parse(s)[key] || null : null; } catch { return null; }
+  };
+  const elevenLabsKey = getApiKey('elevenLabsKey');
+
+  // Fetch real voices on mount if key exists
+  useEffect(() => {
+    if (elevenLabsKey) {
+      fetchVoices(elevenLabsKey).then(v => { if (v.length > 0) setElevenLabsVoices(v); });
+    }
+  }, [elevenLabsKey]);
+
   // Per-project pipeline state (persisted)
   const [pipelineState, setPipelineState] = useState<Record<number, { step: number; voice: string; launched: boolean }>>(() => {
     try { const s = localStorage.getItem('jabr-audiobook-pipeline'); return s ? JSON.parse(s) : {}; } catch { return {}; }
@@ -7205,12 +7227,64 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
     const newState = { ...pipelineState };
     delete newState[projectId];
     persistPipeline(newState);
+    setAudioChapters(prev => { const n = { ...prev }; delete n[projectId]; return n; });
     onToast('Pipeline réinitialisé');
   };
 
   const setVoice = (projectId: number, voice: string) => {
     const cur = pipelineState[projectId] || { step: 0, voice: 'adam-fr', launched: false };
     persistPipeline({ ...pipelineState, [projectId]: { ...cur, voice } });
+  };
+
+  // REAL PRODUCTION LAUNCH
+  const launchRealProduction = async (p: Project) => {
+    if (!elevenLabsKey) {
+      onToast('Clé API ElevenLabs requise — Paramètres → Intégrations IA');
+      return;
+    }
+
+    setGeneratingId(p.id);
+    const cur = pipelineState[p.id] || { step: 0, voice: 'adam-fr', launched: false };
+    persistPipeline({ ...pipelineState, [p.id]: { ...cur, launched: true, step: 1 } });
+
+    // Step 1: Split into chapters
+    onToast('📝 Étape 1 : Découpe en chapitres…');
+    const sampleText = p.backCover || `Chapitre 1\n\n${p.title} par ${p.author}.\n\nCeci est un extrait de démonstration. Pour générer l'audiobook complet, importez le manuscrit .docx dans le module Manuscrits.\n\nChapitre 2\n\nSuite du texte de démonstration pour ${p.title}.`;
+    const chapters = splitIntoChapters(sampleText, `${p.title} — ${p.author}`);
+    setAudioChapters(prev => ({ ...prev, [p.id]: chapters }));
+
+    // Step 2: Generate TTS
+    persistPipeline({ ...pipelineState, [p.id]: { ...cur, launched: true, step: 2 } });
+    onToast(`🎙️ Étape 2 : Génération vocale (${chapters.length} chapitres)…`);
+
+    const voiceId = cur.voice === 'clone' ? 'EXAVITQu4vr4xnSDxMaL' : 
+      elevenLabsVoices.find(v => v.id === cur.voice)?.id || 'EXAVITQu4vr4xnSDxMaL';
+
+    const results = await generateFullAudiobook(
+      chapters, voiceId, elevenLabsKey, 'eleven_multilingual_v2',
+      (ch, idx, total) => {
+        setGenProgress({ current: idx + 1, total });
+        setAudioChapters(prev => {
+          const updated = [...(prev[p.id] || [])];
+          updated[idx] = ch;
+          return { ...prev, [p.id]: updated };
+        });
+      }
+    );
+
+    setAudioChapters(prev => ({ ...prev, [p.id]: results }));
+
+    // Step 3-6
+    const doneCount = results.filter(c => c.status === 'done').length;
+    persistPipeline({ ...pipelineState, [p.id]: { ...cur, launched: true, step: doneCount === results.length ? 6 : 4 } });
+    setGeneratingId(null);
+    setGenProgress(null);
+
+    if (doneCount === results.length) {
+      onToast(`✅ Audiobook "${p.title}" terminé — ${results.length} chapitres générés !`);
+    } else {
+      onToast(`⚠️ ${doneCount}/${results.length} chapitres générés — ${results.length - doneCount} erreurs`);
+    }
   };
 
   const launchProduction = (projectId: number) => {
@@ -7233,6 +7307,8 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
     { name: 'Narratrice FR — Féminin', id: 'bella-fr', desc: 'Voix claire, chaleureuse, expressive', cost: '~0,30€/min' },
     { name: 'Clonage voix auteur', id: 'clone', desc: '3 min d\'échantillon requis', cost: '~0,50€/min' },
     { name: 'Narrateur EN — English', id: 'adam-en', desc: 'Deep, literary, British accent', cost: '~0,30€/min' },
+    ...(elevenLabsVoices.length > 0 ? [{ name: '── Voix ElevenLabs ──', id: 'divider', desc: `${elevenLabsVoices.length} voix détectées`, cost: '' }] : []),
+    ...elevenLabsVoices.slice(0, 10).map(v => ({ name: v.name, id: v.id, desc: `${v.category} · ${v.description || ''}`.slice(0, 50), cost: '~0,30€/min' })),
   ];
 
   const acxSpecs = [
@@ -7383,7 +7459,19 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
                       <div className="p-3 rounded-lg flex flex-col gap-2" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
                         <div className="text-[11px] font-semibold mb-1" style={{ color: c.vm }}>⚡ Actions</div>
                         {!ps.launched ? (
-                          <Btn onClick={() => { launchProduction(p.id); }}>🚀 Lancer la production</Btn>
+                          <>
+                            <Btn onClick={() => { launchProduction(p.id); }}>🚀 Lancer (simulé)</Btn>
+                            {elevenLabsKey && (
+                              <Btn onClick={() => launchRealProduction(p)}>
+                                {generatingId === p.id ? '⏳ Génération…' : '🎙️ Générer avec ElevenLabs'}
+                              </Btn>
+                            )}
+                            {!elevenLabsKey && (
+                              <div className="text-[9px] p-2 rounded" style={{ background: '#FFF5E0', color: '#7A5A00' }}>
+                                Clé ElevenLabs requise → Paramètres
+                              </div>
+                            )}
+                          </>
                         ) : ps.step < 6 ? (
                           <Btn onClick={() => { advanceStep(p.id); }}>→ Valider étape {ps.step + 1}</Btn>
                         ) : (
@@ -7392,6 +7480,64 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
                         {ps.launched && <Btn variant="secondary" onClick={() => { resetPipeline(p.id); }}>↺ Réinitialiser</Btn>}
                       </div>
                     </div>
+
+                    {/* Generation progress */}
+                    {generatingId === p.id && genProgress && (
+                      <div className="mt-3 p-3 rounded-lg" style={{ background: '#F0F5FF', border: '1px solid #C0D0FF' }}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" style={{ color: c.or }} />
+                          <span className="text-[12px] font-semibold" style={{ color: c.mv }}>
+                            Génération en cours… {genProgress.current}/{genProgress.total} chapitres
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${(genProgress.current / genProgress.total) * 100}%`, background: c.or }} />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Generated chapters — audio player */}
+                    {audioChapters[p.id] && audioChapters[p.id].length > 0 && (
+                      <div className="mt-3">
+                        <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
+                          <span className="text-[11px] font-semibold" style={{ color: c.vm }}>
+                            🎧 Chapitres générés ({audioChapters[p.id].filter(c => c.status === 'done').length}/{audioChapters[p.id].length})
+                          </span>
+                          {audioChapters[p.id].some(c => c.audioBlob) && (
+                            <button onClick={() => downloadAllChapters(audioChapters[p.id], p.title)}
+                              className="text-[10px] px-3 py-1 rounded font-semibold" style={{ background: c.ok, color: 'white', border: 'none', cursor: 'pointer' }}>
+                              ⬇ Tout télécharger
+                            </button>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          {audioChapters[p.id].map((ch, ci) => (
+                            <div key={ci} className="flex flex-wrap items-center gap-2 p-2 rounded-lg" style={{
+                              background: ch.status === 'done' ? '#F5FAF5' : ch.status === 'generating' ? '#FFF8E0' : ch.status === 'error' ? '#FFF0F0' : c.ft,
+                              border: `1px solid ${ch.status === 'done' ? '#C0E0C0' : ch.status === 'error' ? '#FFD0D0' : c.gc}`,
+                            }}>
+                              <span className="text-[10px] font-mono font-bold shrink-0" style={{ color: c.gr, width: 20 }}>{String(ch.id).padStart(2, '0')}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[11px] font-semibold truncate" style={{ color: c.mv }}>{ch.title}</div>
+                                <div className="text-[9px]" style={{ color: c.gr }}>{ch.wordCount} mots · ~{ch.estimatedMinutes} min</div>
+                              </div>
+                              {ch.status === 'generating' && <span className="animate-spin inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full" style={{ color: c.og }} />}
+                              {ch.status === 'done' && ch.audioUrl && (
+                                <>
+                                  <audio src={ch.audioUrl} controls className="h-7" style={{ maxWidth: 120 }}
+                                    onPlay={() => setPlayingChapter(`${p.id}-${ci}`)}
+                                    onPause={() => setPlayingChapter(null)} />
+                                  <button onClick={() => downloadChapterAudio(ch, p.title)}
+                                    className="text-[9px] px-2 py-1 rounded shrink-0" style={{ background: c.ok, color: 'white', border: 'none', cursor: 'pointer' }}>⬇</button>
+                                </>
+                              )}
+                              {ch.status === 'error' && <span className="text-[9px]" style={{ color: c.er }}>✗ {ch.error?.slice(0, 30)}</span>}
+                              {ch.status === 'done' && <span className="text-[9px]" style={{ color: c.ok }}>✓</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
