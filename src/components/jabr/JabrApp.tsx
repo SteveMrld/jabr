@@ -12,6 +12,8 @@ import { JABRILIA_CHARTER, getCoverTypoRecommendation, auditCoverAgainstCharter,
 import { SOCIAL_FORMATS, generateCoverLayout, generateCoverImagePrompt, generateTrailerBrief, generateMarketingTexts, type CoverProject, type CoverStudioStep, type SocialAsset, type TrailerBrief, type APIConfig } from '@/lib/coverStudio';
 import { assembleCover, exportCoverAsPNG, downloadBlob, generateSocialVisual, generateImageWithDALLE, generateVideoWithRunway, checkRunwayStatus, type CoverAssemblyConfig, type SocialVisualConfig } from '@/lib/coverAssembly';
 import { splitIntoChapters, generateFullAudiobook, fetchVoices, downloadChapterAudio, downloadAllChapters, estimateCost, validateACXSpecs, type AudioChapter, type AudiobookProject, type ElevenLabsVoice } from '@/lib/audiobookEngine';
+import { generateCoverPDF, downloadPDF, fetchImageAsBytes, type PDFCoverConfig } from '@/lib/pdfCoverGenerator';
+import { parseDocx, type ParsedManuscript } from '@/lib/docxParser';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
@@ -2984,7 +2986,40 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
                     }}
                     className="text-[11px] px-4 py-2 rounded-lg font-semibold shrink-0"
                     style={{ background: selectedProject?.coverImage ? (generating === 'cover-pdf' ? '#9CA3AF' : c.ok) : '#D1D5DB', color: 'white', border: 'none', cursor: selectedProject?.coverImage ? 'pointer' : 'not-allowed' }}>
-                    {generating === 'cover-pdf' ? '⏳ Export…' : '⬇ Générer PNG'}
+                    {generating === 'cover-pdf' ? '⏳ Export…' : '⬇ PNG @300dpi'}
+                  </button>
+                  <button
+                    disabled={!selectedProject?.coverImage || generating === 'cover-real-pdf'}
+                    onClick={async () => {
+                      if (!selectedProject?.coverImage || !layout) return;
+                      setGenerating('cover-real-pdf');
+                      onToast('Génération PDF en cours…');
+                      try {
+                        const typo = getCoverTypoRecommendation(coverProject.genre, coverProject.collection, charter);
+                        const col = typo.collection;
+                        const imgData = await fetchImageAsBytes(selectedProject.coverImage);
+                        const pdfConfig: PDFCoverConfig = {
+                          trimWidthMm: layout.dimensions.trimWidthMm, trimHeightMm: layout.dimensions.trimHeightMm,
+                          spineWidthMm: layout.dimensions.spineWidthMm, bleedMm: layout.dimensions.bleedMm,
+                          title: coverProject.title, subtitle: coverProject.subtitle,
+                          author: coverProject.author, publisherName: charter.fullName,
+                          backCoverText: coverProject.backCoverText || 'Texte de 4e de couverture.',
+                          isbn: coverProject.isbn || '978-2-488647-XX-X', price: coverProject.price,
+                          depotLegal: `Dépôt légal : ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`,
+                          titleColor: col?.palette?.primary || '#2D1B4E',
+                          spineColor: col?.palette?.primary || '#2D1B4E',
+                          coverImageBytes: imgData?.bytes, coverImageType: imgData?.type,
+                          canHaveSpineText: layout.dimensions.canHaveSpineText,
+                        };
+                        const pdfBytes = await generateCoverPDF(pdfConfig);
+                        downloadPDF(pdfBytes, `couverture-${coverProject.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`);
+                        onToast('PDF généré avec traits de coupe ✓');
+                      } catch (e) { onToast(`Erreur PDF: ${String(e)}`); }
+                      setGenerating(null);
+                    }}
+                    className="text-[11px] px-4 py-2 rounded-lg font-semibold shrink-0"
+                    style={{ background: selectedProject?.coverImage ? (generating === 'cover-real-pdf' ? '#9CA3AF' : c.vm) : '#D1D5DB', color: 'white', border: 'none', cursor: selectedProject?.coverImage ? 'pointer' : 'not-allowed' }}>
+                    {generating === 'cover-real-pdf' ? '⏳ PDF…' : '⬇ PDF (traits de coupe)'}
                   </button>
                 </div>
 
@@ -7136,6 +7171,54 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
             </div>
           </Card>
 
+          {/* Charter Editor */}
+          <Card hover={false} className="p-4 md:p-6">
+            <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.vm }}>
+              Charte éditoriale
+            </h3>
+            <p className="text-[12px] mb-4" style={{ color: c.gr }}>
+              Votre identité éditoriale — utilisée par Cover Studio et Couvertures
+            </p>
+            <Field label="Nom maison d'édition" k="charterName" />
+            <Field label="Préfixe ISBN" k="charterISBNPrefix" mono />
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <Field label="Police titres" k="charterTitleFont" />
+              <Field label="Police corps" k="charterBodyFont" />
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Couleur primaire</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={s['charterColor1'] || '#2D1B4E'} onChange={e => update('charterColor1', e.target.value)} className="w-8 h-8 rounded cursor-pointer border-none" />
+                  <input value={s['charterColor1'] || '#2D1B4E'} onChange={e => update('charterColor1', e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border text-[11px] font-mono outline-none" style={{ borderColor: c.gc }} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Couleur secondaire</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={s['charterColor2'] || '#C8952E'} onChange={e => update('charterColor2', e.target.value)} className="w-8 h-8 rounded cursor-pointer border-none" />
+                  <input value={s['charterColor2'] || '#C8952E'} onChange={e => update('charterColor2', e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border text-[11px] font-mono outline-none" style={{ borderColor: c.gc }} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: c.gr }}>Accent</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={s['charterColor3'] || '#5B3E8A'} onChange={e => update('charterColor3', e.target.value)} className="w-8 h-8 rounded cursor-pointer border-none" />
+                  <input value={s['charterColor3'] || '#5B3E8A'} onChange={e => update('charterColor3', e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border text-[11px] font-mono outline-none" style={{ borderColor: c.gc }} />
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <Field label="Format intérieur (L × H mm)" k="charterFormat" />
+              <Field label="Papier intérieur (g)" k="charterPaper" />
+            </div>
+            <div className="p-3 rounded-lg mt-2" style={{ background: '#F5F0FF', border: '1px solid #D0C0FF' }}>
+              <div className="text-[10px]" style={{ color: c.nr }}>
+                La charte Jabrilia Éditions est pré-chargée avec 3 collections (Romans, Étincelles, BD). Modifiez les champs ci-dessus pour personnaliser votre identité.
+              </div>
+            </div>
+          </Card>
+
           {/* Compte */}
           {onSignOut && (
             <Card hover={false} className="p-4 md:p-6">
@@ -7195,6 +7278,7 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
   const [genProgress, setGenProgress] = useState<{ current: number; total: number } | null>(null);
   const [playingChapter, setPlayingChapter] = useState<string | null>(null);
   const [elevenLabsVoices, setElevenLabsVoices] = useState<ElevenLabsVoice[]>([]);
+  const [manuscripts, setManuscripts] = useState<Record<number, ParsedManuscript>>({});
 
   // Load API key
   const getApiKey = (key: string): string | null => {
@@ -7249,8 +7333,9 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
 
     // Step 1: Split into chapters
     onToast('📝 Étape 1 : Découpe en chapitres…');
-    const sampleText = p.backCover || `Chapitre 1\n\n${p.title} par ${p.author}.\n\nCeci est un extrait de démonstration. Pour générer l'audiobook complet, importez le manuscrit .docx dans le module Manuscrits.\n\nChapitre 2\n\nSuite du texte de démonstration pour ${p.title}.`;
-    const chapters = splitIntoChapters(sampleText, `${p.title} — ${p.author}`);
+    const manuscript = manuscripts[p.id];
+    const textToUse = manuscript?.rawText || p.backCover || `Chapitre 1\n\n${p.title} par ${p.author}.\n\nCeci est un extrait de démonstration. Pour générer l'audiobook complet, importez le manuscrit .docx.\n\nChapitre 2\n\nSuite du texte de démonstration pour ${p.title}.`;
+    const chapters = splitIntoChapters(textToUse, `${p.title} — ${p.author}`);
     setAudioChapters(prev => ({ ...prev, [p.id]: chapters }));
 
     // Step 2: Generate TTS
@@ -7461,6 +7546,29 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
                         {!ps.launched ? (
                           <>
                             <Btn onClick={() => { launchProduction(p.id); }}>🚀 Lancer (simulé)</Btn>
+                            {/* Docx upload for real text */}
+                            <label className="cursor-pointer">
+                              <input type="file" accept=".docx" className="hidden" onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                onToast('Parsing du manuscrit…');
+                                try {
+                                  const parsed = await parseDocx(file);
+                                  setManuscripts(prev => ({ ...prev, [p.id]: parsed }));
+                                  onToast(`✓ ${parsed.wordCount.toLocaleString()} mots · ${parsed.detectedChapters.length} chapitres détectés · ~${parsed.estimatedMinutes} min`);
+                                } catch (err) { onToast(`Erreur parsing: ${String(err)}`); }
+                                e.target.value = '';
+                              }} />
+                              <div className="inline-flex items-center gap-1 px-3 md:px-5 py-2 md:py-2.5 rounded-lg font-semibold text-[12px] md:text-[13px] border cursor-pointer hover:bg-gray-50"
+                                style={{ borderColor: c.vm, color: c.vm }}>
+                                📄 {manuscripts[p.id] ? `${manuscripts[p.id].wordCount.toLocaleString()} mots chargés` : 'Importer .docx'}
+                              </div>
+                            </label>
+                            {manuscripts[p.id] && (
+                              <div className="text-[9px] p-2 rounded" style={{ background: '#F0FFF0', color: '#166534', border: '1px solid #A0E0A0' }}>
+                                ✓ {manuscripts[p.id].detectedChapters.length} chapitres · ~{manuscripts[p.id].estimatedMinutes} min · prêt pour TTS
+                              </div>
+                            )}
                             {elevenLabsKey && (
                               <Btn onClick={() => launchRealProduction(p)}>
                                 {generatingId === p.id ? '⏳ Génération…' : '🎙️ Générer avec ElevenLabs'}
