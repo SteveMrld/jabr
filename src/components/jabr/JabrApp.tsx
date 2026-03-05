@@ -10,6 +10,7 @@ import { generateBudgetPlan, generateObjectivePlan, compareAB, type MediaPlan, t
 import { DISTRIBUTORS, TRIM_SIZES, calculateCoverDimensions, calculateSpineWidth, auditCover, generateCoverSpec, compareDistributorSpecs, type Distributor, type ProjectCoverData, type CoverSpec, type CoverDimensions, type CoverAudit } from '@/lib/coverSpecs';
 import { JABRILIA_CHARTER, getCoverTypoRecommendation, auditCoverAgainstCharter, type PublisherCharter, type CollectionSpec } from '@/lib/publisherCharter';
 import { SOCIAL_FORMATS, generateCoverLayout, generateCoverImagePrompt, generateTrailerBrief, generateMarketingTexts, type CoverProject, type CoverStudioStep, type SocialAsset, type TrailerBrief, type APIConfig } from '@/lib/coverStudio';
+import { assembleCover, exportCoverAsPNG, downloadBlob, generateSocialVisual, generateImageWithDALLE, generateVideoWithRunway, checkRunwayStatus, type CoverAssemblyConfig, type SocialVisualConfig } from '@/lib/coverAssembly';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
@@ -2233,6 +2234,17 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
   const [showTrailer, setShowTrailer] = useState(false);
   const [showSocial, setShowSocial] = useState(false);
 
+  // Generation state
+  const [generating, setGenerating] = useState<string | null>(null); // 'dalle' | 'cover-pdf' | 'social-X' | 'runway'
+  const [generatedCoverUrl, setGeneratedCoverUrl] = useState<string | null>(null);
+  const [runwayTaskId, setRunwayTaskId] = useState<string | null>(null);
+  const [runwayVideoUrl, setRunwayVideoUrl] = useState<string | null>(null);
+
+  // Load API keys from settings
+  const getApiKey = (key: string): string | null => {
+    try { const s = localStorage.getItem('jabr-settings'); return s ? JSON.parse(s)[key] || null : null; } catch { return null; }
+  };
+
   const charter = JABRILIA_CHARTER;
 
   const coverProject = useMemo((): CoverProject | null => {
@@ -2407,6 +2419,53 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
                           </div>
                           <div className="text-[10px] leading-relaxed font-mono" style={{ color: c.nr }}>{prompts.midjourney}</div>
                         </div>
+
+                        {/* DALL-E Generate button */}
+                        <div className="p-3 rounded-lg" style={{ background: '#F0FFF0', border: '1px solid #A0E0A0' }}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-[11px] font-bold" style={{ color: '#166534' }}>Générer directement avec DALL-E 3</div>
+                              <div className="text-[9px]" style={{ color: '#4B7A3E' }}>
+                                {getApiKey('openaiKey') ? 'Clé API configurée ✓' : 'Configurez votre clé OpenAI dans Paramètres'}
+                              </div>
+                            </div>
+                            <button
+                              disabled={!getApiKey('openaiKey') || generating === 'dalle'}
+                              onClick={async () => {
+                                const key = getApiKey('openaiKey');
+                                if (!key || !prompts) return;
+                                setGenerating('dalle');
+                                onToast('Génération DALL-E en cours…');
+                                const result = await generateImageWithDALLE(prompts.dalle, key);
+                                setGenerating(null);
+                                if (result.imageUrl) {
+                                  setGeneratedCoverUrl(result.imageUrl);
+                                  onToast('Image générée ! Passez à l\'étape suivante.');
+                                } else {
+                                  onToast(`Erreur: ${result.error}`);
+                                }
+                              }}
+                              className="text-[11px] px-4 py-2 rounded-lg font-semibold"
+                              style={{
+                                background: getApiKey('openaiKey') ? (generating === 'dalle' ? '#9CA3AF' : '#16a34a') : '#D1D5DB',
+                                color: 'white', border: 'none', cursor: getApiKey('openaiKey') && generating !== 'dalle' ? 'pointer' : 'not-allowed',
+                              }}>
+                              {generating === 'dalle' ? '⏳ Génération…' : '🎨 Générer'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Generated image preview */}
+                        {generatedCoverUrl && (
+                          <div className="p-3 rounded-lg" style={{ background: '#FEFCE8', border: '1px solid #FDE047' }}>
+                            <div className="text-[10px] font-bold mb-2" style={{ color: '#854D0E' }}>Image générée par DALL-E 3</div>
+                            <img src={generatedCoverUrl} alt="Generated cover" className="rounded-lg w-full" style={{ maxHeight: 300, objectFit: 'contain' }} />
+                            <button onClick={() => { window.open(generatedCoverUrl, '_blank'); }}
+                              className="mt-2 text-[10px] px-3 py-1 rounded font-semibold" style={{ background: c.or, color: 'white', border: 'none', cursor: 'pointer' }}>
+                              Télécharger l'image HD
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2868,42 +2927,178 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
       )}
 
       {/* STEP 6: Export */}
-      {step === 'export' && coverProject && (
+      {step === 'export' && coverProject && layout && (
         <div>
           <Card hover={false} className="mb-4">
             <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
-              <span className="text-[12px] font-bold" style={{ color: c.mv }}>6. Export — Tout est prêt</span>
+              <span className="text-[12px] font-bold" style={{ color: c.mv }}>6. Export — Générer vos fichiers</span>
             </div>
-            <div className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {[
-                  { label: 'Couverture PDF (print)', desc: `PDF ${DISTRIBUTORS[selectedDist].pdfFormat} — ${layout?.dimensions.totalWidthPx} × ${layout?.dimensions.totalHeightPx}px @300dpi`, icon: '📄', ready: !!selectedProject?.coverImage },
-                  { label: 'Pack réseaux sociaux', desc: `${SOCIAL_FORMATS.length} déclinaisons (Instagram, Facebook, LinkedIn, TikTok…)`, icon: '📱', ready: !!selectedProject?.coverImage },
-                  { label: 'Bande-annonce', desc: `${trailer?.scenes.length} scènes, ${trailer?.duration}s — prompts Runway prêts`, icon: '🎬', ready: !!selectedProject?.coverImage },
-                  { label: 'Textes marketing', desc: 'Instagram, LinkedIn, newsletter, communiqué de presse', icon: '✍️', ready: true },
-                  { label: 'Mockup 3D', desc: 'Rendu 3D du livre pour sites web et présentations', icon: '📦', ready: !!selectedProject?.coverImage },
-                  { label: 'Marque-page', desc: '50 × 150 mm @300dpi, prêt à imprimer', icon: '🔖', ready: !!selectedProject?.coverImage },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: item.ready ? '#F5FAF5' : '#FFF5F0', border: `1px solid ${item.ready ? '#C0E0C0' : '#FFD0C0'}` }}>
-                    <span className="text-[20px]">{item.icon}</span>
-                    <div className="flex-1">
-                      <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{item.label}</div>
-                      <div className="text-[10px]" style={{ color: c.gr }}>{item.desc}</div>
+            <div className="p-3 md:p-4">
+              <div className="space-y-3">
+                {/* Cover PDF/PNG */}
+                <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg" style={{ background: '#F5FAF5', border: '1px solid #C0E0C0' }}>
+                  <span className="text-[20px]">📄</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold" style={{ color: c.mv }}>Couverture complète (C4 + Dos + C1)</div>
+                    <div className="text-[10px]" style={{ color: c.gr }}>
+                      {layout.dimensions.totalWidthPx} × {layout.dimensions.totalHeightPx} px @300dpi — {DISTRIBUTORS[selectedDist].pdfFormat}
                     </div>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded"
-                      style={{ background: item.ready ? '#D4F0E0' : '#FFE0D0', color: item.ready ? c.ok : c.er }}>
-                      {item.ready ? 'Prêt' : 'Image requise'}
-                    </span>
+                  </div>
+                  <button
+                    disabled={!selectedProject?.coverImage || generating === 'cover-pdf'}
+                    onClick={async () => {
+                      if (!selectedProject?.coverImage || !layout) return;
+                      setGenerating('cover-pdf');
+                      onToast('Assemblage de la couverture…');
+                      try {
+                        const typo = getCoverTypoRecommendation(coverProject.genre, coverProject.collection, charter);
+                        const col = typo.collection;
+                        const assemblyConfig: CoverAssemblyConfig = {
+                          coverImageUrl: selectedProject.coverImage,
+                          backgroundColor: col?.palette?.background || '#FAF7F2',
+                          title: coverProject.title, subtitle: coverProject.subtitle,
+                          author: coverProject.author, publisherName: charter.fullName,
+                          titleFont: "'Playfair Display', serif", titleSize: Math.round(typo.title.sizePt * 2.5),
+                          authorFont: "'EB Garamond', Georgia, serif", authorSize: Math.round(typo.author.sizePt * 2),
+                          titleColor: col?.palette?.primary || '#2D1B4E',
+                          authorColor: col?.palette?.text || '#2D1B4E',
+                          publisherColor: col?.palette?.muted || '#9E9689',
+                          backCoverText: coverProject.backCoverText || 'Texte de 4e de couverture à rédiger.',
+                          backFont: "'EB Garamond', Georgia, serif", backSize: Math.round((typo.backText?.sizePt || 10) * 2),
+                          backColor: col?.palette?.text || '#2D2A26',
+                          isbn: coverProject.isbn || '978-2-488647-XX-X', price: coverProject.price,
+                          trimWidthMm: layout.dimensions.trimWidthMm, trimHeightMm: layout.dimensions.trimHeightMm,
+                          spineWidthMm: layout.dimensions.spineWidthMm, bleedMm: layout.dimensions.bleedMm,
+                          dpi: 300, spineColor: col?.palette?.primary || '#2D1B4E',
+                          canHaveSpineText: layout.dimensions.canHaveSpineText,
+                          depotLegal: `Dépôt légal : ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`,
+                        };
+                        const blob = await exportCoverAsPNG(assemblyConfig);
+                        downloadBlob(blob, `couverture-${coverProject.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${selectedDist}.png`);
+                        onToast('Couverture exportée ✓');
+                      } catch (e) {
+                        onToast(`Erreur : ${String(e)}`);
+                      }
+                      setGenerating(null);
+                    }}
+                    className="text-[11px] px-4 py-2 rounded-lg font-semibold shrink-0"
+                    style={{ background: selectedProject?.coverImage ? (generating === 'cover-pdf' ? '#9CA3AF' : c.ok) : '#D1D5DB', color: 'white', border: 'none', cursor: selectedProject?.coverImage ? 'pointer' : 'not-allowed' }}>
+                    {generating === 'cover-pdf' ? '⏳ Export…' : '⬇ Générer PNG'}
+                  </button>
+                </div>
+
+                {/* Social media pack */}
+                {SOCIAL_FORMATS.slice(0, 6).map(fmt => (
+                  <div key={fmt.id} className="flex flex-wrap items-center gap-3 p-2.5 rounded-lg" style={{ background: '#F5F5FF', border: '1px solid #D0D0F0' }}>
+                    <span className="text-[16px]">📱</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] font-semibold" style={{ color: c.mv }}>{fmt.label}</div>
+                      <div className="text-[9px]" style={{ color: c.gr }}>{fmt.widthPx} × {fmt.heightPx}px — {fmt.platform}</div>
+                    </div>
+                    <button
+                      disabled={!selectedProject?.coverImage || generating === `social-${fmt.id}`}
+                      onClick={async () => {
+                        if (!selectedProject?.coverImage) return;
+                        setGenerating(`social-${fmt.id}`);
+                        try {
+                          const typo = getCoverTypoRecommendation(coverProject.genre, coverProject.collection, charter);
+                          const col = typo.collection;
+                          const socialConfig: SocialVisualConfig = {
+                            coverImageUrl: selectedProject.coverImage,
+                            title: coverProject.title, author: coverProject.author,
+                            publisherName: charter.fullName, price: coverProject.price,
+                            palette: {
+                              primary: col?.palette?.primary || '#2D1B4E',
+                              secondary: col?.palette?.secondary || '#C8952E',
+                              background: col?.palette?.background || '#FAF7F2',
+                              text: col?.palette?.text || '#2D1B4E',
+                            },
+                          };
+                          const blob = await generateSocialVisual(socialConfig, fmt);
+                          downloadBlob(blob, `${coverProject.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${fmt.id}.png`);
+                          onToast(`${fmt.label} exporté ✓`);
+                        } catch (e) { onToast(`Erreur: ${String(e)}`); }
+                        setGenerating(null);
+                      }}
+                      className="text-[10px] px-3 py-1.5 rounded-lg font-semibold shrink-0"
+                      style={{ background: selectedProject?.coverImage ? c.vm : '#D1D5DB', color: 'white', border: 'none', cursor: selectedProject?.coverImage ? 'pointer' : 'not-allowed' }}>
+                      {generating === `social-${fmt.id}` ? '⏳' : '⬇'}
+                    </button>
                   </div>
                 ))}
-              </div>
 
-              <div className="mt-4 p-3 rounded-lg" style={{ background: '#F0F5FF', border: '1px solid #C0D0FF' }}>
-                <div className="text-[11px] font-semibold mb-1" style={{ color: '#1E40AF' }}>Intégrations API</div>
-                <div className="text-[10px]" style={{ color: c.nr }}>
-                  Pour la génération automatique, configurez vos clés API dans Paramètres :
-                  <strong> OpenAI</strong> (DALL-E 3) · <strong>Runway</strong> (Gen-3 Alpha) · <strong>Midjourney</strong> (via proxy).
-                  Claude est intégré nativement pour la mise en page et les textes marketing.
+                {/* Marketing texts download */}
+                <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg" style={{ background: '#FFFBF0', border: '1px solid #F0D080' }}>
+                  <span className="text-[20px]">✍️</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold" style={{ color: c.mv }}>Textes marketing (tous)</div>
+                    <div className="text-[10px]" style={{ color: c.gr }}>Instagram, LinkedIn, newsletter, communiqué de presse, hashtags</div>
+                  </div>
+                  <button onClick={() => {
+                    if (!marketingTexts) return;
+                    const all = `═══ TEXTES MARKETING — ${coverProject.title} ═══\n\n── INSTAGRAM ──\n${marketingTexts.instagramCaption}\n\n── LINKEDIN ──\n${marketingTexts.linkedinPost}\n\n── NEWSLETTER ──\n${marketingTexts.newsletterBlurb}\n\n── COMMUNIQUÉ DE PRESSE ──\n${marketingTexts.pressRelease}\n\n── HASHTAGS ──\n${marketingTexts.hashtags.join(' ')}\n`;
+                    const blob = new Blob([all], { type: 'text/plain;charset=utf-8' });
+                    downloadBlob(blob, `marketing-${coverProject.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.txt`);
+                    onToast('Textes marketing exportés ✓');
+                  }}
+                    className="text-[11px] px-4 py-2 rounded-lg font-semibold shrink-0"
+                    style={{ background: c.or, color: 'white', border: 'none', cursor: 'pointer' }}>
+                    ⬇ .txt
+                  </button>
+                </div>
+
+                {/* Runway trailer */}
+                <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg" style={{ background: '#FFF0F5', border: '1px solid #F0C0D0' }}>
+                  <span className="text-[20px]">🎬</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold" style={{ color: c.mv }}>Bande-annonce Runway</div>
+                    <div className="text-[9px]" style={{ color: c.gr }}>
+                      {getApiKey('runwayKey') ? 'Clé API Runway configurée ✓' : 'Clé Runway requise — Paramètres'}
+                      {runwayVideoUrl && ' — Vidéo prête ✓'}
+                    </div>
+                  </div>
+                  {!runwayVideoUrl ? (
+                    <button
+                      disabled={!getApiKey('runwayKey') || !selectedProject?.coverImage || generating === 'runway'}
+                      onClick={async () => {
+                        const key = getApiKey('runwayKey');
+                        if (!key || !selectedProject?.coverImage || !trailer) return;
+                        setGenerating('runway');
+                        onToast('Envoi à Runway Gen-3…');
+                        const result = await generateVideoWithRunway(selectedProject.coverImage, trailer.scenes[0].visual, key, trailer.duration);
+                        if (result.taskId) {
+                          setRunwayTaskId(result.taskId);
+                          onToast('Vidéo en cours de génération…');
+                          // Poll for completion
+                          const poll = setInterval(async () => {
+                            const status = await checkRunwayStatus(result.taskId!, key);
+                            if (status.status === 'SUCCEEDED' && status.videoUrl) {
+                              setRunwayVideoUrl(status.videoUrl);
+                              setGenerating(null);
+                              clearInterval(poll);
+                              onToast('Bande-annonce générée ✓');
+                            } else if (status.status === 'FAILED') {
+                              setGenerating(null);
+                              clearInterval(poll);
+                              onToast(`Erreur Runway: ${status.error}`);
+                            }
+                          }, 5000);
+                        } else {
+                          setGenerating(null);
+                          onToast(`Erreur: ${result.error}`);
+                        }
+                      }}
+                      className="text-[11px] px-4 py-2 rounded-lg font-semibold shrink-0"
+                      style={{ background: getApiKey('runwayKey') ? '#E11D48' : '#D1D5DB', color: 'white', border: 'none', cursor: getApiKey('runwayKey') ? 'pointer' : 'not-allowed' }}>
+                      {generating === 'runway' ? '⏳ Génération…' : '🎬 Générer vidéo'}
+                    </button>
+                  ) : (
+                    <button onClick={() => window.open(runwayVideoUrl, '_blank')}
+                      className="text-[11px] px-4 py-2 rounded-lg font-semibold shrink-0"
+                      style={{ background: c.ok, color: 'white', border: 'none', cursor: 'pointer' }}>
+                      ⬇ Télécharger vidéo
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -8526,13 +8721,14 @@ const NotifPanel = ({ open, onClose, projects }: { open: boolean; onClose: () =>
 // ONBOARDING GUIDED TOUR
 // ═══════════════════════════════════
 const ONBOARD_STEPS = [
-  { title: 'Bienvenue sur JABR 👋', desc: 'Votre pipeline éditorial complet. Gérez vos titres, ISBN, couvertures, distribution et analyses IA — tout en un.', icon: '🚀', tip: 'Ce tour rapide vous montre les fonctions clés.' },
-  { title: 'Dashboard', desc: 'Vue d\'ensemble de votre catalogue : KPIs temps réel, priorités, readiness par titre, graphiques SVG.', icon: '📊', tip: 'Cliquez sur un titre pour ouvrir sa fiche détaillée.' },
-  { title: 'Ctrl+K — Recherche globale', desc: '7 sources : titres, contenu, corrections, ISBN, collections, modules, actions. Tapez n\'importe quoi.', icon: '🔍', tip: 'Fonctionne partout dans l\'application.' },
-  { title: '21 modules', desc: 'Manuscrits, Analyse IA, Calibrage, Couvertures, Distribution, Marketing, Presse, Calendrier, Analytics, ISBN, Droits, Benchmark…', icon: '⚙️', tip: 'Navigation dans la sidebar à gauche.' },
-  { title: 'Kanban & Vue Catalogue', desc: 'Basculez entre liste et Kanban drag & drop. Organisez vos titres par statut.', icon: '▣', tip: 'Toggle en haut de la page Catalogue.' },
-  { title: 'ONIX 3.0 & Exports', desc: 'Export ONIX complet pour Dilicom/Dilisco, PDF fiche projet, CSV catalogue, communiqué de presse IA.', icon: '📤', tip: 'Disponible dans ISBN et Presse.' },
-  { title: 'C\'est parti !', desc: 'Explorez votre pipeline. Ajoutez un titre, lancez une analyse, ou explorez les modules.', icon: '✨', tip: 'Vous pouvez relancer ce tour depuis les Paramètres.' },
+  { title: 'Bienvenue sur JABR 👋', desc: 'Votre usine de production éditoriale. De la couverture vierge au pack marketing complet — JABR fait tout.', icon: '🚀', tip: 'Ce tour rapide vous montre les fonctions clés.' },
+  { title: 'Dashboard', desc: 'Vue d\'ensemble de votre catalogue : KPIs, readiness par titre, graphiques. 8 moteurs IA intégrés.', icon: '📊', tip: 'Cliquez sur un titre pour ouvrir sa fiche détaillée.' },
+  { title: '◆ Cover Studio — Le cœur de JABR', desc: 'En 6 étapes : sélection du titre → audit → assemblage de la couverture (titre, auteur, ISBN, code-barres) → pack marketing → bande-annonce → export. JABR assemble votre couverture prête à imprimer.', icon: '🎨', tip: 'Menu ☰ → ◆ Cover Studio. Choisissez un titre et traversez les étapes.' },
+  { title: 'Pas de couverture ? Générez-en une', desc: 'JABR crée les prompts DALL-E 3 et Midjourney adaptés à votre genre. Ou branchez votre clé API OpenAI pour générer directement dans JABR.', icon: '✨', tip: 'Cover Studio → Étape 1 → "Générez-en une"' },
+  { title: 'Pack Marketing automatique', desc: '12 formats sociaux (Instagram, Facebook, LinkedIn, TikTok…), textes marketing, hashtags, communiqué de presse. Tout généré en un clic.', icon: '📱', tip: 'Cover Studio → Étape 4 (Marketing Pack) et Étape 6 (Export)' },
+  { title: 'Bande-annonce Runway', desc: 'JABR génère un storyboard scène par scène avec les prompts pour Runway Gen-3 Alpha. Branchez votre clé API pour générer la vidéo directement.', icon: '🎬', tip: 'Cover Studio → Étape 5 (Bande-annonce)' },
+  { title: '22 modules', desc: 'Manuscrits, Analyse IA, Calibrage, Couvertures, Distribution, Marketing, Presse, Calendrier, Analytics, ISBN, ONIX 3.0, Droits, Benchmark…', icon: '⚙️', tip: 'Ctrl+K pour chercher n\'importe quoi.' },
+  { title: 'C\'est parti !', desc: 'Commencez par ◆ Cover Studio pour voir JABR en action. Sélectionnez un titre et traversez les 6 étapes.', icon: '🎯', tip: 'Relancez ce tour depuis Paramètres.' },
 ];
 
 const OnboardingOverlay = ({ step, onNext, onSkip }: { step: number; onNext: () => void; onSkip: () => void }) => {
