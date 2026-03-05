@@ -239,7 +239,7 @@ const Sidebar = ({ active, onNav, projects, persisted, open, onToggle, lang, onT
   {/* Overlay for mobile */}
   {open && <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden" onClick={onToggle} />}
   <div className={`fixed md:relative z-50 md:z-auto w-[220px] min-h-screen flex flex-col py-5 shrink-0 transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`} style={{ background: `linear-gradient(180deg, ${c.mv}, #1A0F2E)` }}>
-    <div className="px-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+    <div className="px-3 md:px-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
       <JabrLogo />
       <div className="mt-1 uppercase" style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', letterSpacing: '1.5px' }}>Pipeline éditorial</div>
       {author && (
@@ -525,7 +525,7 @@ const OrchestrationView = ({ projects, onProject, onNav }: { projects: Project[]
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: c.mv, marginBottom: 12 }}>Flux editorial</div>
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <div style={{overflowX:"auto",maxWidth:"100%"}}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
               <thead><tr>
                 <th style={{ textAlign: "left", padding: "8px 10px", borderBottom: "2px solid " + c.ft, color: c.gr, fontWeight: 600 }}>Titre</th>
                 {flowSteps.map(s => (<th key={s.id} style={{ textAlign: "center", padding: "8px 6px", borderBottom: "2px solid " + c.ft, color: c.gr, fontWeight: 600, cursor: "pointer" }} onClick={() => onNav(s.module)}>{s.label}</th>))}
@@ -546,7 +546,7 @@ const OrchestrationView = ({ projects, onProject, onNav }: { projects: Project[]
                     </tr>);
                 })}
               </tbody>
-            </table>
+            </table></div>
           </div>
           <div style={{ marginTop: 20 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: c.mv, marginBottom: 8 }}>Goulots</div>
@@ -647,7 +647,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
     <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
       <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div className="min-w-0">
-          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Dashboard</h2>
+          <h2 className="text-xl md:text-xl md:text-2xl" style={{ color: c.mv }}>Dashboard</h2>
           <p className="mt-0.5" style={{ color: c.gr, fontSize: 12 }}>Jabrilia Éditions — Cockpit éditorial</p>
         </div>
         <div className="flex gap-1.5 flex-wrap">
@@ -724,7 +724,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
       {/* Real-time dashboard */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5" style={{ maxWidth: '100%', overflow: 'hidden' }}>
         {/* Status donut */}
-        <Card hover={false} className="p-5">
+        <Card hover={false} className="p-3 md:p-5">
           <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>Répartition statut</div>
           <MiniDonut segments={[
             { value: pub, color: c.ok, label: 'Publiés' },
@@ -734,7 +734,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
         </Card>
 
         {/* Pipeline progress */}
-        <Card hover={false} className="p-5">
+        <Card hover={false} className="p-3 md:p-5">
           <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>Pipeline production</div>
           <div className="space-y-2.5">
             {[
@@ -760,7 +760,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
         </Card>
 
         {/* Revenue gauge */}
-        <Card hover={false} className="p-5">
+        <Card hover={false} className="p-3 md:p-5">
           <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>Revenus estimés/an</div>
           <div className="flex items-center justify-center">
             <svg width="120" height="80" viewBox="0 0 120 80">
@@ -1356,7 +1356,7 @@ const DetailView = ({ project: p, onBack, onUpdate, onToast, onDelete, allProjec
       <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-7">
         <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="lg" />
         <div className="flex-1">
-          <h2 className="text-2xl" style={{ color: c.mv }}>{p.title}</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>{p.title}</h2>
           {p.subtitle && <div className="text-[13px] italic mt-0.5" style={{ color: c.vm }}>{p.subtitle}</div>}
           <div className="text-[13px] mt-1.5" style={{ color: c.gr }}>{p.author}{p.illustrator && ` · Illustré par ${p.illustrator}`}</div>
           <div className="flex gap-1.5 mt-2.5 flex-wrap items-center">
@@ -1850,7 +1850,7 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
 
       {/* Distributor spec summary */}
       <Card hover={false} className="mb-5">
-        <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+        <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="text-[13px] font-bold" style={{ color: c.mv }}>
             📋 Cahier des charges — {dist.fullName}
           </span>
@@ -1873,12 +1873,12 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
           ))}
         </div>
         {/* Barcode spec */}
-        <div className="px-5 pb-3">
+        <div className="px-3 md:px-5 pb-3">
           <div className="text-[9px] uppercase tracking-wider font-semibold mb-1" style={{ color: c.gr }}>Code-barres</div>
           <div className="text-[12px]" style={{ color: c.mv }}>{dist.barcodeSpec}</div>
         </div>
         {/* Specific rules */}
-        <div className="px-5 pb-4">
+        <div className="px-3 md:px-5 pb-4">
           <div className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Règles spécifiques {dist.name}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
             {dist.specificRules.map((rule, i) => (
@@ -1892,7 +1892,7 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
 
       {/* Project list with audit */}
       <Card hover={false} className="mb-5">
-        <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
+        <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>
             Audit couvertures — {dist.name}
           </span>
@@ -1902,7 +1902,7 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
           return (
             <div key={p.id}>
               <div
-                className="flex items-center gap-3 px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
+                className="flex items-center gap-2 md:gap-3 px-3 md:px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
                 style={{ borderBottom: `1px solid ${c.ft}`, background: isSelected ? '#F5F0E8' : undefined }}
                 onClick={() => setSelectedProject(isSelected ? null : p)}>
                 <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
@@ -1919,7 +1919,7 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
 
               {/* Expanded audit detail */}
               {isSelected && coverSpec && (
-                <div className="px-5 py-4" style={{ background: '#FAFAF5', borderBottom: `1px solid ${c.ft}` }}>
+                <div className="px-3 md:px-5 py-3" style={{ background: '#FAFAF5', borderBottom: `1px solid ${c.ft}` }}>
 
                   {/* Trim + paper selectors */}
                   <div className="flex gap-3 mb-4 flex-wrap">
@@ -2164,7 +2164,7 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
                       <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.vm }}>
                         Comparaison 3 distributeurs — {p.title} ({p.pages} pages)
                       </div>
-                      <table className="w-full text-[11px]">
+                      <div style={{overflowX:"auto",maxWidth:"100%"}}><table className="w-full text-[11px]">
                         <thead>
                           <tr style={{ borderBottom: `2px solid ${c.gc}` }}>
                             <th className="text-left py-2 font-semibold" style={{ color: c.gr }}></th>
@@ -2192,7 +2192,7 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
                             </tr>
                           ))}
                         </tbody>
-                      </table>
+                      </table></div>
                       <div className="mt-3 text-[10px] p-2 rounded" style={{ background: '#F5F0FF', color: '#5B3E8A' }}>
                         ⚠ Le dos diffère entre distributeurs — il faut un fichier couverture PAR distributeur.
                       </div>
@@ -2207,10 +2207,10 @@ const CouverturesView = ({ onProject, projects }: { onProject: (p: Project) => v
 
       {/* Distributor notes */}
       <Card hover={false}>
-        <div className="px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+        <div className="px-3 md:px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
           <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: c.gr }}>Notes {dist.name}</span>
         </div>
-        <div className="px-5 py-3">
+        <div className="px-3 md:px-5 py-3">
           {dist.notes.map((note, i) => (
             <div key={i} className="text-[11px] flex items-start gap-2 mb-1.5" style={{ color: c.nr }}>
               <span style={{ color: c.or }}>•</span> {note}
@@ -2322,7 +2322,7 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
       {step === 'upload' && (
         <div>
           <Card hover={false} className="mb-4">
-            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
               <span className="text-[12px] font-bold" style={{ color: c.mv }}>1. Choisir un titre</span>
             </div>
             <div className="p-4">
@@ -2372,7 +2372,7 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
               {/* No cover? Generate with AI */}
               {!selectedProject.coverImage && (
                 <Card hover={false} className="mb-4">
-                  <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
+                  <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
                     <span className="text-[12px] font-bold" style={{ color: c.vm }}>Pas de couverture ? Générez-en une</span>
                   </div>
                   <div className="p-4">
@@ -2413,7 +2413,7 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
               )}
 
               <button onClick={() => setStep('audit')}
-                className="px-6 py-2.5 rounded-lg text-[13px] font-semibold"
+                className="px-4 md:px-6 py-2 rounded-lg text-[12px] md:text-[13px] font-semibold"
                 style={{ background: c.or, color: 'white' }}>
                 Suivant → Audit couverture
               </button>
@@ -2426,7 +2426,7 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
       {step === 'audit' && layout && coverProject && (
         <div>
           <Card hover={false} className="mb-4">
-            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
               <span className="text-[12px] font-bold" style={{ color: c.mv }}>
                 2. Audit — Ce que JABR va ajouter sur la couverture
               </span>
@@ -2535,7 +2535,7 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
 
           <div className="flex gap-2">
             <button onClick={() => setStep('upload')} className="px-4 py-2 rounded-lg text-[12px]" style={{ border: `1px solid ${c.gc}`, color: c.mv }}>← Retour</button>
-            <button onClick={() => setStep('assemble')} className="px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Assemblage</button>
+            <button onClick={() => setStep('assemble')} className="px-4 md:px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Assemblage</button>
           </div>
         </div>
       )}
@@ -2544,7 +2544,7 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
       {step === 'assemble' && layout && coverProject && selectedProject && (
         <div>
           <Card hover={false} className="mb-4">
-            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
               <span className="text-[12px] font-bold" style={{ color: c.mv }}>
                 3. Prévisualisation couverture assemblée
               </span>
@@ -2660,7 +2660,7 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
 
           <div className="flex gap-2">
             <button onClick={() => setStep('audit')} className="px-4 py-2 rounded-lg text-[12px]" style={{ border: `1px solid ${c.gc}`, color: c.mv }}>← Retour</button>
-            <button onClick={() => setStep('marketing')} className="px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Marketing Pack</button>
+            <button onClick={() => setStep('marketing')} className="px-4 md:px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Marketing Pack</button>
           </div>
         </div>
       )}
@@ -2669,7 +2669,7 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
       {step === 'marketing' && coverProject && marketingTexts && (
         <div>
           <Card hover={false} className="mb-4">
-            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
               <span className="text-[12px] font-bold" style={{ color: c.mv }}>4. Pack Marketing — Déclinaisons</span>
             </div>
             <div className="p-4">
@@ -2720,7 +2720,7 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
 
           <div className="flex gap-2">
             <button onClick={() => setStep('assemble')} className="px-4 py-2 rounded-lg text-[12px]" style={{ border: `1px solid ${c.gc}`, color: c.mv }}>← Retour</button>
-            <button onClick={() => setStep('trailer')} className="px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Bande-annonce</button>
+            <button onClick={() => setStep('trailer')} className="px-4 md:px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Bande-annonce</button>
           </div>
         </div>
       )}
@@ -2729,11 +2729,11 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
       {step === 'trailer' && coverProject && trailer && (
         <div>
           <Card hover={false} className="mb-4">
-            <div className="px-5 py-3" style={{ borderBottom: `2px solid #D94452` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid #D94452` }}>
               <span className="text-[12px] font-bold" style={{ color: c.mv }}>5. Bande-annonce — Brief Runway</span>
             </div>
             <div className="p-4">
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                 <div className="p-3 rounded-lg" style={{ background: c.ft }}>
                   <div className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Durée</div>
                   <div className="text-[14px] font-bold" style={{ color: c.mv }}>{trailer.duration}s</div>
@@ -2794,7 +2794,7 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
 
           <div className="flex gap-2">
             <button onClick={() => setStep('marketing')} className="px-4 py-2 rounded-lg text-[12px]" style={{ border: `1px solid ${c.gc}`, color: c.mv }}>← Retour</button>
-            <button onClick={() => setStep('export')} className="px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Export</button>
+            <button onClick={() => setStep('export')} className="px-4 md:px-6 py-2 rounded-lg text-[12px] font-semibold" style={{ background: c.or, color: 'white' }}>Suivant → Export</button>
           </div>
         </div>
       )}
@@ -2803,7 +2803,7 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
       {step === 'export' && coverProject && (
         <div>
           <Card hover={false} className="mb-4">
-            <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
               <span className="text-[12px] font-bold" style={{ color: c.mv }}>6. Export — Tout est prêt</span>
             </div>
             <div className="p-4">
@@ -3094,8 +3094,8 @@ ${products.join('\n')}
   };
   return (
   <div>
-    <div className="flex justify-between items-end mb-5">
-      <div><h2 className="text-2xl" style={{ color: c.mv }}>Registre ISBN</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Préfixe éditeur : 978-2-488647 · Stock : 100 · 1 ISBN par format</p></div>
+    <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
+      <div><h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Registre ISBN</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Préfixe éditeur : 978-2-488647 · Stock : 100 · 1 ISBN par format</p></div>
       <div className="flex gap-2">
         <Btn variant="secondary" onClick={exportCSV}>{icons.download} Export CSV</Btn>
         <Btn variant="secondary" onClick={exportONIX}>{icons.download} Export ONIX</Btn>
@@ -3104,12 +3104,12 @@ ${products.join('\n')}
     </div>
     <div className="flex gap-3.5 mb-6"><StatCard value={totalISBN} label="Attribués" accent={c.or} /><StatCard value={100 - totalISBN} label="Disponibles" accent={c.ok} /><StatCard value={projects.length} label="Titres" accent={c.mv} /></div>
     <Card hover={false}>
-      <div className="grid grid-cols-[200px_1fr_90px_90px_90px] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style={{ background: c.ft, color: c.mv, borderBottom: `2px solid ${c.or}` }}>
+      <div className="hidden md:grid grid-cols-[1fr_auto] md:grid-cols-[200px_1fr_90px_90px_90px] px-3 md:px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style={{ background: c.ft, color: c.mv, borderBottom: `2px solid ${c.or}` }}>
         <div>ISBN</div><div>Titre</div><div>Format</div><div>Prix</div><div>Statut</div>
       </div>
       {projects.map(p => (
         p.editions.map((ed, ei) => (
-          <div key={`${p.id}-${ei}`} className="grid grid-cols-[200px_1fr_90px_90px_90px] px-5 py-2.5 text-[13px] transition-colors hover:bg-[rgba(200,149,46,0.04)]"
+          <div key={`${p.id}-${ei}`} className="grid grid-cols-[1fr_auto] md:grid-cols-[200px_1fr_90px_90px_90px] px-3 md:px-5 py-2.5 text-[13px] transition-colors hover:bg-[rgba(200,149,46,0.04)]"
             style={{ background: ei === 0 ? 'white' : '#FAFAF8', borderBottom: ei === p.editions.length - 1 ? `2px solid ${c.gc}` : `1px solid ${c.ft}` }}>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: c.mv }}>{ed.isbn}</div>
             <div className="truncate">
@@ -3125,11 +3125,11 @@ ${products.join('\n')}
 
     {/* ONIX 3.0 Compliance Panel */}
     <Card hover={false} className="mt-6 overflow-hidden">
-      <div className="px-5 py-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+      <div className="px-3 md:px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
         <span className="text-[15px] font-semibold" style={{ color: c.mv }}>ONIX 3.0 — Conformité Dilisco / Dilicom</span>
         <span className="text-[11px] ml-3" style={{ color: c.gr }}>Champs inclus dans l'export XML</span>
       </div>
-      <div className="p-5">
+      <div className="p-3 md:p-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
           {[
             { label: 'Header complet', desc: 'Sender, contact, date, langue, devise', ok: true },
@@ -3232,9 +3232,9 @@ const CollectionsView = ({ onProject, projects }: { onProject: (p: Project) => v
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Collections</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Collections</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Organisation du catalogue par collections éditoriales</p>
         </div>
         <Btn onClick={() => { setShowCreate(true); setEditId(null); setNewName(''); setNewDesc(''); setNewColor('#C8952E'); }}>{icons.plus} Nouvelle collection</Btn>
@@ -3275,7 +3275,7 @@ const CollectionsView = ({ onProject, projects }: { onProject: (p: Project) => v
         <>
           <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }} onClick={() => setAssignModal(null)} />
           <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[201] w-[90vw] max-w-[480px] max-h-[70vh] rounded-2xl overflow-hidden" style={{ background: 'white', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
               <span className="font-semibold text-[13px]" style={{ color: c.mv }}>Assigner des titres à « {collections.find((col: { id: string }) => col.id === assignModal)?.name} »</span>
             </div>
             <div className="overflow-y-auto max-h-[55vh]">
@@ -3283,7 +3283,7 @@ const CollectionsView = ({ onProject, projects }: { onProject: (p: Project) => v
                 const col = collections.find((col2: { id: string }) => col2.id === assignModal);
                 const isIn = col?.bookIds?.includes(p.id);
                 return (
-                  <div key={p.id} onClick={() => handleAssign(assignModal, p.id)} className="flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                  <div key={p.id} onClick={() => handleAssign(assignModal, p.id)} className="flex items-center gap-2 md:gap-3 px-3 md:px-5 py-3 cursor-pointer transition-colors hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
                     <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: isIn ? c.or : c.ft, color: isIn ? 'white' : c.gr, fontSize: 11, fontWeight: 700 }}>{isIn ? '✓' : ''}</div>
                     <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
                     <div className="flex-1"><div className="text-[13px] font-medium">{p.title}</div><div className="text-[10px]" style={{ color: c.gr }}>{p.author} · {p.genre}</div></div>
@@ -3292,7 +3292,7 @@ const CollectionsView = ({ onProject, projects }: { onProject: (p: Project) => v
                 );
               })}
             </div>
-            <div className="px-5 py-3 text-right" style={{ borderTop: `1px solid ${c.ft}` }}>
+            <div className="px-3 md:px-5 py-3 text-right" style={{ borderTop: `1px solid ${c.ft}` }}>
               <Btn variant="secondary" onClick={() => setAssignModal(null)}>Fermer</Btn>
             </div>
           </div>
@@ -3338,7 +3338,7 @@ const CollectionsView = ({ onProject, projects }: { onProject: (p: Project) => v
                       <StatusBadge status={p.status} />
                     </div>
                   ))}
-                  {colProjects.length === 0 && <div className="px-6 py-6 text-center text-[12px]" style={{ color: c.gr }}>Aucun titre dans cette collection</div>}
+                  {colProjects.length === 0 && <div className="px-3 md:px-6 py-6 text-center text-[12px]" style={{ color: c.gr }}>Aucun titre dans cette collection</div>}
                   <div className="flex gap-2 px-6 py-3" style={{ background: 'rgba(200,149,46,0.02)' }}>
                     <Btn variant="secondary" onClick={() => setAssignModal(col.id)}>+ Assigner des titres</Btn>
                     <Btn variant="secondary" onClick={() => { setEditId(col.id); setNewName(col.name); setNewDesc(col.desc); setNewColor(col.color); }}>✎ Modifier</Btn>
@@ -3354,11 +3354,11 @@ const CollectionsView = ({ onProject, projects }: { onProject: (p: Project) => v
       {/* Unassigned */}
       {unassigned.length > 0 && (
         <Card hover={false} className="mt-5">
-          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.er}` }}>
+          <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.er}` }}>
             <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Titres non classés ({unassigned.length})</span>
           </div>
           {unassigned.map(p => (
-            <div key={p.id} onClick={() => onProject(p)} className="flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
+            <div key={p.id} onClick={() => onProject(p)} className="flex items-center gap-3 px-3 md:px-5 py-2.5 cursor-pointer transition-colors hover:bg-[#FAF7F2]" style={{ borderBottom: `1px solid ${c.ft}` }}>
               <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
               <span className="flex-1 text-[13px] font-medium">{p.title}</span>
               <GenreBadge genre={p.genre} />
@@ -3424,11 +3424,11 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
 
       {/* Production readiness matrix */}
       <Card hover={false} className="mb-6 overflow-hidden">
-        <div className="px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+        <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Readiness par titre</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px]">
+          <div style={{overflowX:"auto",maxWidth:"100%"}}><table className="w-full text-[11px]">
             <thead>
               <tr style={{ background: c.ft }}>
                 <th className="text-left px-4 py-2.5 font-semibold" style={{ color: c.gr }}>Titre</th>
@@ -3461,22 +3461,22 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         </div>
       </Card>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <Card hover={false} className="p-5">
+        <Card hover={false} className="p-3 md:p-5">
           <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Score par titre</div>
           {projects.map((p, i) => (
             <div key={i} className="flex items-center gap-2.5 mb-2">
-              <span className="text-[11px] w-[120px] truncate shrink-0">{p.title}</span>
+              <span className="text-[11px] w-[80px] md:w-[120px] truncate shrink-0">{p.title}</span>
               <ScoreBar score={p.score} max={p.maxScore} large />
             </div>
           ))}
         </Card>
         <div className="flex flex-col gap-5">
-          <Card hover={false} className="p-5">
+          <Card hover={false} className="p-3 md:p-5">
             <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Par genre</div>
             {Object.entries(byGenre).map(([g, count]) => (
               <div key={g} className="flex items-center justify-between py-1.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
@@ -3485,7 +3485,7 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
               </div>
             ))}
           </Card>
-          <Card hover={false} className="p-5">
+          <Card hover={false} className="p-3 md:p-5">
             <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Par statut</div>
             {(['published', 'in-progress', 'draft'] as const).map(s => (
               <div key={s} className="flex items-center justify-between py-1.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
@@ -3495,7 +3495,7 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
             ))}
           </Card>
         </div>
-        <Card hover={false} className="p-5">
+        <Card hover={false} className="p-3 md:p-5">
           <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Par format d&apos;édition</div>
           {Object.entries(byFormat).sort((a, b) => b[1] - a[1]).map(([f, count]) => (
             <div key={f} className="flex items-center justify-between py-2" style={{ borderBottom: `1px solid ${c.ft}` }}>
@@ -3521,11 +3521,11 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
 
       {/* Financial Dashboard */}
       <Card hover={false} className="mt-6 overflow-hidden">
-        <div className="px-5 py-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+        <div className="px-3 md:px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
           <span className="text-[15px] font-semibold" style={{ color: c.mv }}>Tableau de bord financier</span>
           <span className="text-[11px] ml-3" style={{ color: c.gr }}>Coûts, marges et projections par titre</span>
         </div>
-        <div className="p-5">
+        <div className="p-3 md:p-5">
           {(() => {
             const kdpMargin = (pages: number, price: string | undefined) => {
               if (!price) return null;
@@ -3624,11 +3624,11 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
       {/* COMPARATIF ÉDITIONS */}
       {/* ═══════════════════════════════════ */}
       <Card hover={false} className="mt-6 overflow-hidden">
-        <div className="px-5 py-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+        <div className="px-3 md:px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
           <span className="text-[15px] font-semibold" style={{ color: c.mv }}>📊 Comparatif éditions — Marges par format</span>
           <span className="text-[11px] ml-3" style={{ color: c.gr }}>Rentabilité, coûts, recommandations</span>
         </div>
-        <div className="p-5">
+        <div className="p-3 md:p-5">
           {(() => {
             // Format economics data
             const formats: { format: string; icon: string; printCost: number; retailPrice: number; platformFee: number; royaltyRate: number; margin: number; color: string }[] = [
@@ -3662,7 +3662,7 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
               <>
                 {/* Table */}
                 <div className="overflow-x-auto">
-                  <table className="w-full text-[11px]">
+                  <div style={{overflowX:"auto",maxWidth:"100%"}}><table className="w-full text-[11px]">
                     <thead>
                       <tr style={{ background: c.ft }}>
                         {['Format', 'Coût prod.', 'Prix vente', 'Commission', 'Royalty', 'Marge nette', 'Rentabilité', 'Éditions'].map(h => (
@@ -3701,7 +3701,7 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
 
                 {/* Recommendations */}
@@ -3728,11 +3728,11 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
       {/* TABLEAU DE BORD AUTEUR */}
       {/* ═══════════════════════════════════ */}
       <Card hover={false} className="mt-6 overflow-hidden">
-        <div className="px-5 py-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+        <div className="px-3 md:px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
           <span className="text-[15px] font-semibold" style={{ color: c.mv }}>✍️ Tableau de bord auteur</span>
           <span className="text-[11px] ml-3" style={{ color: c.gr }}>Objectifs · Stats · Tendances</span>
         </div>
-        <div className="p-5">
+        <div className="p-3 md:p-5">
           {/* Objectives */}
           {(() => {
             const totalWords = projects.reduce((s, p) => s + (p.pages * 250), 0);
@@ -3972,9 +3972,9 @@ const DistributionView = ({ projects, onToast, distChecks }: { projects: Project
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Distribution</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Distribution</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Canaux de distribution — cliquez un canal puis un titre pour la checklist interactive</p>
         </div>
         {selectedChannel && <Btn variant="secondary" onClick={exportChecklist}>{icons.download} Exporter checklist</Btn>}
@@ -4017,7 +4017,7 @@ const DistributionView = ({ projects, onToast, distChecks }: { projects: Project
       {/* Channel detail panel */}
       {selected && selectedSpec && selectedChannel && (
         <Card hover={false} className="mb-6 overflow-hidden">
-          <div className="px-6 py-4 flex items-center justify-between" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+          <div className="px-3 md:px-6 py-4 flex items-center justify-between" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
             <div>
               <span className="text-lg font-semibold" style={{ color: c.mv }}>{selected.name}</span>
               <span className="text-[12px] ml-3" style={{ color: c.gr }}>{selected.desc}</span>
@@ -4027,7 +4027,7 @@ const DistributionView = ({ projects, onToast, distChecks }: { projects: Project
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
             {/* Specs */}
-            <div className="p-6" style={{ borderRight: `1px solid ${c.ft}` }}>
+            <div className="p-4 md:p-6" style={{ borderRight: `1px solid ${c.ft}` }}>
               <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 11, color: c.gr }}>Spécifications techniques</div>
               {[
                 ['Format', selectedSpec.trimSize], ['Papier', selectedSpec.paper], ['Fonds perdus', selectedSpec.bleed],
@@ -4035,7 +4035,7 @@ const DistributionView = ({ projects, onToast, distChecks }: { projects: Project
                 ['Fichiers requis', selectedSpec.file], ['Marge auteur', selectedSpec.margin],
               ].map(([label, value]) => (
                 <div key={label} className="flex py-1.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
-                  <span className="text-[11px] font-semibold w-[110px] shrink-0" style={{ color: c.vm }}>{label}</span>
+                  <span className="text-[11px] font-semibold w-[80px] md:w-[110px] shrink-0" style={{ color: c.vm }}>{label}</span>
                   <span className="text-[11px]" style={{ color: c.nr }}>{value}</span>
                 </div>
               ))}
@@ -4045,7 +4045,7 @@ const DistributionView = ({ projects, onToast, distChecks }: { projects: Project
             </div>
 
             {/* Interactive checklist per title */}
-            <div className="p-6">
+            <div className="p-4 md:p-6">
               <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 11, color: c.gr }}>
                 Checklist par titre ({eligibleProjects.length})
               </div>
@@ -4128,7 +4128,7 @@ const DistributionView = ({ projects, onToast, distChecks }: { projects: Project
 
       {/* Matrix view — enriched with progress */}
       <Card hover={false}>
-        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+        <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Matrice titre × canal</span>
         </div>
         <div className="overflow-x-auto">
@@ -4139,7 +4139,7 @@ const DistributionView = ({ projects, onToast, distChecks }: { projects: Project
           {projects.map(p => {
             const fmts = p.editions.map(e => e.format);
             return (
-              <div key={p.id} className="grid px-5 py-2.5 items-center" style={{ gridTemplateColumns: '150px repeat(6, minmax(60px, 1fr))', minWidth: 600, borderBottom: `1px solid ${c.ft}` }}>
+              <div key={p.id} className="grid px-3 md:px-5 py-2.5 items-center" style={{ gridTemplateColumns: '150px repeat(6, minmax(60px, 1fr))', minWidth: 600, borderBottom: `1px solid ${c.ft}` }}>
                 <div className="text-[12px] font-medium truncate">{p.title}</div>
                 {DISTRIBUTION_CHANNELS.map(ch => {
                   const compat = channelFormats[ch.name] || [];
@@ -4218,7 +4218,7 @@ const NewProjectModal = ({ open, onClose, onAdd }: { open: boolean; onClose: () 
           <h3 className="text-xl" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Nouveau projet</h3>
           <button onClick={onClose} className="cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>{icons.close}</button>
         </div>
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           <label className="block text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: c.gr }}>Titre</label>
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Le titre de votre livre"
             className="w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none mb-4 focus:border-[#C8952E]" style={{ borderColor: c.gc }} />
@@ -4301,15 +4301,15 @@ const CalibrageView = ({ projects }: { projects: Project[] }) => {
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Calibrage</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Calibrage</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Cahier de mise en page Jabrilia Éditions</p>
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 mb-6">
         {specs.map(s => (
-          <Card key={s.label} hover={false} className="p-5">
+          <Card key={s.label} hover={false} className="p-3 md:p-5">
             <div className="uppercase tracking-wider mb-1.5" style={{ fontSize: 10, color: c.gr, fontWeight: 600 }}>{s.label}</div>
             <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: c.mv, fontWeight: 600 }}>{s.value}</div>
             <div className="mt-1.5" style={{ fontSize: 11, color: c.gr }}>{s.detail}</div>
@@ -4320,7 +4320,7 @@ const CalibrageView = ({ projects }: { projects: Project[] }) => {
       {/* Pages liminaires */}
       <Card hover={false} className="mb-6 p-5">
         <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 11, color: c.gr }}>Pages liminaires obligatoires</div>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
           {liminaires.map(l => (
             <div key={l.page} className="p-3 rounded-lg" style={{ background: c.ft }}>
               <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{l.page}</div>
@@ -4332,7 +4332,7 @@ const CalibrageView = ({ projects }: { projects: Project[] }) => {
 
       {/* Calibrage par titre */}
       <Card hover={false}>
-        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+        <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Calibrage par titre</span>
         </div>
         {projects.map(p => {
@@ -4341,7 +4341,7 @@ const CalibrageView = ({ projects }: { projects: Project[] }) => {
           const isSelected = selectedProject === p.id;
           return (
             <div key={p.id}>
-              <div className="flex items-center gap-4 px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
+              <div className="flex items-center gap-2 md:gap-4 px-3 md:px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
                 onClick={() => setSelectedProject(isSelected ? null : p.id)}
                 style={{ borderBottom: `1px solid ${c.ft}` }}>
                 <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
@@ -4360,7 +4360,7 @@ const CalibrageView = ({ projects }: { projects: Project[] }) => {
                 <span style={{ color: c.gr, fontSize: 12, transition: 'transform 0.2s', transform: isSelected ? 'rotate(180deg)' : '' }}>▾</span>
               </div>
               {isSelected && (
-                <div className="px-5 py-4 grid grid-cols-3 gap-4" style={{ background: '#FDFCFA', borderBottom: `1px solid ${c.ft}` }}>
+                <div className="px-3 md:px-5 py-3 grid grid-cols-1 sm:grid-cols-3 gap-3" style={{ background: '#FDFCFA', borderBottom: `1px solid ${c.ft}` }}>
                   <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
                     <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>Specs KDP</div>
                     <div className="text-[10px] space-y-1" style={{ color: c.gr }}>
@@ -4463,9 +4463,9 @@ const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[];
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Manuscrits</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Manuscrits</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Import, analyse et injection ISBN dans vos fichiers .docx</p>
         </div>
         <label className="cursor-pointer">
@@ -4543,7 +4543,7 @@ const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[];
 
       {/* Table par projet */}
       <Card hover={false}>
-        <div className="px-5 py-3.5 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
+        <div className="px-3 md:px-5 py-3 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>État des manuscrits par titre ({filtered.length})</span>
           <div className="flex gap-1">
             {(['all', ...statusSteps.map(s => s.key)] as (ManuscriptStatus | 'all')[]).map(st => (
@@ -4557,7 +4557,7 @@ const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[];
           const stepIdx = statusOrder.indexOf(ms);
           return (
             <div key={p.id} onClick={() => onProject(p)}
-              className="flex items-center gap-4 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#FAF7F2]"
+              className="flex items-center gap-2 md:gap-4 px-3 md:px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#FAF7F2]"
               style={{ borderBottom: `1px solid ${c.ft}` }}>
               <CoverThumb emoji={p.cover} coverImage={p.coverImage} />
               <div className="flex-1 min-w-0">
@@ -4578,7 +4578,7 @@ const ManuscritsView = ({ projects, onProject, onToast }: { projects: Project[];
             </div>
           );
         })}
-        {filtered.length === 0 && <div className="px-5 py-8 text-center text-[12px]" style={{ color: c.gr }}>Aucun titre avec ce filtre</div>}
+        {filtered.length === 0 && <div className="px-3 md:px-5 py-8 text-center text-[12px]" style={{ color: c.gr }}>Aucun titre avec ce filtre</div>}
       </Card>
     </div>
   );
@@ -4610,9 +4610,9 @@ const AnalyseView = ({ projects, onProject, onToast }: { projects: Project[]; on
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Analyse</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Analyse</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Diagnostic 6 dimensions Moradel — Scanner intégré</p>
         </div>
         <Btn onClick={() => onToast('Lancer une analyse : ouvrir la fiche projet → cliquer Analyser')}>{icons.analyse} Lancer une analyse</Btn>
@@ -4628,7 +4628,7 @@ const AnalyseView = ({ projects, onProject, onToast }: { projects: Project[]; on
       {/* 6 Dimensions explanation */}
       <Card hover={false} className="p-6 mb-6">
         <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 12, color: c.gr }}>Les 6 dimensions Moradel</div>
-        <div className="grid grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 md:gap-3">
           {Object.entries(dimLabels).map(([key, d]) => (
             <div key={key} className="p-3 rounded-xl text-center" style={{ background: c.ft }}>
               <span className="text-xl">{d.icon}</span>
@@ -4658,7 +4658,7 @@ const AnalyseView = ({ projects, onProject, onToast }: { projects: Project[]; on
             return (
               <Card key={p.id} hover={false} className="p-0 overflow-hidden">
                 {/* Header row */}
-                <div className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#FAF7F2]"
+                <div className="flex items-center gap-2 md:gap-4 px-3 md:px-5 py-4 cursor-pointer hover:bg-[#FAF7F2]"
                   onClick={() => setExpandedId(isExpanded ? null : p.id)}
                   style={{ borderBottom: `1px solid ${c.ft}` }}>
                   <CoverThumb emoji={p.cover} coverImage={p.coverImage} />
@@ -4683,8 +4683,8 @@ const AnalyseView = ({ projects, onProject, onToast }: { projects: Project[]; on
 
                 {/* 6D dimension bars — always shown if available */}
                 {dims && (
-                  <div className="px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
-                    <div className="grid grid-cols-6 gap-3">
+                  <div className="px-3 md:px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 md:gap-3">
                       {Object.entries(dimLabels).map(([key, meta]) => {
                         const dim = dims[key];
                         if (!dim) return null;
@@ -4705,7 +4705,7 @@ const AnalyseView = ({ projects, onProject, onToast }: { projects: Project[]; on
 
                 {/* Expanded: detailed findings per dimension */}
                 {isExpanded && dims && (
-                  <div className="px-5 py-4" style={{ background: '#FDFCFA', borderBottom: `1px solid ${c.ft}` }}>
+                  <div className="px-3 md:px-5 py-3" style={{ background: '#FDFCFA', borderBottom: `1px solid ${c.ft}` }}>
                     <div className="grid grid-cols-2 gap-4">
                       {Object.entries(dimLabels).map(([key, meta]) => {
                         const dim = dims[key];
@@ -4737,7 +4737,7 @@ const AnalyseView = ({ projects, onProject, onToast }: { projects: Project[]; on
 
                 {/* Expanded: patterns */}
                 {isExpanded && a.flaggedPatterns.length > 0 && (
-                  <div className="px-5 py-3" style={{ background: c.ft }}>
+                  <div className="px-3 md:px-5 py-3" style={{ background: c.ft }}>
                     <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Patterns IA détectés</div>
                     <div className="space-y-1.5">
                       {a.flaggedPatterns.map((fp, i) => (
@@ -4756,7 +4756,7 @@ const AnalyseView = ({ projects, onProject, onToast }: { projects: Project[]; on
 
                 {/* Clean manuscript badge */}
                 {a.flaggedPatterns.length === 0 && !isExpanded && (
-                  <div className="px-5 py-2.5 text-center text-[12px] font-semibold" style={{ background: '#D4F0E0', color: c.ok }}>
+                  <div className="px-3 md:px-5 py-2.5 text-center text-[12px] font-semibold" style={{ background: '#D4F0E0', color: c.ok }}>
                     ✓ Aucun pattern IA détecté — manuscrit authentique
                   </div>
                 )}
@@ -4851,9 +4851,9 @@ Ce communiqué a été généré par JABR Pipeline Éditorial.`;
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Dossier de Presse</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Dossier de Presse</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Génération de dossiers de presse par titre ou global</p>
         </div>
         <div className="flex gap-2">
@@ -4916,7 +4916,7 @@ Ce communiqué a été généré par JABR Pipeline Éditorial.`;
         {/* Center + Right — Contenu du dossier */}
         <div className="col-span-2 space-y-4">
           {/* Header */}
-          <Card hover={false} className="p-6">
+          <Card hover={false} className="p-4 md:p-6">
             <div className="flex items-center gap-4">
               {selectedProject ? (
                 <>
@@ -4971,7 +4971,7 @@ Ce communiqué a été généré par JABR Pipeline Éditorial.`;
           </div>
 
           {/* Informations auteur */}
-          <Card hover={false} className="p-5">
+          <Card hover={false} className="p-3 md:p-5">
             <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 11, color: c.gr }}>Informations auteur · Steve Moradel</div>
             <div className="grid grid-cols-2 gap-4">
               {[
@@ -4993,7 +4993,7 @@ Ce communiqué a été généré par JABR Pipeline Éditorial.`;
           </Card>
 
           {/* Export options */}
-          <Card hover={false} className="p-5">
+          <Card hover={false} className="p-3 md:p-5">
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-semibold text-[14px]" style={{ color: c.mv }}>
@@ -5020,11 +5020,11 @@ Ce communiqué a été généré par JABR Pipeline Éditorial.`;
 
           {/* AI Communiqué Generator */}
           <Card hover={false} className="mt-5 overflow-hidden">
-            <div className="px-5 py-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
               <span className="text-[14px] font-semibold" style={{ color: c.mv }}>🤖 Communiqué de presse IA</span>
               <span className="text-[11px] ml-2" style={{ color: c.gr }}>Génération automatique par titre</span>
             </div>
-            <div className="p-5">
+            <div className="p-3 md:p-5">
               {!selectedProject && !communique && (
                 <div className="text-center py-6">
                   <div className="text-[28px] mb-3">📰</div>
@@ -5109,9 +5109,9 @@ const MultiAuteursView = ({ projects, onProject }: { projects: Project[]; onProj
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Tableau éditeur multi-auteurs</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Tableau éditeur multi-auteurs</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Vue consolidée par auteur — production, qualité, readiness</p>
         </div>
       </div>
@@ -5127,7 +5127,7 @@ const MultiAuteursView = ({ projects, onProject }: { projects: Project[]; onProj
       <div className="space-y-5">
         {authorStats.map(a => (
           <Card key={a.author} hover={false} className="overflow-hidden">
-            <div className="px-5 py-4 flex items-center gap-4" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <div className="px-3 md:px-5 py-3 flex items-center gap-4" style={{ borderBottom: `2px solid ${c.or}` }}>
               <div className="w-11 h-11 rounded-full flex items-center justify-center text-white text-[16px] font-bold shrink-0" style={{ background: `linear-gradient(135deg, ${c.mv}, ${c.or})` }}>
                 {a.author.split(' ').map(w => w[0]).join('').slice(0, 2)}
               </div>
@@ -5151,7 +5151,7 @@ const MultiAuteursView = ({ projects, onProject }: { projects: Project[]; onProj
               </div>
             </div>
 
-            <div className="p-5">
+            <div className="p-3 md:p-5">
               {/* KPIs row */}
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
                 {[
@@ -5246,9 +5246,9 @@ const TraductionsView = ({ projects, onToast }: { projects: Project[]; onToast: 
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Traductions</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Traductions</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Suivi des langues cibles, traducteurs et statuts</p>
         </div>
         <Btn variant="secondary" onClick={() => onToast('Export traductions en préparation')}>{icons.download} Export récapitulatif</Btn>
@@ -5280,7 +5280,7 @@ const TraductionsView = ({ projects, onToast }: { projects: Project[]; onToast: 
         {/* Translation projects list */}
         <div className="lg:col-span-2">
           <Card hover={false} className="overflow-hidden">
-            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
               <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Projets de traduction</span>
             </div>
             <div className="divide-y" style={{ borderColor: c.ft }}>
@@ -5290,7 +5290,7 @@ const TraductionsView = ({ projects, onToast }: { projects: Project[]; onToast: 
                 const st = statusConfig[tp.status];
                 if (!project || !lang) return null;
                 return (
-                  <div key={i} className="px-5 py-4 transition-colors hover:bg-[rgba(200,149,46,0.02)]">
+                  <div key={i} className="px-3 md:px-5 py-4 transition-colors hover:bg-[rgba(200,149,46,0.02)]">
                     <div className="flex items-center gap-3">
                       <span className="text-lg">{lang.flag}</span>
                       <div className="flex-1 min-w-0">
@@ -5328,7 +5328,7 @@ const TraductionsView = ({ projects, onToast }: { projects: Project[]; onToast: 
         {/* Language market sidebar */}
         <div>
           <Card hover={false} className="overflow-hidden">
-            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
               <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>🌍 Marchés cibles</span>
             </div>
             <div className="p-4 space-y-2">
@@ -5419,9 +5419,9 @@ const LecteursView = ({ projects, onProject, onToast }: { projects: Project[]; o
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Lecteurs & Réception</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Lecteurs & Réception</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Avis, notes, citations presse, lectorat cible</p>
         </div>
       </div>
@@ -5470,7 +5470,7 @@ const LecteursView = ({ projects, onProject, onToast }: { projects: Project[]; o
             return (
               <>
                 {/* Header */}
-                <Card hover={false} className="p-5">
+                <Card hover={false} className="p-3 md:p-5">
                   <div className="flex items-center gap-4">
                     <CoverThumb emoji={selected.cover} coverImage={selected.coverImage} size="md" />
                     <div className="flex-1">
@@ -5487,10 +5487,10 @@ const LecteursView = ({ projects, onProject, onToast }: { projects: Project[]; o
 
                 {/* Audience */}
                 <Card hover={false} className="overflow-hidden">
-                  <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                  <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
                     <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>👥 Lectorat cible</span>
                   </div>
-                  <div className="p-5">
+                  <div className="p-3 md:p-5">
                     <div className="space-y-3">
                       {rd.audience.map((a, i) => (
                         <div key={i}>
@@ -5509,12 +5509,12 @@ const LecteursView = ({ projects, onProject, onToast }: { projects: Project[]; o
 
                 {/* Reviews */}
                 <Card hover={false} className="overflow-hidden">
-                  <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                  <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
                     <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>⭐ Avis lecteurs</span>
                   </div>
                   <div className="divide-y" style={{ borderColor: c.ft }}>
                     {rd.reviews.length > 0 ? rd.reviews.map((r, i) => (
-                      <div key={i} className="px-5 py-4">
+                      <div key={i} className="px-3 md:px-5 py-3">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ background: c.mv }}>{r.name[0]}</div>
@@ -5534,7 +5534,7 @@ const LecteursView = ({ projects, onProject, onToast }: { projects: Project[]; o
                 {/* Citations */}
                 {rd.citations.length > 0 && (
                   <Card hover={false} className="overflow-hidden">
-                    <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                    <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
                       <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>💬 Citations presse</span>
                     </div>
                     <div className="p-5 space-y-3">
@@ -5581,9 +5581,9 @@ const MultiAuthorView = ({ projects, onProject }: { projects: Project[]; onProje
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Tableau de bord éditeur</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Tableau de bord éditeur</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Vue consolidée multi-auteurs · {authors.length} auteur{authors.length > 1 ? 's' : ''} · {totalTitles} titres</p>
         </div>
       </div>
@@ -5617,7 +5617,7 @@ const MultiAuthorView = ({ projects, onProject }: { projects: Project[]; onProje
           const pctOfCatalogue = Math.round((as.count / totalTitles) * 100);
           return (
             <Card key={as.author} hover={false} className="overflow-hidden">
-              <div className="px-5 py-4 flex items-center gap-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+              <div className="px-3 md:px-5 py-3 flex items-center gap-4" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
                 <div className="w-12 h-12 rounded-full flex items-center justify-center text-[18px] font-bold text-white shrink-0" style={{ background: `linear-gradient(135deg, ${c.mv}, ${c.or})` }}>
                   {as.author.split(' ').map(w => w[0]).join('').slice(0, 2)}
                 </div>
@@ -5643,7 +5643,7 @@ const MultiAuthorView = ({ projects, onProject }: { projects: Project[]; onProje
               </div>
 
               {/* Contribution bar */}
-              <div className="px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
+              <div className="px-3 md:px-5 py-3" style={{ borderBottom: `1px solid ${c.ft}` }}>
                 <div className="flex items-center gap-3">
                   <span className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Contribution</span>
                   <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: c.gc }}>
@@ -5684,11 +5684,11 @@ const MultiAuthorView = ({ projects, onProject }: { projects: Project[]; onProje
       {/* Cross-author comparison */}
       {authors.length > 1 && !selectedAuthor && (
         <Card hover={false} className="mt-5 overflow-hidden">
-          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
             <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>📊 Comparaison inter-auteurs</span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-[11px]">
+            <div style={{overflowX:"auto",maxWidth:"100%"}}><table className="w-full text-[11px]">
               <thead>
                 <tr style={{ background: c.ft }}>
                   {['Auteur', 'Titres', 'Publiés', 'ISBN', 'Pages total', 'Score moy.', 'Corrections', 'Poids catalogue'].map(h => (
@@ -5720,7 +5720,7 @@ const MultiAuthorView = ({ projects, onProject }: { projects: Project[]; onProje
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </Card>
       )}
@@ -5808,9 +5808,9 @@ const BenchmarkView = ({ projects }: { projects: Project[] }) => {
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Benchmark Concurrence</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Benchmark Concurrence</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Positionnement marché, prix, concurrents par genre</p>
         </div>
       </div>
@@ -5839,10 +5839,10 @@ const BenchmarkView = ({ projects }: { projects: Project[] }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Price positioning */}
         <Card hover={false} className="overflow-hidden">
-          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
             <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Positionnement prix</span>
           </div>
-          <div className="p-5">
+          <div className="p-3 md:p-5">
             <div className="relative h-12 rounded-xl mb-6 overflow-hidden" style={{ background: c.ft }}>
               <div className="absolute top-0 left-0 h-full rounded-l-xl" style={{ width: '100%', background: `linear-gradient(90deg, ${c.ok}15, ${c.og}15, ${c.er}15)` }} />
               <div className="absolute top-0 h-full flex flex-col items-center justify-end pb-1" style={{ left: `${((market.lowPrice - 5) / 30) * 100}%` }}>
@@ -5891,12 +5891,12 @@ const BenchmarkView = ({ projects }: { projects: Project[] }) => {
 
         {/* Competitors — with add/remove */}
         <Card hover={false} className="overflow-hidden">
-          <div className="px-5 py-3.5 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <div className="px-3 md:px-5 py-3 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
             <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Concurrents — {activeGenre} ({allCompetitors.length})</span>
             <button onClick={() => setShowAddComp(!showAddComp)} className="text-[11px] font-semibold cursor-pointer bg-transparent border-none" style={{ color: c.or }}>{showAddComp ? '✕ Fermer' : '+ Ajouter'}</button>
           </div>
           {showAddComp && (
-            <div className="px-5 py-3 flex gap-2 items-end flex-wrap" style={{ background: 'rgba(200,149,46,0.03)', borderBottom: `1px solid ${c.ft}` }}>
+            <div className="px-3 md:px-5 py-3 flex gap-2 items-end flex-wrap" style={{ background: 'rgba(200,149,46,0.03)', borderBottom: `1px solid ${c.ft}` }}>
               <div className="flex-1 min-w-[120px]"><label className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Éditeur *</label><input value={compForm.name} onChange={e => setCompForm({ ...compForm, name: e.target.value })} className="w-full px-2 py-1.5 rounded text-[12px] outline-none" style={{ border: `1px solid ${c.gc}` }} placeholder="Gallimard" /></div>
               <div className="w-[80px]"><label className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Prix *</label><input value={compForm.price} onChange={e => setCompForm({ ...compForm, price: e.target.value })} className="w-full px-2 py-1.5 rounded text-[12px] outline-none" style={{ border: `1px solid ${c.gc}` }} placeholder="19,90€" /></div>
               <div className="w-[60px]"><label className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: c.gr }}>Pages</label><input value={compForm.pages} onChange={e => setCompForm({ ...compForm, pages: e.target.value })} className="w-full px-2 py-1.5 rounded text-[12px] outline-none" style={{ border: `1px solid ${c.gc}` }} placeholder="300" /></div>
@@ -6036,9 +6036,9 @@ const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg:
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Droits & Contrats</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Droits & Contrats</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Gestion des droits dérivés, adaptations et territoires</p>
         </div>
         <div className="flex gap-2">
@@ -6085,7 +6085,7 @@ const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg:
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Types de droits */}
         <Card hover={false} className="overflow-hidden">
-          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
             <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Types de droits</span>
           </div>
           <div className="p-4 space-y-3">
@@ -6107,13 +6107,13 @@ const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg:
 
         {/* Territoires */}
         <Card hover={false} className="overflow-hidden">
-          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+          <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
             <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Couverture territoriale</span>
           </div>
           <div className="p-4">
             {territories.map((t, i) => (
               <div key={i} className="flex items-center gap-3 py-2.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
-                <span className="text-base w-[120px] text-[12px] font-semibold" style={{ color: t.active ? c.mv : c.gr }}>{t.zone}</span>
+                <span className="text-base w-[80px] md:w-[120px] text-[12px] font-semibold" style={{ color: t.active ? c.mv : c.gr }}>{t.zone}</span>
                 <div className="flex-1 text-[11px]" style={{ color: c.gr }}>{t.rights}</div>
                 <span className="text-[11px] font-bold" style={{ color: t.active ? c.ok : c.gr }}>
                   {t.titles > 0 ? `${t.titles} titre${t.titles > 1 ? 's' : ''}` : '—'}
@@ -6127,13 +6127,13 @@ const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg:
 
       {/* Contrats CRUD */}
       <Card hover={false} className="mt-5 overflow-hidden">
-        <div className="px-5 py-3.5 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
+        <div className="px-3 md:px-5 py-3 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Contrats ({contracts.length})</span>
           <Btn variant="secondary" onClick={openCreate}>{icons.plus} Ajouter</Btn>
         </div>
         <div className="divide-y" style={{ borderColor: c.ft }}>
           {contracts.map((ct: { id: string; title: string; author: string; type: string; start: string; end: string; status: string; titles: number; notes?: string }) => (
-            <div key={ct.id} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[rgba(200,149,46,0.02)]">
+            <div key={ct.id} className="flex items-center gap-4 px-3 md:px-5 py-4 transition-colors hover:bg-[rgba(200,149,46,0.02)]">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: ct.status === 'actif' ? '#D4F0E0' : c.ft }}>
                 <span className="text-base">{ct.type === 'Distribution' ? '🚚' : ct.type === 'Commande illustration' ? '🎨' : ct.type === 'Traduction' ? '🌍' : ct.type === 'Adaptation' ? '🎬' : '📜'}</span>
               </div>
@@ -6158,12 +6158,12 @@ const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg:
 
       {/* Matrice droits × titres — INTERACTIVE */}
       <Card hover={false} className="mt-5 overflow-hidden">
-        <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+        <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
           <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Matrice Droits × Titres</span>
           <span className="text-[10px] ml-2" style={{ color: c.gr }}>Cliquez pour modifier</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px]">
+          <div style={{overflowX:"auto",maxWidth:"100%"}}><table className="w-full text-[11px]">
             <thead>
               <tr style={{ background: c.ft }}>
                 <th className="text-left px-4 py-2.5 font-semibold" style={{ color: c.mv }}>Titre</th>
@@ -6190,7 +6190,7 @@ const DroitsView = ({ projects, onToast }: { projects: Project[]; onToast: (msg:
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       </Card>
     </div>
@@ -6352,9 +6352,9 @@ Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (r
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Calendrier Éditorial</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Calendrier Éditorial</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Fenêtres de sortie optimales + plan média IA par titre</p>
         </div>
       </div>
@@ -6442,14 +6442,14 @@ Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (r
 
       {/* Projects — AI Analysis */}
       <Card hover={false} className="overflow-hidden mb-6">
-        <div className="px-5 py-4 flex items-center justify-between" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
+        <div className="px-3 md:px-5 py-3 flex items-center justify-between" style={{ background: c.ft, borderBottom: `2px solid ${c.or}` }}>
           <div>
             <span className="text-[15px] font-semibold" style={{ color: c.mv }}>Moteur IA — Analyse par titre</span>
             <span className="text-[11px] ml-3" style={{ color: c.gr }}>Cliquez un titre pour obtenir fenêtre de sortie + plan média</span>
           </div>
         </div>
 
-        <div className="p-5">
+        <div className="p-3 md:p-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {projects.map(p => {
               const hasResult = !!aiResults[p.id];
@@ -6490,7 +6490,7 @@ Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (r
       {/* AI Result panel */}
       {selectedP && aiRec && (
         <Card hover={false} className="overflow-hidden">
-          <div className="px-6 py-4 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${c.mv}, #3E2768)` }}>
+          <div className="px-3 md:px-6 py-4 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${c.mv}, #3E2768)` }}>
             <div className="flex items-center gap-3">
               <CoverThumb emoji={selectedP.cover} coverImage={selectedP.coverImage} size="sm" />
               <div>
@@ -6502,14 +6502,14 @@ Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (r
           </div>
 
           {/* Stratégie globale */}
-          <div className="px-6 py-4" style={{ background: 'rgba(200,149,46,0.04)', borderBottom: `1px solid ${c.gc}` }}>
+          <div className="px-3 md:px-6 py-4" style={{ background: 'rgba(200,149,46,0.04)', borderBottom: `1px solid ${c.gc}` }}>
             <div className="uppercase tracking-wider font-semibold mb-2" style={{ fontSize: 10, color: c.or }}>Stratégie recommandée</div>
             <div className="text-[13px] leading-relaxed" style={{ color: c.nr }}>{aiRec.strategie}</div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
             {/* Fenêtres de sortie */}
-            <div className="p-6" style={{ borderRight: `1px solid ${c.ft}` }}>
+            <div className="p-4 md:p-6" style={{ borderRight: `1px solid ${c.ft}` }}>
               <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 11, color: c.ok }}>
                 ✦ Fenêtres de sortie idéales
               </div>
@@ -6551,7 +6551,7 @@ Donne 2-3 mois de sortie idéaux, 1-2 mois à éviter, 5-8 médias pertinents (r
             </div>
 
             {/* Plan média */}
-            <div className="p-6">
+            <div className="p-4 md:p-6">
               <div className="uppercase tracking-wider font-semibold mb-4" style={{ fontSize: 11, color: '#3B6DC6' }}>
                 📡 Plan média recommandé
               </div>
@@ -6611,8 +6611,8 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
-        <div><h2 className="text-2xl" style={{ color: c.mv }}>Paramètres</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Configuration Jabrilia · Persistée localement</p></div>
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
+        <div><h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Paramètres</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Configuration Jabrilia · Persistée localement</p></div>
         <div className="flex gap-2">
           <Btn variant="secondary" onClick={handleExport}>{icons.download} Exporter</Btn>
           <Btn variant="secondary" onClick={handleReset}>Réinitialiser</Btn>
@@ -6620,7 +6620,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        <Card hover={false} className="p-5">
+        <Card hover={false} className="p-3 md:p-5">
           <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Maison d&apos;édition</h3>
           <Field label="Nom" k="editeur" />
           <Field label="Auteur principal" k="auteur" />
@@ -6629,7 +6629,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
           <Field label="Site web" k="site" />
           <Field label="Distributeur principal" k="distributor" />
         </Card>
-        <Card hover={false} className="p-5">
+        <Card hover={false} className="p-3 md:p-5">
           <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Spécifications intérieur</h3>
           <Field label="Format (L × H)" k="format" />
           <Field label="Police corps" k="policeCorps" />
@@ -6642,7 +6642,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
           <Field label="Séparateur sections" k="separateur" />
         </Card>
         <div className="flex flex-col gap-5">
-          <Card hover={false} className="p-5">
+          <Card hover={false} className="p-3 md:p-5">
             <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Charte graphique</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
               {[{ n: 'Or', c: '#C8952E' }, { n: 'Mauve', c: '#2D1B4E' }, { n: 'Orange', c: '#E07A2F' }, { n: 'Blanc cassé', c: '#FAF7F2' }].map(col => (
@@ -6661,12 +6661,12 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
               ))}
             </div>
           </Card>
-          <Card hover={false} className="p-5">
+          <Card hover={false} className="p-3 md:p-5">
             <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Production audio</h3>
             <Field label="Voix TTS par défaut" k="ttsVoice" />
             <Field label="Coût estimé €/min" k="ttsCost" mono />
           </Card>
-          <Card hover={false} className="p-5">
+          <Card hover={false} className="p-3 md:p-5">
             <h3 className="text-base mb-4" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Interface</h3>
             <div className="flex items-center justify-between py-2">
               <div>
@@ -6686,7 +6686,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
           </Card>
 
           {/* Language */}
-          <Card hover={false} className="p-6">
+          <Card hover={false} className="p-4 md:p-6">
             <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>
               {t('settings.language', lang)}
             </h3>
@@ -6706,7 +6706,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
           </Card>
 
           {/* Onboarding tour */}
-          <Card hover={false} className="p-6">
+          <Card hover={false} className="p-4 md:p-6">
             <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>
               Tour guidé
             </h3>
@@ -6719,7 +6719,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
           </Card>
 
           {/* Push Notifications */}
-          <Card hover={false} className="p-6">
+          <Card hover={false} className="p-4 md:p-6">
             <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>
               {lang === 'fr' ? 'Notifications navigateur' : 'Browser notifications'}
             </h3>
@@ -6756,7 +6756,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
           </Card>
 
           {/* Import CSV */}
-          <Card hover={false} className="p-6">
+          <Card hover={false} className="p-4 md:p-6">
             <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>Import catalogue</h3>
             <p className="text-[12px] mb-4" style={{ color: c.gr }}>Importez un catalogue existant depuis un fichier CSV</p>
 
@@ -6854,7 +6854,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
           </Card>
 
           {/* API Integrations — Cover Studio */}
-          <Card hover={false} className="p-6">
+          <Card hover={false} className="p-4 md:p-6">
             <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.vm }}>
               Intégrations IA — Cover Studio
             </h3>
@@ -6873,7 +6873,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
 
           {/* Compte */}
           {onSignOut && (
-            <Card hover={false} className="p-6">
+            <Card hover={false} className="p-4 md:p-6">
               <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: c.or }}>
                 {lang === 'fr' ? 'Abonnement' : 'Subscription'}
               </h3>
@@ -6900,7 +6900,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
 
           {/* Déconnexion */}
           {onSignOut && (
-            <Card hover={false} className="p-6">
+            <Card hover={false} className="p-4 md:p-6">
               <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Playfair Display', serif", color: '#D64545' }}>
                 {lang === 'fr' ? 'Déconnexion' : 'Sign out'}
               </h3>
@@ -6987,8 +6987,8 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
-        <div><h2 className="text-2xl" style={{ color: c.mv }}>Audiobooks</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Production vocale IA — ElevenLabs TTS · Pipeline automatisé</p></div>
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
+        <div><h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Audiobooks</h2><p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Production vocale IA — ElevenLabs TTS · Pipeline automatisé</p></div>
       </div>
       <div className="flex gap-3.5 mb-6 flex-wrap">
         <StatCard value={withAudio.length} label="Avec audiobook" accent={c.ok} />
@@ -7022,7 +7022,7 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
 
       {/* Voice selection + ACX specs */}
       <div className="grid grid-cols-2 gap-4 mb-6">
-        <Card hover={false} className="p-5">
+        <Card hover={false} className="p-3 md:p-5">
           <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 11, color: c.gr }}>Voix disponibles</div>
           {voices.map(v => (
             <div key={v.id} className="flex items-center gap-3 py-2.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
@@ -7038,11 +7038,11 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
             </div>
           ))}
         </Card>
-        <Card hover={false} className="p-5">
+        <Card hover={false} className="p-3 md:p-5">
           <div className="uppercase tracking-wider font-semibold mb-3" style={{ fontSize: 11, color: c.gr }}>Specs ACX / Audible</div>
           {acxSpecs.map(s => (
             <div key={s.label} className="flex py-1.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
-              <span className="text-[11px] font-semibold w-[110px] shrink-0" style={{ color: c.vm }}>{s.label}</span>
+              <span className="text-[11px] font-semibold w-[80px] md:w-[110px] shrink-0" style={{ color: c.vm }}>{s.label}</span>
               <span className="text-[11px]" style={{ color: c.nr }}>{s.value}</span>
             </div>
           ))}
@@ -7052,7 +7052,7 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
       {/* Titles with audio — interactive pipeline */}
       {withAudio.length > 0 && (
         <Card hover={false} className="mb-5">
-          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.ok}` }}>
+          <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
             <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Productions audiobook ({withAudio.length})</span>
           </div>
           {withAudio.map(p => {
@@ -7065,7 +7065,7 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
             const selectedVoice = voices.find(v => v.id === ps.voice) || voices[0];
             return (
               <div key={p.id}>
-                <div className="flex items-center gap-4 px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
+                <div className="flex items-center gap-2 md:gap-4 px-3 md:px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
                   onClick={() => setExpandedId(isExpanded ? null : p.id)}
                   style={{ borderBottom: `1px solid ${c.ft}` }}>
                   <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
@@ -7084,7 +7084,7 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
                   <span style={{ color: c.gr, fontSize: 12, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : '' }}>▾</span>
                 </div>
                 {isExpanded && (
-                  <div className="px-5 py-4" style={{ background: '#FDFCFA', borderBottom: `1px solid ${c.ft}` }}>
+                  <div className="px-3 md:px-5 py-3" style={{ background: '#FDFCFA', borderBottom: `1px solid ${c.ft}` }}>
                     {/* Per-project pipeline */}
                     <div className="flex items-center gap-1 mb-4">
                       {pipeline.map((step, i) => (
@@ -7097,7 +7097,7 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
                         </div>
                       ))}
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       {/* Voice selector */}
                       <div className="p-3 rounded-lg" style={{ background: 'white', border: `1px solid ${c.ft}` }}>
                         <div className="text-[11px] font-semibold mb-2" style={{ color: c.vm }}>🎙️ Voix sélectionnée</div>
@@ -7139,7 +7139,7 @@ const AudiobooksView = ({ projects, onToast }: { projects: Project[]; onToast: (
 
       {withoutAudio.length > 0 && (
         <Card hover={false}>
-          <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.og}` }}>
+          <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.og}` }}>
             <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Titres éligibles sans édition audiobook</span>
           </div>
           {withoutAudio.map(p => (
@@ -7348,9 +7348,9 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-5">
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
         <div>
-          <h2 className="text-2xl" style={{ color: c.mv }}>Marketing & Plan Média</h2>
+          <h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Marketing & Plan Média</h2>
           <p className="mt-1" style={{ color: c.gr, fontSize: 13 }}>Moteur intelligent · Budget ou Objectif · Comparaison A/B</p>
         </div>
       </div>
@@ -7379,7 +7379,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
         <div className="space-y-5">
           {/* Project Selector */}
           <Card hover={false} className="overflow-hidden">
-            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.vm}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
               <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>📚 Sélectionnez un titre</span>
             </div>
             <div className="p-4 flex gap-2 flex-wrap">
@@ -7403,10 +7403,10 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
 
           {/* Engine Controls */}
           <Card hover={false} className="overflow-hidden">
-            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
               <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>🎯 Moteur Plan Média v3</span>
             </div>
-            <div className="p-5">
+            <div className="p-3 md:p-5">
               {/* Mode selector */}
               <div className="flex gap-2 mb-4">
                 {([['budget', '💰 Budget', 'J\'ai un budget, optimise'] , ['objective', '🎯 Objectif', 'Je veux X ventes']] as const).map(([m, label, desc]) => (
@@ -7514,7 +7514,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
 
               {/* Channel allocations */}
               <Card hover={false} className="overflow-hidden">
-                <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
                   <div className="flex items-center justify-between">
                     <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Répartition par canal</span>
                     <span className="text-[11px]" style={{ color: c.or }}>{mediaPlanA.channels.length} canaux actifs</span>
@@ -7556,7 +7556,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
                         </div>
 
                         {isExpanded && (
-                          <div className="px-5 pb-4 pt-1 space-y-3" style={{ animation: 'pageIn 0.2s ease-out' }}>
+                          <div className="px-3 md:px-5 pb-4 pt-1 space-y-3" style={{ animation: 'pageIn 0.2s ease-out' }}>
                             <div className="text-[11px] leading-relaxed" style={{ color: c.gr }}>{ch.description}</div>
                             <div>
                               <div className="text-[9px] uppercase tracking-wider font-semibold mb-1.5" style={{ color: c.or }}>Actions concrètes</div>
@@ -7580,7 +7580,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
 
               {/* Phases timeline */}
               <Card hover={false} className="overflow-hidden">
-                <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
                   <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>📅 Calendrier de lancement</span>
                 </div>
                 <div className="p-5 space-y-2">
@@ -7608,7 +7608,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {mediaPlanA.recommendations.length > 0 && (
                     <Card hover={false} className="overflow-hidden">
-                      <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.ok}` }}>
+                      <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.ok}` }}>
                         <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.ok }}>💡 Recommandations</span>
                       </div>
                       <div className="p-5 space-y-2">
@@ -7620,7 +7620,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
                   )}
                   {mediaPlanA.warnings.length > 0 && (
                     <Card hover={false} className="overflow-hidden">
-                      <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.og}` }}>
+                      <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.og}` }}>
                         <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.og }}>⚠️ Points d'attention</span>
                       </div>
                       <div className="p-5 space-y-2">
@@ -7638,10 +7638,10 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
                 const ab = compareAB(mediaPlanA, mediaPlanB);
                 return (
                   <Card hover={false} className="overflow-hidden">
-                    <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.vm}` }}>
+                    <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.vm}` }}>
                       <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.vm }}>⚔️ Comparaison A/B</span>
                     </div>
-                    <div className="p-5">
+                    <div className="p-3 md:p-5">
                       <div className="flex items-center gap-3 mb-4 justify-center">
                         <Badge bg={ab.winner === 'A' ? '#D4F0E0' : c.ft} color={ab.winner === 'A' ? c.ok : c.gr}>A: {mediaPlanA.label}</Badge>
                         <span className="text-[11px] font-bold" style={{ color: c.gr }}>vs</span>
@@ -7701,7 +7701,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
                 a.download = `plan-media-${sel.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${plan.mode}.txt`; a.click();
                 onToast(`Plan média exporté : ${sel.title}`);
               }}
-                className="px-5 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center gap-2"
+                className="px-3 md:px-5 py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center gap-2"
                 style={{ background: c.ft, color: c.mv, border: `1.5px solid ${c.gc}` }}>
                 {icons.download} Exporter le plan (.txt)
               </button>
@@ -7714,7 +7714,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
       {tab === 'amazon' && (
         <div className="space-y-5">
           {/* Amazon strategy overview */}
-          <Card hover={false} className="p-5">
+          <Card hover={false} className="p-3 md:p-5">
             <div className="flex items-center gap-3 mb-4">
               <span className="text-[32px]">🛒</span>
               <div>
@@ -7742,14 +7742,14 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
             const kw = amazonKeywords[p.genre] || amazonKeywords['Roman'];
             return (
               <Card key={p.id} hover={false} className="overflow-hidden">
-                <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+                <div className="px-3 md:px-5 py-3 flex items-center gap-3" style={{ borderBottom: `2px solid ${c.or}` }}>
                   <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
                   <div>
                     <span className="text-[13px] font-semibold" style={{ color: c.mv }}>{p.title}</span>
                     <span className="text-[10px] ml-2" style={{ color: c.gr }}>{p.genre} · Enchère recommandée : {kw.bid}</span>
                   </div>
                 </div>
-                <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-3 md:p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* Primary keywords */}
                   <div>
                     <div className="text-[10px] uppercase tracking-wider font-bold mb-2" style={{ color: c.ok }}>🎯 Mots-clés primaires</div>
@@ -7801,7 +7801,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
             if (!social) return null;
             return (
               <Card key={p.id} hover={false} className="overflow-hidden">
-                <div className="px-5 py-3.5 flex items-center gap-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+                <div className="px-3 md:px-5 py-3 flex items-center gap-3" style={{ borderBottom: `2px solid ${c.or}` }}>
                   <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
                   <div className="flex-1">
                     <span className="text-[13px] font-semibold" style={{ color: c.mv }}>{p.title}</span>
@@ -7819,7 +7819,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
                   </div>
                 </div>
 
-                <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div className="p-3 md:p-5 grid grid-cols-1 lg:grid-cols-3 gap-5">
                   {/* TikTok */}
                   <div>
                     <div className="flex items-center gap-2 mb-3">
@@ -7922,7 +7922,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
       {tab === 'kit' && (
         <div>
           {/* Engine pipeline */}
-          <div className="grid grid-cols-5 gap-2.5 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-6">
             {[
               { icon: '📋', name: 'Brief créatif', desc: 'Ton, thèmes, palette, audience' },
               { icon: '📱', name: 'Kit Marketing', desc: 'Instagram, LinkedIn, newsletter' },
@@ -7941,7 +7941,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
 
           {/* Project selector for kit generation */}
           <Card hover={false} className="mb-6">
-            <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
               <span className="uppercase tracking-wider font-semibold" style={{ fontSize: 12, color: c.gr }}>Sélectionner un titre pour générer le kit</span>
             </div>
             {projects.map(p => {
@@ -7949,7 +7949,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
               const isSelected = selectedProject === p.id;
               const hasKit = generatedKit[p.id];
               return (
-                <div key={p.id} className="flex items-center gap-4 px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
+                <div key={p.id} className="flex items-center gap-2 md:gap-4 px-3 md:px-5 py-3 cursor-pointer hover:bg-[#FAF7F2]"
                   style={{ borderBottom: `1px solid ${c.ft}`, background: isSelected ? '#FAF7F2' : undefined }}
                   onClick={() => generateKit(p.id)}>
                   <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
@@ -7969,7 +7969,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* Brief */}
               <Card hover={false} className="overflow-hidden">
-                <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
                   <span className="text-[13px] font-semibold" style={{ color: c.mv }}>📋 Brief créatif — {sel.title}</span>
                 </div>
                 <div className="p-5 space-y-2.5">
@@ -7984,7 +7984,7 @@ const MarketingView = ({ projects, onToast, author }: { projects: Project[]; onT
               </Card>
               {/* Marketing */}
               <Card hover={false} className="overflow-hidden">
-                <div className="px-5 py-3.5" style={{ borderBottom: `2px solid ${c.or}` }}>
+                <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
                   <span className="text-[13px] font-semibold" style={{ color: c.mv }}>📱 Kit Marketing</span>
                 </div>
                 <div className="p-5 space-y-3">
@@ -8278,7 +8278,7 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
           {/* Results grouped */}
           <div className="max-h-[400px] overflow-y-auto">
             {results.length === 0 && q.length > 0 && (
-              <div className="px-5 py-8 text-center">
+              <div className="px-3 md:px-5 py-8 text-center">
                 <div className="text-[24px] mb-2">🔍</div>
                 <div className="text-[13px] font-semibold" style={{ color: c.mv }}>Aucun résultat pour « {q} »</div>
                 <div className="text-[11px] mt-1" style={{ color: c.gr }}>Essayez un titre, auteur, ISBN, genre ou mot-clé</div>
@@ -8287,7 +8287,7 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
             {grouped.map(group => (
               <div key={group.type}>
                 {query.length > 0 && (
-                  <div className="px-5 pt-3 pb-1">
+                  <div className="px-3 md:px-5 pt-3 pb-1">
                     <span className="text-[9px] uppercase tracking-widest font-bold" style={{ color: typeColors[group.type].color }}>
                       {typeLabels[group.type]}s ({group.items.length})
                     </span>
@@ -8300,7 +8300,7 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
                     <div key={`${r.type}-${r.label}-${i}`}
                       onClick={r.action}
                       onMouseEnter={() => setSelectedIdx(i)}
-                      className="flex items-center gap-3 px-5 py-2.5 cursor-pointer transition-colors"
+                      className="flex items-center gap-3 px-3 md:px-5 py-2.5 cursor-pointer transition-colors"
                       style={{ background: i === clampedIdx ? 'rgba(200,149,46,0.06)' : 'transparent', borderLeft: i === clampedIdx ? `3px solid ${c.or}` : '3px solid transparent' }}>
                       <span className="text-base shrink-0">{r.icon}</span>
                       <div className="flex-1 min-w-0">
@@ -8327,7 +8327,7 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
           </div>
 
           {/* Footer hints */}
-          <div className="flex items-center gap-4 px-5 py-2.5" style={{ borderTop: `1px solid ${c.ft}`, background: c.ft }}>
+          <div className="flex items-center gap-4 px-3 md:px-5 py-2.5" style={{ borderTop: `1px solid ${c.ft}`, background: c.ft }}>
             <span className="flex items-center gap-1 text-[10px]" style={{ color: c.gr }}>
               <kbd className="px-1.5 py-0.5 rounded" style={{ background: 'white', border: `1px solid ${c.gc}`, fontSize: 9 }}>↑↓</kbd> naviguer
             </span>
@@ -8495,7 +8495,7 @@ const OnboardingOverlay = ({ step, onNext, onSkip }: { step: number; onNext: () 
             ))}
           </div>
           <button onClick={onNext}
-            className="px-5 py-2.5 rounded-xl font-semibold text-[13px] text-white cursor-pointer border-none transition-all hover:scale-105"
+            className="px-3 md:px-5 py-2.5 rounded-xl font-semibold text-[13px] text-white cursor-pointer border-none transition-all hover:scale-105"
             style={{ background: `linear-gradient(135deg, ${c.or}, ${c.og})`, boxShadow: '0 4px 16px rgba(200,149,46,0.3)' }}>
             {isLast ? '🚀 Commencer' : 'Suivant →'}
           </button>
@@ -8845,7 +8845,7 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
           onClick={() => setShowShortcuts(false)}>
           <div className="max-w-lg w-full mx-4 rounded-2xl overflow-hidden" style={{ background: 'white', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', animation: 'scaleIn 0.2s ease-out' }}
             onClick={e => e.stopPropagation()}>
-            <div className="px-6 py-4 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
+            <div className="px-3 md:px-6 py-4 flex justify-between items-center" style={{ borderBottom: `2px solid ${c.or}` }}>
               <h3 className="text-lg font-bold" style={{ fontFamily: "'Playfair Display', serif", color: c.mv }}>⌨️ Raccourcis clavier</h3>
               <button onClick={() => setShowShortcuts(false)} className="text-[18px] cursor-pointer bg-transparent border-none" style={{ color: c.gr }}>✕</button>
             </div>
