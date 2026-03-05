@@ -685,7 +685,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
         <StatCard value={allProjects.length} label="Titres" accent={c.mv} />
         <StatCard value={pub} label="Publiés" accent={c.ok} />
         <StatCard value={prog} label="En cours" accent={c.og} />
-        <StatCard value={`${countISBN(allProjects)}/100`} label="ISBN" accent={c.or} />
+        <StatCard value={countISBN(allProjects)} label="ISBN" accent={c.or} />
         <StatCard value={totalPages.toLocaleString()} label="Pages" accent={c.vm} />
         <StatCard value={`~${totalRev.toLocaleString()}€`} label="Rev. estimés/an" accent={c.or} />
       </div>
@@ -741,7 +741,7 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
           <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.gr }}>Pipeline production</div>
           <div className="space-y-2.5">
             {[
-              { label: 'ISBN attribués', current: countISBN(allProjects), max: 100, color: c.or },
+              { label: 'ISBN enregistrés', current: countISBN(allProjects), max: allProjects.reduce((s, p) => s + p.editions.length, 0) || 1, color: c.or },
               { label: 'Artwork prêt', current: withCoverArt, max: allProjects.length, color: c.vm },
               { label: '4e couverture', current: withBackCover, max: allProjects.length, color: c.og },
               { label: 'Analysés IA', current: analyzed.length, max: allProjects.length, color: c.ok },
@@ -3363,10 +3363,10 @@ ${products.join('\n')}
       <div className="flex gap-2">
         <Btn variant="secondary" onClick={exportCSV}>{icons.download} Export CSV</Btn>
         <Btn variant="secondary" onClick={exportONIX}>{icons.download} Export ONIX</Btn>
-        <Btn onClick={() => onToast('Attribution ISBN : ouvrir la fiche projet → ajouter une édition')}>{icons.plus} Attribuer ISBN</Btn>
+        <Btn onClick={() => onToast('Enregistrer un ISBN : ouvrir la fiche projet → ajouter une édition')}>{icons.plus} Enregistrer ISBN</Btn>
       </div>
     </div>
-    <div className="flex gap-3.5 mb-6"><StatCard value={totalISBN} label="Attribués" accent={c.or} /><StatCard value={100 - totalISBN} label="Disponibles" accent={c.ok} /><StatCard value={projects.length} label="Titres" accent={c.mv} /></div>
+    <div className="flex gap-3.5 mb-6"><StatCard value={totalISBN} label="ISBN enregistrés" accent={c.or} /><StatCard value={projects.reduce((s, p) => s + p.editions.length, 0)} label="Éditions" accent={c.ok} /><StatCard value={projects.length} label="Titres" accent={c.mv} /></div>
     <Card hover={false}>
       <div className="hidden md:grid grid-cols-[1fr_auto] md:grid-cols-[200px_1fr_90px_90px_90px] px-3 md:px-5 py-3 text-[11px] font-semibold uppercase tracking-wider" style={{ background: c.ft, color: c.mv, borderBottom: `2px solid ${c.or}` }}>
         <div>ISBN</div><div>Titre</div><div>Format</div><div>Prix</div><div>Statut</div>
@@ -4010,7 +4010,7 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
 
             const objectives = [
               { label: 'Publier 5 titres', current: publishedCount, target: 5, icon: '📚' },
-              { label: '30 ISBN attribués', current: countISBN(projects), target: 30, icon: '🔢' },
+              { label: '30 ISBN enregistrés', current: countISBN(projects), target: 30, icon: '🔢' },
               { label: '100% analysés', current: withAnalysis, target: projects.length || 1, icon: '🔍' },
               { label: '100% 4e de couverture', current: withBackCover, target: projects.length || 1, icon: '📝' },
             ];
@@ -4025,7 +4025,7 @@ const AnalyticsView = ({ projects }: { projects: Project[] }) => {
             const milestones = [
               { label: 'Premier titre publié', done: publishedCount >= 1, icon: '🎉' },
               { label: '3 titres au catalogue', done: projects.length >= 3, icon: '📚' },
-              { label: '10 ISBN attribués', done: countISBN(projects) >= 10, icon: '🔢' },
+              { label: '10 ISBN enregistrés', done: countISBN(projects) >= 10, icon: '🔢' },
               { label: 'ONIX 3.0 opérationnel', done: true, icon: '📤' },
               { label: 'Toutes couvertures validées', done: projects.every(p => p.corrections.length === 0), icon: '🎨' },
               { label: '5 titres publiés', done: publishedCount >= 5, icon: '🏆' },
@@ -4161,7 +4161,7 @@ const DistributionView = ({ projects, onToast, distChecks }: { projects: Project
   type SubmissionStep = { label: string; done: (p: Project) => boolean };
   const channelChecklist: Record<string, SubmissionStep[]> = {
     'Amazon KDP': [
-      { label: 'ISBN broché attribué', done: p => p.editions.some(e => e.format === 'broché' && e.isbn) },
+      { label: 'ISBN broché enregistré', done: p => p.editions.some(e => e.format === 'broché' && e.isbn) },
       { label: 'PDF intérieur prêt', done: p => p.manuscriptStatus === 'isbn-injected' || p.manuscriptStatus === 'validated' },
       { label: 'Couverture complète (dos + typo)', done: p => p.diag.dos && p.diag.typo },
       { label: 'EAN-13 sur 4e de couverture', done: p => p.diag.ean },
@@ -4178,25 +4178,25 @@ const DistributionView = ({ projects, onToast, distChecks }: { projects: Project
     ],
     'IngramSpark': [
       { label: 'Compte IngramSpark créé', done: () => false },
-      { label: 'ISBN attribué', done: p => p.editions.some(e => e.isbn) },
+      { label: 'ISBN enregistré', done: p => p.editions.some(e => e.isbn) },
       { label: 'PDF intérieur + couverture', done: p => p.diag.dos },
       { label: 'Métadonnées ONIX', done: () => false },
       { label: 'Territoires sélectionnés', done: () => false },
     ],
     'Apple Books': [
-      { label: 'ISBN ePub attribué', done: p => p.editions.some(e => e.format === 'epub' && e.isbn) },
+      { label: 'ISBN ePub enregistré', done: p => p.editions.some(e => e.format === 'epub' && e.isbn) },
       { label: 'Fichier ePub validé', done: () => false },
       { label: 'Couverture 1400×1873 px', done: () => false },
       { label: 'Compte Apple Books for Authors', done: () => false },
     ],
     'Kobo / Fnac': [
-      { label: 'ISBN ePub attribué', done: p => p.editions.some(e => e.format === 'epub' && e.isbn) },
+      { label: 'ISBN ePub enregistré', done: p => p.editions.some(e => e.format === 'epub' && e.isbn) },
       { label: 'Fichier ePub validé', done: () => false },
       { label: 'Couverture 1600×2560 px', done: () => false },
       { label: 'Compte Kobo Writing Life', done: () => false },
     ],
     'Spotify / Audible': [
-      { label: 'ISBN audiobook attribué', done: p => p.editions.some(e => e.format === 'audiobook' && e.isbn) },
+      { label: 'ISBN audiobook enregistré', done: p => p.editions.some(e => e.format === 'audiobook' && e.isbn) },
       { label: 'Fichiers MP3 par chapitre', done: () => false },
       { label: 'Couverture 2400×2400 px carrée', done: () => false },
       { label: 'Inscription ACX/Findaway', done: () => false },

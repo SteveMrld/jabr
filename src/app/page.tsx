@@ -101,7 +101,7 @@ const DashboardPreview = () => {
             <div style={{ padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: 600, color: 'white', background: t.cta }}>+ Nouveau projet</div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 12 }}>
-            {[['10', 'Titres'], ['4', 'En cours'], ['28', 'ISBN'], ['72%', 'Readiness']].map(([v, l]) => (
+            {[['10', 'Titres'], ['4', 'En cours'], ['28', 'ISBN enreg.'], ['72%', 'Readiness']].map(([v, l]) => (
               <div key={l} style={{ padding: '8px 6px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, color: t.cta }}>{v}</div>
                 <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>{l}</div>
@@ -137,17 +137,17 @@ const PIPELINE = [
   { icon: Shield, title: 'Corrections', desc: 'Suivi des it\u00e9rations et validations.' },
   { icon: Palette, title: 'Couverture', desc: 'Gestion des pistes et d\u00e9cisions.' },
   { icon: Ruler, title: 'Calibrage', desc: 'Pr\u00e9paration de production et contr\u00f4les.' },
-  { icon: Hash, title: 'ISBN & distribution', desc: 'Identifiants + canaux de diffusion.' },
+  { icon: Hash, title: 'ISBN & distribution', desc: 'Gestion de vos identifiants + canaux.' },
   { icon: Send, title: 'Lancement', desc: 'Planning, assets, communication.' },
 ];
 
 const MODULES = [
   { icon: Layers, title: 'Catalogue & collections', desc: 'Vision globale, genres, collections, statuts de chaque titre.' },
   { icon: BarChart3, title: 'Analyse \u00e9ditoriale', desc: 'Scoring, diagnostics, checklists, score IA.' },
-  { icon: Palette, title: 'Couvertures', desc: 'Diagnostic 7 crit\u00e8res, conformit\u00e9 EAN, ISBN, prix.' },
-  { icon: Hash, title: 'Registre ISBN', desc: 'Attribution, suivi, export CSV et ONIX 3.0.' },
-  { icon: Truck, title: 'Distribution', desc: 'Matrice titre \u00d7 canal, readiness par format.' },
-  { icon: Megaphone, title: 'Marketing & calendrier', desc: 'Plan m\u00e9dia IA, fen\u00eatre de sortie, jalons.' },
+  { icon: Palette, title: '◆ Cover Studio', desc: 'Assemblage couverture, pack marketing, visuels sociaux, bande-annonce.' },
+  { icon: Hash, title: 'Registre ISBN', desc: 'Gestion de vos ISBN, suivi, export CSV et ONIX 3.0.' },
+  { icon: Truck, title: 'Distribution', desc: 'Matrice titre \u00d7 canal, specs Pollen / KDP / IngramSpark.' },
+  { icon: Megaphone, title: 'Marketing & Audiobooks', desc: 'Plan m\u00e9dia IA, production audiobook ElevenLabs, calendrier.' },
 ];
 
 const NAV_ITEMS = [
@@ -170,7 +170,7 @@ const DEMO_SCREENS = [
           <div style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: 600, color: 'white', background: '#C8952E' }}>+ Nouveau projet</div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
-          {[['10', 'Titres', '#C8952E'], ['4', 'En cours', '#E07A2F'], ['29', 'ISBN', '#5B3E8A'], ['72%', 'Readiness', '#059669']].map(([v, l, c]) => (
+          {[['10', 'Titres', '#C8952E'], ['4', 'En cours', '#E07A2F'], ['29', 'ISBN enreg.', '#5B3E8A'], ['72%', 'Readiness', '#059669']].map(([v, l, c]) => (
             <div key={l} style={{ padding: '10px 8px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
               <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 700, color: c }}>{v}</div>
               <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>{l}</div>
@@ -234,11 +234,11 @@ const DEMO_SCREENS = [
   {
     tab: 'ISBN',
     title: 'Registre ISBN centralis\u00e9',
-    desc: 'Attribution automatique, pr\u00e9fixe \u00e9diteur, export CSV et ONIX 3.0.',
+    desc: 'Suivi de vos ISBN, pr\u00e9fixe \u00e9diteur, export CSV et ONIX 3.0.',
     content: () => (
       <div style={{ padding: 20 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 4 }}>Registre ISBN</div>
-        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginBottom: 12 }}>Pr\u00e9fixe : 978-2-488647 \u00b7 29/100 utilis\u00e9s</div>
+        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginBottom: 12 }}>Pr\u00e9fixe : 978-2-488647 \u00b7 29 ISBN enregistr\u00e9s</div>
         <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 0.8fr', gap: 0, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             {['Titre', 'ISBN', 'Format', 'Prix'].map(h => (
@@ -324,7 +324,7 @@ const DEMO_SCREENS = [
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Priorit{'\u00e9'}s</div>
             {[
               { label: 'Finaliser couverture', impact: 'Critique', color: '#D94452' },
-              { label: 'Attribuer ISBN poche', impact: 'Haute', color: '#E07A2F' },
+              { label: 'Enregistrer ISBN poche', impact: 'Haute', color: '#E07A2F' },
               { label: 'Pr\u00e9parer plan m\u00e9dia', impact: 'Moyenne', color: '#C8952E' },
             ].map((p, i) => (
               <div key={i} style={{ padding: '6px 8px', borderRadius: 6, marginBottom: 4, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
@@ -762,19 +762,19 @@ export default function Home() {
               {
                 name: 'D\u00e9couverte', price: '0\u20ac', period: '/mois',
                 desc: 'Pour tester la logique du cockpit.',
-                features: ['3 titres', '10 ISBN', 'Diagnostic couverture', 'Export CSV', 'Dashboard'],
+                features: ['3 titres', 'Diagnostic couverture', 'Export CSV', 'Dashboard', 'Registre ISBN (vos ISBN)'],
                 cta: 'Commencer gratuitement', primary: false, badge: '',
               },
               {
                 name: 'Studio', price: '29\u20ac', period: '/mois',
                 desc: 'Pour piloter plusieurs projets en production.',
-                features: ['Titres illimit\u00e9s', '100 ISBN', 'Tous les 22 modules', 'ONIX 3.0', 'Calendrier \u00e9ditorial IA', 'Plan m\u00e9dia IA', 'Ctrl+K recherche globale'],
+                features: ['Titres illimit\u00e9s', 'Tous les 22 modules', 'Cover Studio (assemblage couverture)', 'ONIX 3.0', 'Plan m\u00e9dia IA', 'G\u00e9n\u00e9ration visuels r\u00e9seaux sociaux', 'Bande-annonce (brief Runway)'],
                 cta: 'Essai gratuit 14 jours', primary: true, badge: 'POPULAIRE',
               },
               {
                 name: 'Maison', price: '79\u20ac', period: '/mois',
                 desc: 'Pour un catalogue et une \u00e9quipe.',
-                features: ['Tout du plan Studio', '500 ISBN', 'Multi-utilisateurs (5)', 'API & webhooks', 'Connexion Dilicom', 'Support prioritaire'],
+                features: ['Tout du plan Studio', 'Multi-utilisateurs (5)', 'Production audiobook (ElevenLabs)', 'API & webhooks', 'Connexion Dilicom', 'Support prioritaire'],
                 cta: 'Contacter', primary: false, badge: '',
               },
             ].map((plan, i) => (
