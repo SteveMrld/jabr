@@ -131,14 +131,14 @@ const DashboardPreview = () => {
 };
 
 const PIPELINE = [
-  { icon: PenTool, title: 'Id\u00e9e & cadrage', desc: 'Cadrez le livre, l\u2019intention, la collection.' },
-  { icon: FileText, title: 'Manuscrit', desc: 'Centralisez le texte et les versions.' },
-  { icon: Eye, title: 'Analyse', desc: 'Diagnostic \u00e9ditorial et scoring.' },
-  { icon: Shield, title: 'Corrections', desc: 'Suivi des it\u00e9rations et validations.' },
-  { icon: Palette, title: 'Couverture', desc: 'Gestion des pistes et d\u00e9cisions.' },
-  { icon: Ruler, title: 'Calibrage', desc: 'Pr\u00e9paration de production et contr\u00f4les.' },
-  { icon: Hash, title: 'ISBN & distribution', desc: 'Gestion de vos identifiants + canaux.' },
-  { icon: Send, title: 'Lancement', desc: 'Planning, assets, communication.' },
+  { icon: PenTool, title: 'Cadrage', desc: 'Projet, collection, intention.' },
+  { icon: FileText, title: 'Manuscrit', desc: 'Upload, versions, analyse.' },
+  { icon: Eye, title: 'Intelligence IA', desc: 'Scoring, audience, comparables.' },
+  { icon: Shield, title: 'Production', desc: 'Corrections, calibrage, BAT.' },
+  { icon: Palette, title: 'Cover Studio', desc: 'Assemblage couverture complet.' },
+  { icon: Ruler, title: 'Audiobook', desc: 'TTS ElevenLabs, chapitrage.' },
+  { icon: Hash, title: 'ISBN & Export', desc: 'Registre, ONIX 3.0, PDF.' },
+  { icon: Send, title: 'Lancement', desc: 'Marketing, droits, distribution.' },
 ];
 
 const MODULES = [
@@ -161,178 +161,152 @@ const NAV_ITEMS = [
 const DEMO_SCREENS = [
   {
     tab: 'Dashboard',
-    title: 'Vue d\u2019ensemble du catalogue',
-    desc: '12 KPIs, statuts en temps r\u00e9el, revenus estim\u00e9s, actions prioritaires.',
+    title: 'Cockpit \u00e9ditorial \u2014 28 modules',
+    desc: '10 moteurs IA, KPIs temps r\u00e9el, catalogue, readiness, revenus estim\u00e9s.',
     content: () => (
       <div style={{ padding: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div><div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>Dashboard</div><div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>Jabrilia \u00c9ditions \u2014 Mars 2026</div></div>
-          <div style={{ padding: '5px 12px', borderRadius: 8, fontSize: 10, fontWeight: 600, color: 'white', background: '#C8952E' }}>+ Nouveau projet</div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
-          {[['10', 'Titres', '#C8952E'], ['4', 'En cours', '#E07A2F'], ['29', 'ISBN enreg.', '#5B3E8A'], ['72%', 'Readiness', '#059669']].map(([v, l, c]) => (
-            <div key={l} style={{ padding: '10px 8px', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 700, color: c }}>{v}</div>
-              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 3 }}>{l}</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>Dashboard &mdash; Jabrilia &Eacute;ditions</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
+          {[['10', 'Titres'], ['29', 'ISBN'], ['~4 800\u20ac', 'Rev. est./an']].map(([v, l]) => (
+            <div key={l} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '10px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: '#C8952E' }}>{v}</div>
+              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>{l}</div>
             </div>
           ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div style={{ padding: 12, borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>R\u00e9partition statut</div>
-            <svg viewBox="0 0 80 80" width="70" height="70" style={{ display: 'block', margin: '0 auto' }}>
-              <circle cx="40" cy="40" r="30" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
-              <circle cx="40" cy="40" r="30" fill="none" stroke="#E07A2F" strokeWidth="8" strokeDasharray="75 189" strokeDashoffset="0" strokeLinecap="round" />
-              <circle cx="40" cy="40" r="30" fill="none" stroke="#059669" strokeWidth="8" strokeDasharray="38 189" strokeDashoffset="-75" strokeLinecap="round" />
-              <circle cx="40" cy="40" r="30" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" strokeDasharray="76 189" strokeDashoffset="-113" strokeLinecap="round" />
-            </svg>
-          </div>
-          <div style={{ padding: 12, borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Pipeline</div>
-            {['ISBN', 'Artwork', '4e couv.', 'Analyse'].map((label, i) => (
-              <div key={label} style={{ marginBottom: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'rgba(255,255,255,0.4)', marginBottom: 2 }}><span>{label}</span><span>{[28, 60, 40, 70][i]}%</span></div>
-                <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.06)' }}>
-                  <div style={{ height: '100%', borderRadius: 2, background: ['#C8952E', '#5B3E8A', '#E07A2F', '#059669'][i], width: `${[28, 60, 40, 70][i]}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
+        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginBottom: 8 }}>10 MOTEURS INT&Eacute;GR&Eacute;S</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {['Scanner 6D', 'Cover Studio', 'Intelligence', 'Trailer Gen', 'Media Engine', 'ONIX 3.0', 'Audiobooks', 'Orchestration', 'Economie', 'Predicteur'].map(e => (
+            <span key={e} style={{ fontSize: 8, padding: '3px 8px', borderRadius: 4, background: 'rgba(200,149,46,0.1)', color: '#C8952E', fontWeight: 600 }}>{e}</span>
+          ))}
         </div>
       </div>
     ),
   },
   {
-    tab: 'Catalogue',
-    title: 'Vos titres et \u00e9ditions',
-    desc: 'Chaque livre avec ses formats, ISBN, couverture, score de readiness.',
+    tab: 'Cover Studio',
+    title: 'De la couverture vierge au pack complet',
+    desc: '6 \u00e9tapes : s\u00e9lection, audit, assemblage, marketing, bande-annonce, export.',
     content: () => (
       <div style={{ padding: 20 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>Catalogue \u2014 10 titres</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>Cover Studio &mdash; 6 &eacute;tapes</div>
         {[
-          { title: 'Le Lion D\u00e9chu', genre: 'Fantasy', editions: 4, status: 'En cours', readiness: 72, color: '#C8952E' },
-          { title: 'Mon petit livre anti-stress', genre: 'Jeunesse', editions: 3, status: 'BAT', readiness: 88, color: '#059669' },
-          { title: 'Les M\u00e9moires Reli\u00e9es', genre: 'Roman', editions: 3, status: 'Corrections', readiness: 45, color: '#1E40AF' },
-          { title: 'L\u2019\u00c9cho d\u2019une autre vie', genre: 'Roman', editions: 2, status: 'En cours', readiness: 62, color: '#E07A2F' },
-          { title: 'Le Dernier Rivage', genre: 'Roman', editions: 3, status: 'Brouillon', readiness: 31, color: '#6B645B' },
-        ].map((b, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, marginBottom: 4, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-            <div style={{ width: 28, height: 38, borderRadius: 4, background: 'linear-gradient(135deg, #2D1B4E, rgba(200,149,46,0.3))', flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.title}</div>
-              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>{b.genre} \u00b7 {b.editions} \u00e9d.</div>
-            </div>
-            <div style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, background: b.color + '20', color: b.color, fontWeight: 600 }}>{b.status}</div>
-            <div style={{ width: 60, height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.06)', flexShrink: 0 }}>
-              <div style={{ height: '100%', borderRadius: 3, background: b.color, width: `${b.readiness}%` }} />
-            </div>
+          { num: '1', label: 'S\u00e9lection', desc: 'Titre + distributeur + g\u00e9n\u00e9ration IA (DALL-E / Midjourney)', color: '#C8952E' },
+          { num: '2', label: 'Audit', desc: 'Titre, auteur, ISBN, EAN-13, prix, 4e de couverture', color: '#5B3E8A' },
+          { num: '3', label: 'Assemblage', desc: 'Preview livre r\u00e9aliste + planche technique C4+Dos+C1', color: '#E07A2F' },
+          { num: '4', label: 'Marketing Pack', desc: '12 formats sociaux + textes Instagram, LinkedIn, newsletter', color: '#1E40AF' },
+          { num: '5', label: 'Bande-annonce', desc: 'Storyboard par sc\u00e8ne pour Runway Gen-3 Alpha', color: '#D94452' },
+          { num: '6', label: 'Export', desc: 'PNG @300dpi + PDF traits de coupe + visuels sociaux', color: '#059669' },
+        ].map(s => (
+          <div key={s.num} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6, padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+            <div style={{ width: 24, height: 24, borderRadius: '50%', background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0 }}>{s.num}</div>
+            <div><div style={{ fontSize: 11, fontWeight: 600, color: 'white' }}>{s.label}</div><div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>{s.desc}</div></div>
           </div>
         ))}
       </div>
     ),
   },
   {
-    tab: 'ISBN',
-    title: 'Registre ISBN centralis\u00e9',
-    desc: 'Suivi de vos ISBN, pr\u00e9fixe \u00e9diteur, export CSV et ONIX 3.0.',
+    tab: 'Intelligence',
+    title: 'Directeur \u00e9ditorial augment\u00e9',
+    desc: 'Analyse IA, scoring 7D, comparables, audience, recommandations.',
     content: () => (
       <div style={{ padding: 20 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 4 }}>Registre ISBN</div>
-        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginBottom: 12 }}>Pr\u00e9fixe : 978-2-488647 \u00b7 29 ISBN enregistr\u00e9s</div>
-        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 0.8fr', gap: 0, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            {['Titre', 'ISBN', 'Format', 'Prix'].map(h => (
-              <div key={h} style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
-            ))}
-          </div>
-          {[
-            ['Le Lion D\u00e9chu', '978-2-488647-01-6', 'Broch\u00e9', '22,90\u20ac'],
-            ['Le Lion D\u00e9chu', '978-2-488647-02-3', 'ePub', '9,99\u20ac'],
-            ['Anti-stress', '978-2-488647-10-8', 'Broch\u00e9', '18,90\u20ac'],
-            ['M\u00e9moires Reli\u00e9es', '978-2-488647-04-7', 'Broch\u00e9', '21,00\u20ac'],
-            ['\u00c9cho autre vie', '978-2-488647-05-4', 'Poche', '8,90\u20ac'],
-          ].map((row, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 0.8fr', gap: 0, padding: '7px 12px', borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
-              <div style={{ fontSize: 10, color: 'white', fontWeight: 500 }}>{row[0]}</div>
-              <div style={{ fontSize: 10, color: '#C8952E', fontFamily: "'JetBrains Mono', monospace" }}>{row[1]}</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{row[2]}</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontFamily: "'JetBrains Mono', monospace" }}>{row[3]}</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>Editorial Intelligence &mdash; Le Lion D&eacute;chu</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
+          {[['72', 'Qualit\u00e9', '#2D1B4E'], ['68', 'Originalit\u00e9', '#5B3E8A'], ['75', 'Market Fit', '#C8952E']].map(([v, l, cl]) => (
+            <div key={l} style={{ textAlign: 'center', padding: 8, borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: cl as string }}>{v}</div>
+              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>{l}</div>
             </div>
           ))}
         </div>
+        <div style={{ padding: 10, borderRadius: 8, background: 'rgba(5,150,105,0.08)', border: '1px solid rgba(5,150,105,0.15)', marginBottom: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#059669' }}>Publier &mdash; Accompagnement &eacute;ditorial</div>
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>Confiance : 72% &middot; Mieux que 74% des manuscrits</div>
+        </div>
+        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginBottom: 6 }}>4 MODULES INTELLIGENCE</div>
+        {['Pr\u00e9dicteur de succ\u00e8s (radar 7 dimensions)', 'Marketing multi-variant (8 formats x multi-audience)', 'Triage soumissions (scoring + shortlist)', 'Droits & Adaptation (film, s\u00e9rie, animation)'].map(r => (
+          <div key={r} style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{r}</div>
+        ))}
       </div>
     ),
   },
   {
-    tab: 'Distribution',
-    title: 'Matrice de distribution',
-    desc: 'Quel titre, quel format, sur quel canal. Readiness en un coup d\u2019\u0153il.',
+    tab: 'Audiobooks',
+    title: 'Production vocale IA int\u00e9gr\u00e9e',
+    desc: 'ElevenLabs TTS, chapitrage auto, export MP3, distribution ACX.',
     content: () => (
       <div style={{ padding: 20 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>Distribution \u00d7 Canaux</div>
-        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', gap: 0, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            {['Titre', 'KDP', 'Pollen', 'Ingram', 'Apple'].map(h => (
-              <div key={h} style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: h === 'Titre' ? 'left' : 'center' }}>{h}</div>
-            ))}
-          </div>
-          {[
-            ['Le Lion D\u00e9chu', true, true, false, true],
-            ['Anti-stress', true, true, true, false],
-            ['M\u00e9moires Reli\u00e9es', false, true, false, false],
-            ['\u00c9cho autre vie', true, false, false, true],
-            ['Dernier Rivage', false, false, false, false],
-          ].map((row, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr repeat(4, 1fr)', gap: 0, padding: '7px 12px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-              <div style={{ fontSize: 10, color: 'white', fontWeight: 500 }}>{row[0] as string}</div>
-              {(row.slice(1) as boolean[]).map((ok, j) => (
-                <div key={j} style={{ textAlign: 'center', fontSize: 12 }}>
-                  {ok ? <Check size={13} color="#059669" /> : <span style={{ color: 'rgba(255,255,255,0.1)' }}>\u2014</span>}
-                </div>
-              ))}
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>Audiobook &mdash; Pipeline int&eacute;gr&eacute;</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
+          {[['~630', 'min'], ['21', 'chapitres'], ['~189\u20ac', 'co\u00fbt TTS']].map(([v, l]) => (
+            <div key={l} style={{ textAlign: 'center', padding: 8, borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#C8952E' }}>{v}</div>
+              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>{l}</div>
             </div>
           ))}
         </div>
+        {['Import .docx avec d\u00e9coupe chapitres auto', 'Voix ElevenLabs (4 voix FR/EN + clonage)', 'Mastering -14 LUFS + normalisation', 'Lecteur audio int\u00e9gr\u00e9 par chapitre', 'Export MP3 320kbps + m\u00e9tadonn\u00e9es', 'Distribution ACX / Audible / Spotify'].map((s, i) => (
+          <div key={i} style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{s}</div>
+        ))}
       </div>
     ),
   },
   {
-    tab: 'Orchestration',
-    title: 'Copilote strat\u00e9gique',
-    desc: 'Score 5D, priorit\u00e9s, goulots d\u2019\u00e9tranglement, recommandations.',
+    tab: '\u00c9conomie',
+    title: 'Simulateur P&L par titre',
+    desc: 'Point mort, marge, 3 sc\u00e9narios (prudent / r\u00e9aliste / optimiste).',
     content: () => (
       <div style={{ padding: 20 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>Orchestration \u2014 Le Lion D\u00e9chu</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div style={{ padding: 12, borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Score 5D</div>
-            <svg viewBox="0 0 120 120" width="100" height="100" style={{ display: 'block', margin: '0 auto' }}>
-              {/* Pentagon background */}
-              <polygon points="60,15 105,45 92,95 28,95 15,45" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-              <polygon points="60,30 90,50 82,85 38,85 30,50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-              {/* Data polygon */}
-              <polygon points="60,22 98,48 70,90 35,78 22,42" fill="rgba(200,149,46,0.15)" stroke="#C8952E" strokeWidth="1.5" />
-              {/* Labels */}
-              <text x="60" y="10" textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7">{'\u00c9'}ditorial</text>
-              <text x="112" y="48" textAnchor="start" fill="rgba(255,255,255,0.4)" fontSize="7">Prod.</text>
-              <text x="96" y="102" textAnchor="start" fill="rgba(255,255,255,0.4)" fontSize="7">Distrib.</text>
-              <text x="24" y="102" textAnchor="end" fill="rgba(255,255,255,0.4)" fontSize="7">Market.</text>
-              <text x="8" y="48" textAnchor="end" fill="rgba(255,255,255,0.4)" fontSize="7">Intl.</text>
-            </svg>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>&Eacute;conomie &mdash; Simulation</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 12 }}>
+          {[['214', 'Point mort (ex.)'], ['42%', 'du tirage'], ['4 832\u20ac', 'CA brut'], ['+1 205\u20ac', 'R\u00e9sultat net']].map(([v, l]) => (
+            <div key={l} style={{ textAlign: 'center', padding: 8, borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: v.toString().startsWith('+') ? '#059669' : '#C8952E' }}>{v}</div>
+              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>{l}</div>
+            </div>
+          ))}
+        </div>
+        {[
+          { name: 'Prudent (40%)', result: '-380\u20ac', color: '#D94452', verdict: 'Perte' },
+          { name: 'R\u00e9aliste (65%)', result: '+1 205\u20ac', color: '#059669', verdict: 'Profit' },
+          { name: 'Optimiste (90%)', result: '+2 890\u20ac', color: '#059669', verdict: 'Rentable' },
+        ].map(sc => (
+          <div key={sc.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: 6, marginBottom: 4, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+            <span style={{ fontSize: 10, color: 'white' }}>{sc.name}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: sc.color }}>{sc.result}</span>
+            <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, background: sc.color + '20', color: sc.color }}>{sc.verdict}</span>
           </div>
-          <div style={{ padding: 12, borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Priorit{'\u00e9'}s</div>
-            {[
-              { label: 'Finaliser couverture', impact: 'Critique', color: '#D94452' },
-              { label: 'Enregistrer ISBN poche', impact: 'Haute', color: '#E07A2F' },
-              { label: 'Pr\u00e9parer plan m\u00e9dia', impact: 'Moyenne', color: '#C8952E' },
-            ].map((p, i) => (
-              <div key={i} style={{ padding: '6px 8px', borderRadius: 6, marginBottom: 4, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                <div style={{ fontSize: 10, color: 'white', fontWeight: 500 }}>{p.label}</div>
-                <div style={{ fontSize: 8, color: p.color, fontWeight: 600, marginTop: 2 }}>{p.impact}</div>
-              </div>
-            ))}
+        ))}
+      </div>
+    ),
+  },
+  {
+    tab: 'Droits',
+    title: 'Rights & Adaptation Engine',
+    desc: 'Scores film/s\u00e9rie/animation, 18 territoires, one-pager export.',
+    content: () => (
+      <div style={{ padding: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'white', marginBottom: 12 }}>Adaptation &mdash; Le Tr&ocirc;ne de Cendre</div>
+        {[
+          { label: 'Film', score: 72 },
+          { label: 'S\u00e9rie TV', score: 85 },
+          { label: 'Animation', score: 48 },
+          { label: 'Audio dramatis\u00e9', score: 65 },
+          { label: 'Th\u00e9\u00e2tre', score: 32 },
+          { label: 'Jeu vid\u00e9o', score: 68 },
+        ].map(a => (
+          <div key={a.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <span style={{ fontSize: 10, color: 'white', width: 80 }}>{a.label}</span>
+            <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)' }}>
+              <div style={{ height: '100%', borderRadius: 3, background: a.score >= 70 ? '#059669' : a.score >= 50 ? '#C8952E' : '#6B645B', width: `${a.score}%` }} />
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, color: a.score >= 70 ? '#059669' : a.score >= 50 ? '#C8952E' : 'rgba(255,255,255,0.3)', fontFamily: "'JetBrains Mono', monospace", width: 28, textAlign: 'right' }}>{a.score}</span>
           </div>
+        ))}
+        <div style={{ marginTop: 10, padding: 8, borderRadius: 6, background: 'rgba(200,149,46,0.08)', border: '1px solid rgba(200,149,46,0.15)' }}>
+          <div style={{ fontSize: 9, color: '#C8952E', fontWeight: 600 }}>18 territoires &middot; 15 disponibles &middot; One-pager export</div>
         </div>
       </div>
     ),
@@ -520,12 +494,12 @@ export default function Home() {
                 fontSize: 'clamp(32px, 4.5vw, 54px)', lineHeight: 1.08, fontWeight: 700,
                 color: t.text, margin: '14px 0 16px',
               }}>
-                Le cockpit {'\u00e9'}ditorial pour transformer un manuscrit en livre publi{'\u00e9'}.
+                Le cockpit {'\u00e9'}ditorial intelligent. Du manuscrit au livre publi{'\u00e9'}, en passant par la couverture, l&apos;audiobook et le marketing.
               </h1>
             </FadeIn>
             <FadeIn delay={0.2}>
               <p style={{ color: t.text2, fontSize: 18, lineHeight: 1.65, maxWidth: '56ch', margin: 0 }}>
-                JABR structure chaque {'\u00e9'}tape : manuscrit, analyse, couverture, ISBN, distribution, lancement. Un espace unique pour piloter tout le cycle de vie d&apos;un livre.
+                JABR structure chaque {'\u00e9'}tape : analyse {'\u00e9'}ditoriale IA, assemblage couverture, production audiobook, plan m{'\u00e9'}dia, simulation {'\u00e9'}conomique, gestion des droits. 28 modules. Un seul espace.
               </p>
             </FadeIn>
             <FadeIn delay={0.3}>
@@ -571,14 +545,14 @@ export default function Home() {
               Publier un livre, c&apos;est un art.<br />L&apos;organisation doit {'\u00ea'}tre pr{'\u00e9'}cise.
             </h2>
             <p style={{ color: t.text2, fontSize: 17, lineHeight: 1.65, maxWidth: '62ch', margin: '12px 0 0' }}>
-              Entre fichiers, emails, tableurs et versions, les projets s&apos;{'\u00e9'}parpillent. JABR apporte une architecture {'\u00e9'}ditoriale : claire, tra{'\u00e7'}able, pilotable.
+              JABR remplace les fichiers, tableurs et emails par une architecture {'\u00e9'}ditoriale int{'\u00e9'}gr{'\u00e9'}e : 28 modules, 10 moteurs IA, de l&apos;analyse du manuscrit au plan marketing.
             </p>
           </FadeIn>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginTop: 32 }} className="grid-responsive">
             {[
-              { icon: Eye, kicker: 'Vision', title: 'Catalogue lisible', desc: 'Tous les titres, collections et statuts, au m\u00eame endroit.' },
-              { icon: Zap, kicker: 'Flux', title: 'Pipeline clair', desc: 'Vous savez exactement o\u00f9 en est chaque livre.' },
-              { icon: Sparkles, kicker: 'D\u00e9cision', title: 'Moins d\u2019h\u00e9sitation', desc: 'Diagnostics, checklists et validations pour avancer vite.' },
+              { icon: Eye, kicker: 'Intelligence', title: 'Directeur \u00e9ditorial IA', desc: 'Analyse, scoring pr\u00e9dictif, comparables, audience cible, recommandations.' },
+              { icon: Zap, kicker: 'Production', title: 'Couverture + Audiobook', desc: 'Cover Studio 6 \u00e9tapes, PDF print-ready, TTS ElevenLabs, bande-annonce Runway.' },
+              { icon: Sparkles, kicker: 'Commerce', title: 'Marketing + \u00c9conomie', desc: 'Textes multi-audience, simulation P&L, droits & adaptation, 12 formats sociaux.' },
             ].map((card, i) => (
               <FadeIn key={card.title} delay={i * 0.1}>
                 <div style={{
@@ -608,9 +582,9 @@ export default function Home() {
           </FadeIn>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }} className="grid-responsive">
             {[
-              { num: '01', title: 'Structurer', desc: 'Centraliser le projet, la collection, les fichiers.', icon: Layers },
-              { num: '02', title: 'Produire', desc: 'Analyse, corrections, couverture, calibrage \u2014 \u00e9tape par \u00e9tape.', icon: Shield },
-              { num: '03', title: 'Publier', desc: 'ISBN, distribution, planning de sortie, lancement.', icon: Send },
+              { num: '01', title: 'Analyser', desc: 'Intelligence \u00e9ditoriale IA, scoring pr\u00e9dictif, comparables, audience.', icon: Eye },
+              { num: '02', title: 'Produire', desc: 'Cover Studio, audiobook TTS, calibrage, PDF print-ready.', icon: Shield },
+              { num: '03', title: 'Commercialiser', desc: 'Marketing multi-variant, plan m\u00e9dia, simulation \u00e9conomique, droits.', icon: Send },
             ].map((s, i) => (
               <FadeIn key={s.num} delay={i * 0.12}>
                 <div style={{ padding: 24, border: '1px solid #E8E4DF', borderRadius: 16, background: t.bg }}>
@@ -639,7 +613,7 @@ export default function Home() {
                 D{'\u00e9'}couvrez JABR en action
               </h2>
               <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 16, lineHeight: 1.6, maxWidth: '50ch', margin: '0 auto' }}>
-                Explorez les modules cl{'\u00e9'}s du cockpit {'\u00e9'}ditorial.
+                28 modules, 10 moteurs IA, de la couverture au plan m{'\u00e9'}dia.
               </p>
             </div>
           </FadeIn>
