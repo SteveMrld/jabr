@@ -1,9 +1,9 @@
 const CACHE_NAME = 'jabr-v2.2';
-const OFFLINE_URL = '/demo';
+const OFFLINE_URL = '/app';
 
 const PRECACHE = [
   '/',
-  '/demo',
+  '/app',
   '/manifest.json',
   '/icon-192.svg',
   '/icon-512.svg',
