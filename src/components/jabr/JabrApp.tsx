@@ -18,6 +18,8 @@ import { analyzeManuscript, analyzeOffline, type EditorialReport } from '@/lib/i
 import { simulateEconomics, DEFAULT_ECONOMICS, type EconomicsInput, type EconomicsResult } from '@/lib/intelligence/economicsSimulator';
 import { predictFromReport, predictWithAI, DIMENSION_LABELS, type PredictionResult } from '@/lib/intelligence/successPredictor';
 import { generateVariantsOffline, generateVariantsWithAI, MARKETING_FORMATS, type MarketingVariant, type MarketingFormat, type MarketingGenerationResult } from '@/lib/intelligence/marketingGenerator';
+import { triageSubmission, SUBMISSION_STATUS_LABELS, type Submission, type SubmissionStatus } from '@/lib/intelligence/submissionScreening';
+import { analyzeRights, DEFAULT_TERRITORIES, type RightsAnalysis, type Territory, type AdaptationScore } from '@/lib/intelligence/rightsEngine';
 import { type AIProviderConfig } from '@/lib/intelligence/aiProvider';
 
 // ═══════════════════════════════════
@@ -88,6 +90,8 @@ const icons: Record<string, React.ReactNode> = {
   economics: sv(<><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></>),
   predictor: sv(<><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></>),
   'marketing-gen': sv(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></>),
+  submissions: sv(<><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" /></>),
+  'rights-adapt': sv(<><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></>),
   image: sv(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>),
   share: sv(<><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></>),
 };
@@ -234,6 +238,8 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['predictor', 'Prédicteur', 'predictor'],
   ['marketing-gen', 'Marketing Multi', 'marketing-gen'],
   ['economics', 'Économie', 'economics'],
+  ['submissions', 'Soumissions', 'submissions'],
+  ['rights-adapt', 'Droits & Adapt.', 'rights-adapt'],
   ['isbn', 'ISBN', 'isbn'],
   ['collections', 'Collections', 'collections'],
   ['droits', 'Droits', 'droits'],
@@ -3608,6 +3614,263 @@ const MarketingGenView = ({ projects, onToast }: { projects: Project[]; onToast:
             }}>⬇ Exporter toutes les variantes</Btn>
           )}
         </>
+      )}
+    </div>
+  );
+};
+
+// --- SUBMISSIONS SCREENING ---
+const SubmissionsView = ({ onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+  const [submissions, setSubmissions] = useState<Submission[]>(() => {
+    try { const s = localStorage.getItem('jabr-submissions'); return s ? JSON.parse(s) : []; } catch { return []; }
+  });
+  const persist = (subs: Submission[]) => { try { localStorage.setItem('jabr-submissions', JSON.stringify(subs)); } catch {} setSubmissions(subs); };
+  const [filterStatus, setFilterStatus] = useState<SubmissionStatus | 'all'>('all');
+  const [sortBy, setSortBy] = useState<'score' | 'date'>('score');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const addSubmission = (title: string, author: string, genre: string, text: string) => {
+    const wordCount = text.split(/\s+/).length;
+    const triage = triageSubmission(title, author, genre, text, wordCount);
+    const sub: Submission = {
+      id: `sub-${Date.now()}`,
+      ...triage,
+      status: 'triaged',
+      receivedAt: new Date().toISOString(),
+    };
+    persist([sub, ...submissions]);
+    onToast(`"${title}" trié : ${sub.triageScore}/100 — ${sub.recommendation}`);
+  };
+
+  const updateStatus = (id: string, status: SubmissionStatus) => {
+    persist(submissions.map(s => s.id === id ? { ...s, status } : s));
+    onToast(`Statut mis à jour : ${SUBMISSION_STATUS_LABELS[status].label}`);
+  };
+
+  const deleteSubmission = (id: string) => {
+    persist(submissions.filter(s => s.id !== id));
+    onToast('Soumission supprimée');
+  };
+
+  const filtered = submissions.filter(s => filterStatus === 'all' || s.status === filterStatus)
+    .sort((a, b) => sortBy === 'score' ? b.triageScore - a.triageScore : new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newAuthor, setNewAuthor] = useState('');
+  const [newGenre, setNewGenre] = useState('Roman');
+  const [newText, setNewText] = useState('');
+
+  return (
+    <div>
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
+        <div><h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Smart Submission Screening</h2>
+        <p className="mt-0.5" style={{ color: c.gr, fontSize: 12 }}>Triage automatique des manuscrits entrants — scoring, classification, orientation</p></div>
+        <Btn onClick={() => setShowAdd(!showAdd)}>{showAdd ? 'Fermer' : '📬 Nouvelle soumission'}</Btn>
+      </div>
+
+      {/* Stats */}
+      <div className="flex gap-3 mb-4 flex-wrap">
+        <StatCard value={submissions.length} label="Total" accent={c.mv} />
+        <StatCard value={submissions.filter(s => s.status === 'shortlist').length} label="Shortlist" accent={c.vm} />
+        <StatCard value={submissions.filter(s => s.status === 'reading').length} label="En lecture" accent={c.or} />
+        <StatCard value={submissions.filter(s => s.triageScore >= 70).length} label="Score ≥ 70" accent={c.ok} />
+      </div>
+
+      {/* Add form */}
+      {showAdd && (
+        <Card hover={false} className="p-3 md:p-5 mb-4">
+          <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Nouvelle soumission</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+            <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Titre" className="px-3 py-2 rounded-lg border text-[12px] outline-none" style={{ borderColor: c.gc }} />
+            <input value={newAuthor} onChange={e => setNewAuthor(e.target.value)} placeholder="Auteur" className="px-3 py-2 rounded-lg border text-[12px] outline-none" style={{ borderColor: c.gc }} />
+            <select value={newGenre} onChange={e => setNewGenre(e.target.value)} className="px-3 py-2 rounded-lg border text-[12px] outline-none" style={{ borderColor: c.gc }}>
+              {['Roman', 'Fantasy', 'Thriller', 'Essai', 'Jeunesse', 'Science-fiction', 'Poésie', 'BD', 'Autre'].map(g => <option key={g}>{g}</option>)}
+            </select>
+          </div>
+          <textarea value={newText} onChange={e => setNewText(e.target.value)} placeholder="Collez ici l'extrait ou le texte complet du manuscrit…" rows={5}
+            className="w-full px-3 py-2 rounded-lg border text-[12px] outline-none resize-y mb-2" style={{ borderColor: c.gc }} />
+          <div className="flex gap-2">
+            <Btn onClick={() => { if (newTitle && newText.length > 50) { addSubmission(newTitle, newAuthor || 'Inconnu', newGenre, newText); setNewTitle(''); setNewAuthor(''); setNewText(''); setShowAdd(false); } else { onToast('Titre et texte requis (min 50 caractères)'); } }}>📊 Trier automatiquement</Btn>
+            <label className="cursor-pointer">
+              <input type="file" accept=".docx" className="hidden" onChange={async (e) => {
+                const file = e.target.files?.[0]; if (!file) return;
+                try { const parsed = await parseDocx(file); addSubmission(file.name.replace('.docx', ''), 'À identifier', newGenre, parsed.rawText); } catch { onToast('Erreur parsing .docx'); }
+                e.target.value = '';
+              }} />
+              <div className="inline-flex items-center gap-1 px-3 md:px-5 py-2 md:py-2.5 rounded-lg font-semibold text-[12px] md:text-[13px] border cursor-pointer hover:bg-gray-50" style={{ borderColor: c.vm, color: c.vm }}>📄 Import .docx</div>
+            </label>
+          </div>
+        </Card>
+      )}
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {(['all', 'inbox', 'triaged', 'shortlist', 'reading', 'rejected', 'accepted'] as const).map(s => (
+          <button key={s} onClick={() => setFilterStatus(s)}
+            className="px-3 py-1.5 rounded-lg text-[11px] font-semibold"
+            style={{ background: filterStatus === s ? c.or : c.ft, color: filterStatus === s ? 'white' : c.mv, border: `1px solid ${filterStatus === s ? c.or : c.gc}` }}>
+            {s === 'all' ? 'Tous' : SUBMISSION_STATUS_LABELS[s].icon + ' ' + SUBMISSION_STATUS_LABELS[s].label}
+          </button>
+        ))}
+        <button onClick={() => setSortBy(sortBy === 'score' ? 'date' : 'score')} className="ml-auto px-3 py-1.5 rounded-lg text-[10px] font-semibold" style={{ background: c.ft, color: c.gr }}>
+          Tri: {sortBy === 'score' ? 'Score ↓' : 'Date ↓'}
+        </button>
+      </div>
+
+      {/* Submissions list */}
+      {filtered.length === 0 && <div className="text-center py-8 text-[13px]" style={{ color: c.gr }}>Aucune soumission. Cliquez "Nouvelle soumission" pour commencer.</div>}
+      {filtered.map(sub => {
+        const st = SUBMISSION_STATUS_LABELS[sub.status];
+        const isExpanded = expandedId === sub.id;
+        return (
+          <Card key={sub.id} hover={false} className="mb-2">
+            <div className="flex flex-wrap items-center gap-2 px-3 md:px-5 py-3 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : sub.id)}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-[16px] font-bold shrink-0"
+                style={{ background: sub.triageScore >= 70 ? '#D4F0E0' : sub.triageScore >= 50 ? '#FFF8E0' : '#FFE0E0', color: sub.triageScore >= 70 ? c.ok : sub.triageScore >= 50 ? c.og : c.er }}>
+                {sub.triageScore}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold truncate" style={{ color: c.mv }}>{sub.title}</div>
+                <div className="text-[10px]" style={{ color: c.gr }}>{sub.author} · {sub.genre} · {sub.wordCount.toLocaleString()} mots</div>
+              </div>
+              <Badge bg={st.bg} color={st.color}>{st.icon} {st.label}</Badge>
+              <span style={{ color: c.gr, fontSize: 10, transform: isExpanded ? 'rotate(180deg)' : '', transition: 'transform 0.2s' }}>▾</span>
+            </div>
+            {isExpanded && (
+              <div className="px-3 md:px-5 py-3" style={{ background: '#FDFCFA', borderTop: `1px solid ${c.ft}` }}>
+                {sub.summary && <div className="text-[12px] leading-relaxed mb-3 italic" style={{ color: c.nr }}>"{sub.summary}"</div>}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <div className="text-[10px] font-semibold mb-1" style={{ color: c.ok }}>Forces</div>
+                    {sub.strengths?.map((s, i) => <div key={i} className="text-[10px] mb-0.5" style={{ color: c.nr }}>✓ {s}</div>)}
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-semibold mb-1" style={{ color: c.er }}>Points d'attention</div>
+                    {sub.concerns?.map((s, i) => <div key={i} className="text-[10px] mb-0.5" style={{ color: c.nr }}>⚠ {s}</div>)}
+                  </div>
+                </div>
+                {sub.detectedThemes && <div className="flex flex-wrap gap-1 mb-2">{sub.detectedThemes.map(t => <Badge key={t} bg="#E8F5E0" color={c.ok}>{t}</Badge>)}</div>}
+                <div className="p-2 rounded-lg mb-3" style={{ background: '#FFF8E0', border: '1px solid #F0D060' }}>
+                  <div className="text-[11px] font-semibold" style={{ color: '#7A5A00' }}>{sub.recommendation}</div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(['shortlist', 'reading', 'accepted', 'rejected'] as SubmissionStatus[]).filter(s => s !== sub.status).map(s => (
+                    <button key={s} onClick={() => updateStatus(sub.id, s)}
+                      className="text-[10px] px-2.5 py-1.5 rounded-lg font-semibold" style={{ background: SUBMISSION_STATUS_LABELS[s].bg, color: SUBMISSION_STATUS_LABELS[s].color, border: 'none', cursor: 'pointer' }}>
+                      {SUBMISSION_STATUS_LABELS[s].icon} {SUBMISSION_STATUS_LABELS[s].label}
+                    </button>
+                  ))}
+                  <button onClick={() => deleteSubmission(sub.id)} className="text-[10px] px-2 py-1.5 rounded-lg ml-auto" style={{ background: '#FFE0E0', color: c.er, border: 'none', cursor: 'pointer' }}>✗ Supprimer</button>
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+};
+
+// --- RIGHTS & ADAPTATION ---
+const RightsAdaptView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [analyses, setAnalyses] = useState<Record<number, RightsAnalysis>>({});
+  const [editorialReports] = useState<Record<number, EditorialReport>>({});
+
+  const runAnalysis = (p: Project) => {
+    const report = editorialReports[p.id] || analyzeOffline(p.title, p.author, p.genre, p.backCover || '', p.pages, p.backCover);
+    const analysis = analyzeRights(p.title, p.author, p.genre, p.pages, report);
+    setAnalyses(prev => ({ ...prev, [p.id]: analysis }));
+    onToast(`Analyse droits : score global adaptation ${analysis.globalAdaptationScore}/100`);
+  };
+
+  const analysis = selectedProject ? analyses[selectedProject.id] : null;
+
+  return (
+    <div>
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
+        <div><h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Rights & Adaptation</h2>
+        <p className="mt-0.5" style={{ color: c.gr, fontSize: 12 }}>Matrice territoires, scores adaptation (film/série/animation/audio), one-pager export</p></div>
+      </div>
+
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+        {projects.map(p => (
+          <button key={p.id} onClick={() => { setSelectedProject(p); if (!analyses[p.id]) runAnalysis(p); }}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold whitespace-nowrap shrink-0"
+            style={{ background: selectedProject?.id === p.id ? c.or : c.ft, color: selectedProject?.id === p.id ? 'white' : c.mv, border: `1px solid ${selectedProject?.id === p.id ? c.or : c.gc}` }}>
+            {p.title}
+          </button>
+        ))}
+      </div>
+
+      {selectedProject && analysis && (
+        <div>
+          {/* Global score + Top hooks */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+            <StatCard value={analysis.globalAdaptationScore} label="Score global" accent={c.or} />
+            <StatCard value={analysis.territories.filter(t => t.available).length} label="Territoires dispo." accent={c.ok} />
+            <StatCard value={analysis.adaptations.filter(a => a.score >= 60).length} label="Adaptations ≥ 60" accent={c.vm} />
+            <StatCard value={`${analysis.territories.filter(t => t.status === 'sold').length}/${analysis.territories.length}`} label="Vendus" accent={c.og} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Adaptation scores */}
+            <Card hover={false} className="p-3 md:p-5">
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Scores d'adaptation</div>
+              <div className="space-y-3">
+                {analysis.adaptations.sort((a, b) => b.score - a.score).map(a => (
+                  <div key={a.type}>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-[12px] font-semibold" style={{ color: c.mv }}>{a.icon} {a.label}</span>
+                      <span className="text-[12px] font-bold font-mono" style={{ color: a.score >= 70 ? c.ok : a.score >= 50 ? c.og : c.er }}>{a.score}/100</span>
+                    </div>
+                    <div className="h-2.5 rounded-full overflow-hidden mb-1" style={{ background: c.gc }}>
+                      <div className="h-full rounded-full" style={{ width: `${a.score}%`, background: a.score >= 70 ? c.ok : a.score >= 50 ? c.og : c.er }} />
+                    </div>
+                    <div className="text-[10px]" style={{ color: c.gr }}>{a.notes}</div>
+                    <div className="flex flex-wrap gap-1 mt-1">{a.hooks.map(h => <Badge key={h} bg="#F0F0FF" color={c.vm}>{h}</Badge>)}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Territory matrix */}
+            <Card hover={false} className="p-3 md:p-5">
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Matrice territoires</div>
+              <div className="space-y-1">
+                {analysis.territories.map(t => {
+                  const stColors: Record<string, { bg: string; color: string }> = {
+                    available: { bg: '#D4F0E0', color: c.ok },
+                    sold: { bg: '#FFE0E0', color: c.er },
+                    negotiation: { bg: '#FFF8E0', color: c.og },
+                    reserved: { bg: '#E8E0F0', color: c.vm },
+                  };
+                  const sc = stColors[t.status];
+                  return (
+                    <div key={t.code} className="flex items-center gap-2 py-1.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                      <span className="text-[11px] font-bold w-8 shrink-0" style={{ color: c.gr }}>{t.code}</span>
+                      <span className="text-[11px] flex-1" style={{ color: c.mv }}>{t.zone}</span>
+                      <span className="text-[9px]" style={{ color: c.gr }}>{t.language}</span>
+                      <Badge bg={sc.bg} color={sc.color}>{t.status === 'available' ? 'Disponible' : t.status === 'sold' ? 'Vendu' : t.status === 'negotiation' ? 'Négo.' : 'Réservé'}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          </div>
+
+          {/* Export one-pager */}
+          <div className="flex gap-2">
+            <Btn onClick={() => {
+              const blob = new Blob([analysis.onePagerText], { type: 'text/plain' });
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+              a.download = `rights-one-pager-${selectedProject.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.txt`; a.click();
+              onToast('One-pager exporté ✓');
+            }}>⬇ Exporter One-Pager (droits)</Btn>
+            <Btn variant="secondary" onClick={() => { runAnalysis(selectedProject); }}>↺ Recalculer</Btn>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -9302,6 +9565,8 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
       ['predictor', 'Prédicteur de succès', 'Score prédictif, radar 7 dimensions, verdict, recommandations'],
       ['marketing-gen', 'Marketing Multi-Variant', '8 formats × multi-audience, 4e, pitch, argumentaire, CP, rights sheet'],
       ['economics', 'Économie', 'Simulateur P&L, point mort, marge, scénarios, rentabilité'],
+      ['submissions', 'Soumissions', 'Triage automatique manuscrits entrants, scoring, classification, shortlist'],
+      ['rights-adapt', 'Droits & Adaptation', 'Territoires, scores film/série/animation, one-pager droits, hooks adaptation'],
       ['audiobooks', 'Audiobooks', 'Pipeline audio, voix, chapitres'],
       ['distribution', 'Distribution', 'KDP, Pollen, IngramSpark, Apple, Kobo, Spotify'],
       ['marketing', 'Marketing', 'Kit réseaux sociaux, fiches produit'],
@@ -9870,6 +10135,8 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
       case 'predictor': return <PredictorView projects={filtered} onToast={showToast} />;
       case 'marketing-gen': return <MarketingGenView projects={filtered} onToast={showToast} />;
       case 'economics': return <EconomicsSimulatorView projects={filtered} onToast={showToast} />;
+      case 'submissions': return <SubmissionsView projects={filtered} onToast={showToast} />;
+      case 'rights-adapt': return <RightsAdaptView projects={filtered} onToast={showToast} />;
       case 'isbn': return <ISBNView projects={filtered} onToast={showToast} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
       case 'droits': return <DroitsView projects={projects} onToast={showToast} />;
