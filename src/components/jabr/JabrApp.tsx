@@ -14,6 +14,9 @@ import { assembleCover, exportCoverAsPNG, downloadBlob, generateSocialVisual, ge
 import { splitIntoChapters, generateFullAudiobook, fetchVoices, downloadChapterAudio, downloadAllChapters, estimateCost, validateACXSpecs, type AudioChapter, type AudiobookProject, type ElevenLabsVoice } from '@/lib/audiobookEngine';
 import { generateCoverPDF, downloadPDF, fetchImageAsBytes, type PDFCoverConfig } from '@/lib/pdfCoverGenerator';
 import { parseDocx, type ParsedManuscript } from '@/lib/docxParser';
+import { analyzeManuscript, analyzeOffline, type EditorialReport } from '@/lib/intelligence/editorialEngine';
+import { simulateEconomics, DEFAULT_ECONOMICS, type EconomicsInput, type EconomicsResult } from '@/lib/intelligence/economicsSimulator';
+import { type AIProviderConfig } from '@/lib/intelligence/aiProvider';
 
 // ═══════════════════════════════════
 // DESIGN TOKENS
@@ -79,6 +82,8 @@ const icons: Record<string, React.ReactNode> = {
   presse: sv(<><path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9c0-1.1.9-2 2-2h2" /><path d="M18 14h-8" /><path d="M15 18h-5" /><path d="M10 6h8v4h-8z" /></>),
   calendrier: sv(<><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" /></>),
   'cover-studio': sv(<><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /><circle cx="15" cy="15" r="2" /><path d="M15 11v2" /></>),
+  intelligence: sv(<><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /><path d="M8 14l-2 4M16 14l2 4" /></>),
+  economics: sv(<><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></>),
   image: sv(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>),
   share: sv(<><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></>),
 };
@@ -221,6 +226,8 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['calendrier', 'Calendrier', 'calendrier'],
   ['analytics', 'Analytics', 'analytics'],
   null, // separator
+  ['intelligence', '◆ Intelligence', 'intelligence'],
+  ['economics', 'Économie', 'economics'],
   ['isbn', 'ISBN', 'isbn'],
   ['collections', 'Collections', 'collections'],
   ['droits', 'Droits', 'droits'],
@@ -282,8 +289,8 @@ const Sidebar = ({ active, onNav, projects, persisted, open, onToggle, lang, onT
             onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(62,39,104,0.5)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; } }}
             onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; } }}>
             {isActive && <div className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r" style={{ background: c.or }} />}
-            <span className="flex" style={{ color: isActive ? c.or : id === 'cover-studio' ? c.or : 'inherit' }}>{icons[iconKey]}</span>
-            <span className="flex-1" style={id === 'cover-studio' && !isActive ? { color: c.or, fontWeight: 600 } : undefined}>{label}</span>
+            <span className="flex" style={{ color: isActive ? c.or : (id === 'cover-studio' || id === 'intelligence') ? c.or : 'inherit' }}>{icons[iconKey]}</span>
+            <span className="flex-1" style={(id === 'cover-studio' || id === 'intelligence') && !isActive ? { color: c.or, fontWeight: 600 } : undefined}>{label}</span>
             {badge !== undefined && badge > 0 && (
               <span className="min-w-[20px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold px-1"
                 style={{ background: id === 'couvertures' && corrCount > 0 ? 'rgba(217,68,82,0.8)' : 'rgba(255,255,255,0.12)', color: id === 'couvertures' && corrCount > 0 ? 'white' : 'rgba(255,255,255,0.5)' }}>
@@ -704,6 +711,8 @@ const DashboardView = ({ onProject, onNew, projects, allProjects, onNav, onUpdat
             { icon: '📦', label: 'ONIX 3.0', desc: 'Export distribution' },
             { icon: '🎵', label: 'Audiobooks', desc: 'Pipeline TTS' },
             { icon: '⚡', label: 'Orchestration', desc: 'Scoring 5 axes' },
+            { icon: '🧠', label: 'Intelligence', desc: 'Analyse éditoriale IA' },
+            { icon: '💰', label: 'Économie', desc: 'P&L · Point mort' },
           ].map(e => (
             <div key={e.label} className="flex items-center gap-1.5">
               <span className="text-[13px]">{e.icon}</span>
@@ -3151,6 +3160,360 @@ const CoverStudioView = ({ projects, onToast }: { projects: Project[]; onToast: 
           <button onClick={() => setStep('upload')} className="mt-3 px-4 py-2 rounded-lg text-[12px]" style={{ background: c.or, color: 'white' }}>
             ← Retour à la sélection
           </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- EDITORIAL INTELLIGENCE ---
+const EditorialIntelligenceView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [report, setReport] = useState<Record<number, EditorialReport>>({});
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const getApiKey = (key: string): string | null => {
+    try { const s = localStorage.getItem('jabr-settings'); return s ? JSON.parse(s)[key] || null : null; } catch { return null; }
+  };
+
+  const runAnalysis = async (p: Project, useAI: boolean) => {
+    setAnalyzing(true);
+    if (useAI) {
+      const key = getApiKey('anthropicKey');
+      if (!key) { onToast('Clé API Anthropic requise → Paramètres'); setAnalyzing(false); return; }
+      onToast('Analyse IA en cours…');
+      const result = await analyzeManuscript(p.title, p.author, p.genre, p.backCover || p.title, p.pages, { apiKey: key });
+      if (result.report) { setReport(prev => ({ ...prev, [p.id]: result.report! })); onToast('Rapport éditorial généré ✓'); }
+      else onToast(`Erreur: ${result.error}`);
+    } else {
+      const r = analyzeOffline(p.title, p.author, p.genre, p.backCover || '', p.pages, p.backCover);
+      setReport(prev => ({ ...prev, [p.id]: r }));
+      onToast('Analyse heuristique terminée');
+    }
+    setAnalyzing(false);
+  };
+
+  const r = selectedProject ? report[selectedProject.id] : null;
+  const potColor = (v: string) => v === 'very-high' || v === 'high' ? c.ok : v === 'medium' ? c.og : c.er;
+  const scoreColor = (v: number) => v >= 70 ? c.ok : v >= 50 ? c.og : c.er;
+
+  return (
+    <div>
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
+        <div><h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>◆ Editorial Intelligence</h2>
+        <p className="mt-0.5" style={{ color: c.gr, fontSize: 12 }}>Analyse éditoriale IA — Positionnement, audience, scoring, recommandations</p></div>
+      </div>
+
+      {/* Project selector */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-4">
+        {projects.map(p => (
+          <div key={p.id} onClick={() => setSelectedProject(p)}
+            className="flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all"
+            style={{ background: selectedProject?.id === p.id ? '#F0EBE0' : 'white', border: `2px solid ${selectedProject?.id === p.id ? c.or : c.gc}` }}>
+            <CoverThumb emoji={p.cover} coverImage={p.coverImage} size="sm" />
+            <div className="min-w-0"><div className="text-[11px] font-semibold truncate" style={{ color: c.mv }}>{p.title}</div>
+            <div className="text-[9px]" style={{ color: report[p.id] ? c.ok : c.gr }}>{report[p.id] ? '✓ Analysé' : p.genre}</div></div>
+          </div>
+        ))}
+      </div>
+
+      {selectedProject && !r && (
+        <Card hover={false} className="p-4 md:p-6 text-center">
+          <div className="text-[14px] mb-3" style={{ color: c.mv }}>Analyser « {selectedProject.title} »</div>
+          <div className="flex justify-center gap-3 flex-wrap">
+            <Btn onClick={() => runAnalysis(selectedProject, false)}>
+              {analyzing ? '⏳ Analyse…' : '⚡ Analyse rapide (heuristique)'}
+            </Btn>
+            <Btn variant="secondary" onClick={() => runAnalysis(selectedProject, true)}>
+              🧠 Analyse IA (Claude API)
+            </Btn>
+          </div>
+          <div className="text-[10px] mt-2" style={{ color: c.gr }}>
+            L'analyse rapide utilise des heuristiques. L'analyse IA utilise Claude pour un rapport complet.
+            {!getApiKey('anthropicKey') && ' Clé API Anthropic requise pour l\'IA → Paramètres.'}
+          </div>
+        </Card>
+      )}
+
+      {selectedProject && r && (
+        <div>
+          {/* Score cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mb-4">
+            <StatCard value={r.qualityScore} label="Qualité" accent={scoreColor(r.qualityScore)} />
+            <StatCard value={r.originalityScore} label="Originalité" accent={scoreColor(r.originalityScore)} />
+            <StatCard value={r.marketFitScore} label="Market Fit" accent={scoreColor(r.marketFitScore)} />
+            <StatCard value={Math.round((r.qualityScore + r.originalityScore + r.marketFitScore) / 3)} label="Score global" accent={c.or} />
+            <StatCard value={`${r.confidence}%`} label="Confiance" accent={c.vm} />
+            <StatCard value={r.commercialPotential} label="Potentiel" accent={potColor(r.commercialPotential)} />
+          </div>
+
+          {/* Main content */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Positioning */}
+            <Card hover={false} className="p-3 md:p-5">
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Positionnement</div>
+              <div className="text-[12px] leading-relaxed mb-3" style={{ color: c.nr }}>{r.positioning}</div>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                <Badge bg="#F0EAFF" color={c.vm}>{r.genre}</Badge>
+                {r.subGenres.map(sg => <Badge key={sg} bg={c.ft} color={c.gr}>{sg}</Badge>)}
+              </div>
+              <div className="text-[11px] italic" style={{ color: c.gr }}>Tonalité : {r.tonality}</div>
+              <div className="mt-3"><div className="text-[10px] font-semibold mb-1" style={{ color: c.vm }}>Thèmes</div>
+                <div className="flex flex-wrap gap-1">{r.themes.map(t => <Badge key={t} bg="#E8F5E0" color={c.ok}>{t}</Badge>)}</div>
+              </div>
+            </Card>
+
+            {/* Comparables */}
+            <Card hover={false} className="p-3 md:p-5">
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Comparables</div>
+              {r.comparables.map((comp, i) => (
+                <div key={i} className="p-2.5 rounded-lg mb-2" style={{ background: c.ft }}>
+                  <div className="text-[12px] font-semibold" style={{ color: c.mv }}>{comp.title}</div>
+                  <div className="text-[10px]" style={{ color: c.vm }}>{comp.author}</div>
+                  <div className="text-[10px] mt-1" style={{ color: c.gr }}>{comp.why}</div>
+                </div>
+              ))}
+              <div className="mt-3 p-2.5 rounded-lg" style={{ background: '#FFF8E0', border: '1px solid #F0D060' }}>
+                <div className="text-[11px] font-semibold" style={{ color: '#7A5A00' }}>Promesse lecteur</div>
+                <div className="text-[11px] mt-1" style={{ color: c.nr }}>{r.readerPromise}</div>
+              </div>
+            </Card>
+
+            {/* Audience */}
+            <Card hover={false} className="p-3 md:p-5">
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Audience cible</div>
+              {[r.audiencePrimary, r.audienceSecondary].map((a, i) => (
+                <div key={i} className="p-2.5 rounded-lg mb-2" style={{ background: i === 0 ? '#F0F0FF' : c.ft, border: `1px solid ${i === 0 ? '#D0D0FF' : c.gc}` }}>
+                  <div className="flex justify-between"><span className="text-[11px] font-semibold" style={{ color: c.mv }}>{a.label}</span>
+                  <Badge bg={c.ft} color={c.gr}>{a.age}</Badge></div>
+                  <div className="text-[10px] mt-1" style={{ color: c.gr }}>{a.description}</div>
+                </div>
+              ))}
+            </Card>
+
+            {/* Forces & Risques */}
+            <Card hover={false} className="p-3 md:p-5">
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Forces & Risques</div>
+              <div className="mb-3">
+                {r.strengths.map((s, i) => (
+                  <div key={i} className="flex items-start gap-2 mb-1.5">
+                    <span className="text-[12px] shrink-0" style={{ color: c.ok }}>✓</span>
+                    <span className="text-[11px]" style={{ color: c.nr }}>{s}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                {r.risks.map((risk, i) => (
+                  <div key={i} className="flex items-start gap-2 mb-1.5">
+                    <span className="text-[12px] shrink-0" style={{ color: c.er }}>⚠</span>
+                    <span className="text-[11px]" style={{ color: c.nr }}>{risk}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Marketing Angles */}
+            <Card hover={false} className="p-3 md:p-5">
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Angles marketing</div>
+              {r.marketingAngles.map((ma, i) => (
+                <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg mb-2" style={{ background: c.ft }}>
+                  <div className="flex-1"><div className="text-[11px] font-semibold" style={{ color: c.mv }}>{ma.angle}</div>
+                  <div className="text-[9px]" style={{ color: c.gr }}>{ma.target} · {ma.channel}</div></div>
+                </div>
+              ))}
+              <div className="flex flex-wrap gap-1 mt-2">{r.keywords.map(k => <Badge key={k} bg="#E8F0FF" color="#1E40AF">{k}</Badge>)}</div>
+            </Card>
+
+            {/* Pitch + Potentials */}
+            <Card hover={false} className="p-3 md:p-5">
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Pitch & Potentiels</div>
+              <div className="p-3 rounded-lg mb-3" style={{ background: '#FDFAF5', border: `1px solid ${c.or}30` }}>
+                <div className="text-[12px] italic leading-relaxed" style={{ color: c.nr }}>{r.pitch}</div>
+              </div>
+              <div className="space-y-2">
+                {[
+                  ['Commercial', r.commercialPotential],
+                  ['Presse', r.pressPotential],
+                  ['Adaptation', r.adaptationPotential],
+                ].map(([label, val]) => (
+                  <div key={label as string} className="flex items-center justify-between">
+                    <span className="text-[11px]" style={{ color: c.gr }}>{label}</span>
+                    <Badge bg={potColor(val as string) + '20'} color={potColor(val as string)}>
+                      {(val as string).toUpperCase()}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          <div className="flex gap-2">
+            <Btn variant="secondary" onClick={() => { setReport(prev => { const n = { ...prev }; delete n[selectedProject.id]; return n; }); }}>↺ Relancer l'analyse</Btn>
+            <Btn onClick={() => {
+              const txt = `RAPPORT ÉDITORIAL — ${selectedProject.title}\n\nGenre: ${r.genre}\nScore: ${Math.round((r.qualityScore + r.originalityScore + r.marketFitScore) / 3)}/100\nConfiance: ${r.confidence}%\n\nPositionnement:\n${r.positioning}\n\nForces:\n${r.strengths.map(s => `• ${s}`).join('\n')}\n\nRisques:\n${r.risks.map(s => `• ${s}`).join('\n')}\n\nPitch:\n${r.pitch}\n\nComparables:\n${r.comparables.map(c => `• ${c.title} (${c.author}) — ${c.why}`).join('\n')}`;
+              const blob = new Blob([txt], { type: 'text/plain' });
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+              a.download = `rapport-editorial-${selectedProject.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.txt`; a.click();
+              onToast('Rapport exporté ✓');
+            }}>⬇ Exporter le rapport</Btn>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- ECONOMICS SIMULATOR ---
+const EconomicsSimulatorView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [inputs, setInputs] = useState<EconomicsInput>({ ...DEFAULT_ECONOMICS });
+  const [result, setResult] = useState<EconomicsResult | null>(null);
+
+  const selectProject = (p: Project) => {
+    setSelectedProject(p);
+    const price = parseFloat((primaryPrice(p) || '19,90').replace(',', '.').replace('€', '')) || 19.90;
+    const printCost = p.printCost || (p.pages > 300 ? 5.50 : p.pages > 200 ? 4.50 : 3.80);
+    setInputs(prev => ({
+      ...prev,
+      title: p.title,
+      priceTTC: price,
+      printCostPerUnit: printCost,
+      hasEpub: p.editions.some(e => e.format === 'epub'),
+      hasAudiobook: p.editions.some(e => e.format === 'audiobook'),
+    }));
+    setResult(null);
+  };
+
+  const simulate = () => {
+    const r = simulateEconomics(inputs);
+    setResult(r);
+    onToast('Simulation terminée');
+  };
+
+  const Field = ({ label, k, suffix, type = 'number' }: { label: string; k: keyof EconomicsInput; suffix?: string; type?: string }) => (
+    <div>
+      <label className="block text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: c.gr }}>{label}</label>
+      <div className="flex items-center gap-1">
+        <input type={type} value={inputs[k] as number} onChange={e => setInputs(prev => ({ ...prev, [k]: type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value }))}
+          className="w-full px-2 py-1.5 rounded-lg border text-[12px] font-mono outline-none" style={{ borderColor: c.gc }} />
+        {suffix && <span className="text-[10px] shrink-0" style={{ color: c.gr }}>{suffix}</span>}
+      </div>
+    </div>
+  );
+
+  const verdictStyle = (v: string) => v === 'strong' ? { bg: '#D4F0E0', color: c.ok } : v === 'profit' ? { bg: '#E8F5E0', color: '#2D7A2D' } : v === 'breakeven' ? { bg: '#FFF8E0', color: c.og } : { bg: '#FFE0E0', color: c.er };
+
+  return (
+    <div>
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
+        <div><h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Simulateur Économique</h2>
+        <p className="mt-0.5" style={{ color: c.gr, fontSize: 12 }}>P&L, point mort, marge, scénarios — par titre</p></div>
+      </div>
+
+      {/* Project selector */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+        {projects.map(p => (
+          <button key={p.id} onClick={() => selectProject(p)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold whitespace-nowrap shrink-0"
+            style={{ background: selectedProject?.id === p.id ? c.or : c.ft, color: selectedProject?.id === p.id ? 'white' : c.mv, border: `1px solid ${selectedProject?.id === p.id ? c.or : c.gc}` }}>
+            {p.title}
+          </button>
+        ))}
+      </div>
+
+      {selectedProject && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Input form */}
+          <Card hover={false} className="p-3 md:p-5">
+            <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Paramètres</div>
+            <div className="space-y-2">
+              <Field label="Tirage" k="printRun" suffix="ex." />
+              <Field label="Coût impression unitaire" k="printCostPerUnit" suffix="€" />
+              <Field label="Prix TTC" k="priceTTC" suffix="€" />
+              <Field label="TVA" k="tvaRate" suffix="%" />
+              <Field label="Marge distributeur" k="distributorMargin" suffix="%" />
+              <Field label="Droits auteur" k="authorRoyaltyRate" suffix="%" />
+              <Field label="Couverture / maquette" k="coverCost" suffix="€" />
+              <Field label="Correction / mise en page" k="editingCost" suffix="€" />
+              <Field label="Budget marketing" k="marketingBudget" suffix="€" />
+              <Field label="Autres frais fixes" k="otherFixed" suffix="€" />
+              <div className="flex items-center gap-2 pt-2">
+                <input type="checkbox" checked={inputs.hasEpub} onChange={e => setInputs(prev => ({ ...prev, hasEpub: e.target.checked }))} />
+                <span className="text-[11px]" style={{ color: c.mv }}>ePub</span>
+                <input type="checkbox" checked={inputs.hasAudiobook} onChange={e => setInputs(prev => ({ ...prev, hasAudiobook: e.target.checked }))} className="ml-3" />
+                <span className="text-[11px]" style={{ color: c.mv }}>Audiobook</span>
+              </div>
+              {inputs.hasEpub && <><Field label="Prix ePub" k="epubPrice" suffix="€" /><Field label="Ventes ePub est." k="estimatedEpubSales" /></>}
+              {inputs.hasAudiobook && <><Field label="Coût production audio" k="audiobookCost" suffix="€" /><Field label="Ventes audio est." k="estimatedAudioSales" /></>}
+            </div>
+            <div className="mt-4"><Btn onClick={simulate}>📊 Simuler</Btn></div>
+          </Card>
+
+          {/* Results */}
+          {result && (
+            <>
+              <Card hover={false} className="p-3 md:p-5">
+                <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Résultat</div>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <StatCard value={`${result.breakEvenUnits}`} label="Point mort (ex.)" accent={c.or} />
+                  <StatCard value={`${Math.round(result.breakEvenPercent)}%`} label="du tirage" accent={result.breakEvenPercent > 80 ? c.er : result.breakEvenPercent > 60 ? c.og : c.ok} />
+                  <StatCard value={`${Math.round(result.totalGrossRevenue)}€`} label="CA brut" accent={c.mv} />
+                  <StatCard value={`${Math.round(result.netResult)}€`} label="Résultat net" accent={result.netResult > 0 ? c.ok : c.er} />
+                </div>
+                <div className="space-y-1.5">
+                  {[
+                    ['Prix HT', `${result.priceHT.toFixed(2)}€`],
+                    ['Recette éditeur/unité', `${result.revenuePerUnit.toFixed(2)}€`],
+                    ['Coût total', `${Math.round(result.totalCosts)}€`],
+                    ['Droits auteur', `${Math.round(result.authorRoyalties)}€`],
+                    ['Marge', `${Math.round(result.marginPercent)}%`],
+                    ['Profit/unité', `${result.profitPerUnit.toFixed(2)}€`],
+                  ].map(([l, v]) => (
+                    <div key={l as string} className="flex justify-between text-[11px]" style={{ borderBottom: `1px solid ${c.ft}`, paddingBottom: 3 }}>
+                      <span style={{ color: c.gr }}>{l}</span>
+                      <span className="font-semibold font-mono" style={{ color: c.mv }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <Card hover={false} className="p-3 md:p-5">
+                <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Scénarios</div>
+                {result.scenarios.map((sc, i) => {
+                  const vs = verdictStyle(sc.verdict);
+                  return (
+                    <div key={i} className="p-3 rounded-lg mb-3" style={{ background: vs.bg, border: `1px solid ${vs.color}30` }}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[12px] font-bold" style={{ color: vs.color }}>{sc.name}</span>
+                        <Badge bg={vs.color + '20'} color={vs.color}>
+                          {sc.verdict === 'strong' ? '🚀 Rentable' : sc.verdict === 'profit' ? '✓ Profit' : sc.verdict === 'breakeven' ? '≈ Équilibre' : '✗ Perte'}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div><span style={{ color: c.gr }}>Vendus : </span><span className="font-semibold">{sc.unitsSold} ex.</span></div>
+                        <div><span style={{ color: c.gr }}>CA : </span><span className="font-semibold">{sc.revenue}€</span></div>
+                        <div><span style={{ color: c.gr }}>Coûts : </span><span className="font-semibold">{sc.costs}€</span></div>
+                        <div><span style={{ color: c.gr }}>Résultat : </span><span className="font-bold" style={{ color: vs.color }}>{sc.netResult > 0 ? '+' : ''}{sc.netResult}€</span></div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Break-even visual */}
+                <div className="mt-3">
+                  <div className="text-[10px] font-semibold mb-1" style={{ color: c.gr }}>Point mort vs tirage</div>
+                  <div className="h-6 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                    <div className="h-full rounded-full relative" style={{ width: `${Math.min(100, result.breakEvenPercent)}%`, background: result.breakEvenPercent > 80 ? c.er : result.breakEvenPercent > 60 ? c.og : c.ok }}>
+                      <span className="absolute right-1 top-0.5 text-[9px] font-bold text-white">{Math.round(result.breakEvenPercent)}%</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-[9px] mt-0.5" style={{ color: c.gr }}>
+                    <span>0</span><span>{result.breakEvenUnits} ex. (point mort)</span><span>{inputs.printRun} ex.</span>
+                  </div>
+                </div>
+              </Card>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -7161,6 +7524,7 @@ const SettingsView = ({ onToast, dark, toggleDark, onImport, lang, toggleLang, o
               Clés API pour la génération automatique d&apos;images et de bandes-annonces
             </p>
             <Field label="OpenAI API Key (DALL-E 3)" k="openaiKey" mono />
+            <Field label="Anthropic API Key (Claude — Intelligence)" k="anthropicKey" mono />
             <Field label="Runway API Key (Gen-3 Alpha)" k="runwayKey" mono />
             <Field label="ElevenLabs API Key (TTS Audiobooks)" k="elevenLabsKey" mono />
             <Field label="Midjourney API Key (proxy)" k="midjourneyKey" mono />
@@ -8684,6 +9048,8 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
       ['calibrage', 'Calibrage', 'Gabarit couverture, dos, format Jabrilia'],
       ['couvertures', 'Couvertures', 'Diagnostic, corrections, gabarit'],
       ['cover-studio', '◆ Cover Studio', 'Couverture → Pack marketing → Bande-annonce'],
+      ['intelligence', '◆ Intelligence', 'Analyse éditoriale, scoring, comparables, audience, recommandations'],
+      ['economics', 'Économie', 'Simulateur P&L, point mort, marge, scénarios, rentabilité'],
       ['audiobooks', 'Audiobooks', 'Pipeline audio, voix, chapitres'],
       ['distribution', 'Distribution', 'KDP, Pollen, IngramSpark, Apple, Kobo, Spotify'],
       ['marketing', 'Marketing', 'Kit réseaux sociaux, fiches produit'],
@@ -9248,6 +9614,8 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
       case 'orchestration': return <OrchestrationView projects={projects} onProject={openProject} onNav={navigate} />;
       case 'couvertures': return <CouverturesView onProject={openProject} projects={filtered} />;
       case 'cover-studio': return <CoverStudioView projects={filtered} onToast={showToast} />;
+      case 'intelligence': return <EditorialIntelligenceView projects={filtered} onToast={showToast} />;
+      case 'economics': return <EconomicsSimulatorView projects={filtered} onToast={showToast} />;
       case 'isbn': return <ISBNView projects={filtered} onToast={showToast} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
       case 'droits': return <DroitsView projects={projects} onToast={showToast} />;
