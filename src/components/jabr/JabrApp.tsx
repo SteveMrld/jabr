@@ -16,6 +16,8 @@ import { generateCoverPDF, downloadPDF, fetchImageAsBytes, type PDFCoverConfig }
 import { parseDocx, type ParsedManuscript } from '@/lib/docxParser';
 import { analyzeManuscript, analyzeOffline, type EditorialReport } from '@/lib/intelligence/editorialEngine';
 import { simulateEconomics, DEFAULT_ECONOMICS, type EconomicsInput, type EconomicsResult } from '@/lib/intelligence/economicsSimulator';
+import { predictFromReport, predictWithAI, DIMENSION_LABELS, type PredictionResult } from '@/lib/intelligence/successPredictor';
+import { generateVariantsOffline, generateVariantsWithAI, MARKETING_FORMATS, type MarketingVariant, type MarketingFormat, type MarketingGenerationResult } from '@/lib/intelligence/marketingGenerator';
 import { type AIProviderConfig } from '@/lib/intelligence/aiProvider';
 
 // ═══════════════════════════════════
@@ -84,6 +86,8 @@ const icons: Record<string, React.ReactNode> = {
   'cover-studio': sv(<><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /><circle cx="15" cy="15" r="2" /><path d="M15 11v2" /></>),
   intelligence: sv(<><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /><path d="M8 14l-2 4M16 14l2 4" /></>),
   economics: sv(<><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></>),
+  predictor: sv(<><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></>),
+  'marketing-gen': sv(<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></>),
   image: sv(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>),
   share: sv(<><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></>),
 };
@@ -227,6 +231,8 @@ const NAV_ITEMS: (readonly [string, string, string] | null)[] = [
   ['analytics', 'Analytics', 'analytics'],
   null, // separator
   ['intelligence', '◆ Intelligence', 'intelligence'],
+  ['predictor', 'Prédicteur', 'predictor'],
+  ['marketing-gen', 'Marketing Multi', 'marketing-gen'],
   ['economics', 'Économie', 'economics'],
   ['isbn', 'ISBN', 'isbn'],
   ['collections', 'Collections', 'collections'],
@@ -3358,6 +3364,250 @@ const EditorialIntelligenceView = ({ projects, onToast }: { projects: Project[];
             }}>⬇ Exporter le rapport</Btn>
           </div>
         </div>
+      )}
+    </div>
+  );
+};
+
+// --- BOOK SUCCESS PREDICTOR ---
+const PredictorView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [editorialReports, setEditorialReports] = useState<Record<number, EditorialReport>>({});
+  const [predictions, setPredictions] = useState<Record<number, PredictionResult>>({});
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const runPrediction = (p: Project) => {
+    setAnalyzing(true);
+    // First generate editorial report if not exists
+    let report = editorialReports[p.id];
+    if (!report) {
+      report = analyzeOffline(p.title, p.author, p.genre, p.backCover || '', p.pages, p.backCover);
+      setEditorialReports(prev => ({ ...prev, [p.id]: report }));
+    }
+    const prediction = predictFromReport(report, projects.length);
+    setPredictions(prev => ({ ...prev, [p.id]: prediction }));
+    setAnalyzing(false);
+    onToast(`Score prédictif : ${prediction.globalScore}/100 — ${prediction.verdict}`);
+  };
+
+  const pred = selectedProject ? predictions[selectedProject.id] : null;
+  const dimEntries = pred ? Object.entries(pred.dimensions) as [string, number][] : [];
+
+  return (
+    <div>
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
+        <div><h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Book Success Predictor</h2>
+        <p className="mt-0.5" style={{ color: c.gr, fontSize: 12 }}>Score prédictif, radar 7 dimensions, verdict, recommandations</p></div>
+      </div>
+
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+        {projects.map(p => (
+          <button key={p.id} onClick={() => { setSelectedProject(p); if (!predictions[p.id]) runPrediction(p); }}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold whitespace-nowrap shrink-0"
+            style={{ background: selectedProject?.id === p.id ? c.or : c.ft, color: selectedProject?.id === p.id ? 'white' : c.mv, border: `1px solid ${selectedProject?.id === p.id ? c.or : c.gc}` }}>
+            {predictions[p.id] ? `${predictions[p.id].verdictEmoji} ` : ''}{p.title}
+          </button>
+        ))}
+      </div>
+
+      {selectedProject && pred && (
+        <div>
+          {/* Hero score */}
+          <Card hover={false} className="p-4 md:p-6 mb-4 text-center">
+            <div className="text-[48px] font-bold" style={{ fontFamily: "'Playfair Display', serif", color: pred.globalScore >= 65 ? c.ok : pred.globalScore >= 50 ? c.og : c.er }}>
+              {pred.globalScore}
+            </div>
+            <div className="text-[12px] uppercase tracking-wider" style={{ color: c.gr }}>/100</div>
+            <div className="text-[16px] font-semibold mt-2" style={{ color: c.mv }}>{pred.verdictEmoji} {pred.verdict}</div>
+            <div className="text-[11px] mt-1" style={{ color: c.gr }}>
+              Confiance : {pred.confidence}% · Mieux que {pred.percentile}% des manuscrits
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Radar (visual bars) */}
+            <Card hover={false} className="p-3 md:p-5">
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Radar — 7 dimensions</div>
+              <div className="space-y-2.5">
+                {dimEntries.map(([key, val]) => {
+                  const dim = DIMENSION_LABELS[key];
+                  return (
+                    <div key={key}>
+                      <div className="flex justify-between mb-0.5">
+                        <span className="text-[11px] font-semibold" style={{ color: c.mv }}>{dim?.icon} {dim?.label || key}</span>
+                        <span className="text-[11px] font-bold font-mono" style={{ color: val >= 70 ? c.ok : val >= 50 ? c.og : c.er }}>{val}</span>
+                      </div>
+                      <div className="h-2.5 rounded-full overflow-hidden" style={{ background: c.gc }}>
+                        <div className="h-full rounded-full transition-all" style={{ width: `${val}%`, background: dim?.color || c.or }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+
+            {/* Recommendations */}
+            <Card hover={false} className="p-3 md:p-5">
+              <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Recommandations</div>
+              <div className="space-y-2">
+                {pred.recommendations.map((rec, i) => (
+                  <div key={i} className="p-2.5 rounded-lg" style={{
+                    background: rec.priority === 'high' ? '#FFF5F0' : rec.priority === 'medium' ? '#FFFBE0' : '#F0FFF5',
+                    border: `1px solid ${rec.priority === 'high' ? '#FFD0C0' : rec.priority === 'medium' ? '#F0D060' : '#C0E0C0'}`,
+                  }}>
+                    <div className="flex items-center gap-2">
+                      <Badge bg={rec.priority === 'high' ? '#FFE0D0' : rec.priority === 'medium' ? '#FFF0C0' : '#D4F0E0'}
+                        color={rec.priority === 'high' ? c.er : rec.priority === 'medium' ? c.og : c.ok}>
+                        {rec.priority === 'high' ? '🔴' : rec.priority === 'medium' ? '🟡' : '🟢'} {rec.priority}
+                      </Badge>
+                    </div>
+                    <div className="text-[11px] font-semibold mt-1" style={{ color: c.mv }}>{rec.action}</div>
+                    <div className="text-[10px]" style={{ color: c.gr }}>Impact : {rec.impact}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4">
+                <div className="text-[10px] uppercase tracking-wider font-semibold mb-2" style={{ color: c.gr }}>Raisons clés</div>
+                {pred.topReasons.map((r, i) => (
+                  <div key={i} className="text-[11px] py-1" style={{ color: c.nr, borderBottom: `1px solid ${c.ft}` }}>{r}</div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          <Btn variant="secondary" onClick={() => { setPredictions(prev => { const n = { ...prev }; delete n[selectedProject.id]; return n; }); runPrediction(selectedProject); }}>↺ Recalculer</Btn>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- MULTI-VARIANT MARKETING ---
+const MarketingGenView = ({ projects, onToast }: { projects: Project[]; onToast: (msg: string) => void }) => {
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [results, setResults] = useState<Record<number, MarketingGenerationResult>>({});
+  const [selectedFormats, setSelectedFormats] = useState<MarketingFormat[]>(['4e-couverture', 'pitch-court', 'argumentaire-libraires', 'communique-presse']);
+  const [generating, setGenerating] = useState(false);
+  const [expandedVariant, setExpandedVariant] = useState<string | null>(null);
+  const [editorialReports] = useState<Record<number, EditorialReport>>({});
+
+  const generate = (p: Project) => {
+    setGenerating(true);
+    const report = editorialReports[p.id] || analyzeOffline(p.title, p.author, p.genre, p.backCover || '', p.pages, p.backCover);
+    const result = generateVariantsOffline(p.title, p.author, p.genre, p.pages, p.backCover || '', report, selectedFormats);
+    setResults(prev => ({ ...prev, [p.id]: result }));
+    setGenerating(false);
+    onToast(`${result.variants.length} variantes générées pour ${selectedFormats.length} formats`);
+  };
+
+  const toggleFormat = (f: MarketingFormat) => {
+    setSelectedFormats(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
+  };
+
+  const result = selectedProject ? results[selectedProject.id] : null;
+  const variantsByFormat = result ? MARKETING_FORMATS.filter(f => result.variants.some(v => v.format === f.id)).map(f => ({
+    ...f,
+    variants: result.variants.filter(v => v.format === f.id),
+  })) : [];
+
+  return (
+    <div>
+      <div className="flex flex-wrap justify-between items-end gap-2 mb-4">
+        <div><h2 className="text-xl md:text-2xl" style={{ color: c.mv }}>Marketing Multi-Variant</h2>
+        <p className="mt-0.5" style={{ color: c.gr, fontSize: 12 }}>8 formats × multi-audience — 4e, pitch, argumentaire, CP, rights sheet</p></div>
+      </div>
+
+      {/* Project selector */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+        {projects.map(p => (
+          <button key={p.id} onClick={() => setSelectedProject(p)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold whitespace-nowrap shrink-0"
+            style={{ background: selectedProject?.id === p.id ? c.or : c.ft, color: selectedProject?.id === p.id ? 'white' : c.mv, border: `1px solid ${selectedProject?.id === p.id ? c.or : c.gc}` }}>
+            {p.title}
+          </button>
+        ))}
+      </div>
+
+      {selectedProject && (
+        <>
+          {/* Format selector */}
+          <Card hover={false} className="p-3 md:p-5 mb-4">
+            <div className="text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: c.or }}>Formats à générer</div>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {MARKETING_FORMATS.map(f => (
+                <button key={f.id} onClick={() => toggleFormat(f.id)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all"
+                  style={{ background: selectedFormats.includes(f.id) ? c.vm : c.ft, color: selectedFormats.includes(f.id) ? 'white' : c.mv, border: `1px solid ${selectedFormats.includes(f.id) ? c.vm : c.gc}` }}>
+                  {f.icon} {f.label}
+                  <span className="text-[9px] opacity-60">({f.audiences.length})</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Btn onClick={() => generate(selectedProject)}>
+                {generating ? '⏳ Génération…' : `⚡ Générer ${selectedFormats.length} formats (${selectedFormats.reduce((s, f) => s + (MARKETING_FORMATS.find(m => m.id === f)?.audiences.length || 0), 0)} variantes)`}
+              </Btn>
+            </div>
+          </Card>
+
+          {/* Results */}
+          {result && variantsByFormat.map(group => (
+            <Card key={group.id} hover={false} className="mb-3">
+              <div className="px-3 md:px-5 py-3" style={{ borderBottom: `2px solid ${c.or}` }}>
+                <span className="text-[12px] font-bold" style={{ color: c.mv }}>{group.icon} {group.label}</span>
+                <span className="text-[10px] ml-2" style={{ color: c.gr }}>{group.variants.length} variante{group.variants.length > 1 ? 's' : ''}</span>
+              </div>
+              {group.variants.map(v => {
+                const isExpanded = expandedVariant === v.id;
+                return (
+                  <div key={v.id} className="px-3 md:px-5 py-2.5" style={{ borderBottom: `1px solid ${c.ft}` }}>
+                    <div className="flex flex-wrap items-center gap-2 cursor-pointer" onClick={() => setExpandedVariant(isExpanded ? null : v.id)}>
+                      <Badge bg={v.selected ? '#D4F0E0' : c.ft} color={v.selected ? c.ok : c.gr}>
+                        {v.selected ? '★ Best' : v.audience}
+                      </Badge>
+                      {!v.selected && <span className="text-[10px]" style={{ color: c.gr }}>{v.audience}</span>}
+                      <span className="text-[10px] font-mono font-bold ml-auto" style={{ color: v.score >= 70 ? c.ok : v.score >= 50 ? c.og : c.er }}>{v.score}/100</span>
+                      <span className="text-[10px]" style={{ color: c.gr }}>{v.wordCount} mots</span>
+                      <span style={{ color: c.gr, fontSize: 10, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : '' }}>▾</span>
+                    </div>
+                    {isExpanded && (
+                      <div className="mt-2 p-3 rounded-lg" style={{ background: c.ft }}>
+                        <div className="text-[12px] leading-relaxed whitespace-pre-wrap" style={{ color: c.nr, overflowWrap: 'break-word' }}>{v.text}</div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <button onClick={() => { navigator.clipboard.writeText(v.text); onToast(`${v.audience} copié`); }}
+                            className="text-[10px] px-3 py-1 rounded font-semibold" style={{ background: c.or, color: 'white', border: 'none', cursor: 'pointer' }}>
+                            Copier
+                          </button>
+                          <button onClick={() => {
+                            const blob = new Blob([v.text], { type: 'text/plain' });
+                            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                            a.download = `${group.id}-${v.audience.toLowerCase().replace(/\s/g, '-')}.txt`; a.click();
+                            onToast('Exporté ✓');
+                          }}
+                            className="text-[10px] px-3 py-1 rounded font-semibold" style={{ background: c.vm, color: 'white', border: 'none', cursor: 'pointer' }}>
+                            ⬇ .txt
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </Card>
+          ))}
+
+          {/* Export all */}
+          {result && (
+            <Btn onClick={() => {
+              const all = result.variants.map(v => `═══ ${MARKETING_FORMATS.find(f => f.id === v.format)?.label || v.format} — ${v.audience} (${v.score}/100) ═══\n\n${v.text}\n`).join('\n\n');
+              const blob = new Blob([all], { type: 'text/plain' });
+              const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+              a.download = `marketing-complet-${selectedProject.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.txt`; a.click();
+              onToast('Toutes les variantes exportées ✓');
+            }}>⬇ Exporter toutes les variantes</Btn>
+          )}
+        </>
       )}
     </div>
   );
@@ -9049,6 +9299,8 @@ const CommandPalette = ({ open, onClose, projects, onProject, onNav }: {
       ['couvertures', 'Couvertures', 'Diagnostic, corrections, gabarit'],
       ['cover-studio', '◆ Cover Studio', 'Couverture → Pack marketing → Bande-annonce'],
       ['intelligence', '◆ Intelligence', 'Analyse éditoriale, scoring, comparables, audience, recommandations'],
+      ['predictor', 'Prédicteur de succès', 'Score prédictif, radar 7 dimensions, verdict, recommandations'],
+      ['marketing-gen', 'Marketing Multi-Variant', '8 formats × multi-audience, 4e, pitch, argumentaire, CP, rights sheet'],
       ['economics', 'Économie', 'Simulateur P&L, point mort, marge, scénarios, rentabilité'],
       ['audiobooks', 'Audiobooks', 'Pipeline audio, voix, chapitres'],
       ['distribution', 'Distribution', 'KDP, Pollen, IngramSpark, Apple, Kobo, Spotify'],
@@ -9615,6 +9867,8 @@ export default function JabrApp({ author, onSwitchAuthor, userId, onSignOut }: {
       case 'couvertures': return <CouverturesView onProject={openProject} projects={filtered} />;
       case 'cover-studio': return <CoverStudioView projects={filtered} onToast={showToast} />;
       case 'intelligence': return <EditorialIntelligenceView projects={filtered} onToast={showToast} />;
+      case 'predictor': return <PredictorView projects={filtered} onToast={showToast} />;
+      case 'marketing-gen': return <MarketingGenView projects={filtered} onToast={showToast} />;
       case 'economics': return <EconomicsSimulatorView projects={filtered} onToast={showToast} />;
       case 'isbn': return <ISBNView projects={filtered} onToast={showToast} />;
       case 'collections': return <CollectionsView onProject={openProject} projects={projects} />;
