@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/useAuth';
 import { type Project } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 import JabrApp from '@/components/jabr/JabrApp';
+import { hasValidSession } from '@/lib/inviteSystem';
 
 const HUB = {
   bg: '#0A0812',
@@ -345,13 +346,22 @@ export default function DemoPage() {
 
   const handleSignOut = useCallback(async () => {
     await signOut();
+    try { localStorage.removeItem('jabr-access-validated'); } catch {}
     router.push('/auth');
   }, [signOut, router]);
 
-  // Redirect to auth if Supabase is configured but not logged in
+  // Redirect to auth if not authenticated OR not invited
   useEffect(() => {
-    if (!authLoading && isConfigured && !isAuthenticated) {
+    if (authLoading) return;
+    // If Supabase is configured, require auth
+    if (isConfigured && !isAuthenticated) {
       router.push('/auth');
+      return;
+    }
+    // Even without Supabase, require invite session
+    if (!isConfigured && !hasValidSession()) {
+      router.push('/auth');
+      return;
     }
   }, [authLoading, isConfigured, isAuthenticated, router]);
 

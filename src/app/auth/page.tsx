@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/lib/useAuth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { validateAccess, isWhitelistedEmail, setSessionValidated } from '@/lib/inviteSystem';
 
 const HUB = {
   bg: '#0A0812',
@@ -15,8 +16,12 @@ const HUB = {
   border: 'rgba(255,255,255,0.08)',
 };
 
-export default function AuthPage() {
-  const { isAuthenticated, loading: authLoading, signIn, signUp, resetPassword, error: authError } = useAuth();
+export default function AuthPageWrapper() {
+  return <Suspense fallback={<div style={{ position: 'fixed', inset: 0, background: '#0A0812', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '0.15em', fontFamily: "'Playfair Display', Georgia, serif", background: 'linear-gradient(135deg, #C8952E, #E8B84B, #F5DCA0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>JABR</div></div>}><AuthPage /></Suspense>;
+}
+
+function AuthPage() {
+  const { isAuthenticated, isConfigured, loading: authLoading, signIn, signUp, resetPassword, error: authError } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState<'login' | 'signup' | 'reset'>('login');
   const [email, setEmail] = useState('');
@@ -25,6 +30,14 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [entered, setEntered] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const searchParams = useSearchParams();
+
+  // Pre-fill invite code from URL ?invite=CODE
+  useEffect(() => {
+    const code = searchParams.get('invite');
+    if (code) setInviteCode(code);
+  }, [searchParams]);
 
   useEffect(() => { setTimeout(() => setEntered(true), 80); }, []);
 
@@ -52,18 +65,46 @@ export default function AuthPage() {
       return;
     }
 
+    // If Supabase is NOT configured, use invite-only access
+    if (!isConfigured) {
+      const access = validateAccess(email, inviteCode || undefined);
+      setLoading(false);
+      if (access.allowed) {
+        setSessionValidated();
+        router.push('/app');
+      } else {
+        setMessage({ type: 'error', text: access.reason });
+      }
+      return;
+    }
+
     if (mode === 'signup') {
+      // Check invite access before signup
+      const access = validateAccess(email, inviteCode || undefined);
+      if (!access.allowed) {
+        setLoading(false);
+        setMessage({ type: 'error', text: access.reason });
+        return;
+      }
       if (!fullName.trim()) { setLoading(false); setMessage({ type: 'error', text: 'Nom complet requis' }); return; }
       const { error } = await signUp(email, password, fullName);
       setLoading(false);
       if (error) { setMessage({ type: 'error', text: error }); return; }
+      setSessionValidated();
       setMessage({ type: 'success', text: 'Compte créé ! Vérifiez votre email pour confirmer.' });
     } else {
+      // Login — check whitelist or invited
+      const access = validateAccess(email, inviteCode || undefined);
+      if (!access.allowed && !isWhitelistedEmail(email)) {
+        // Still allow login attempt (they may have been invited previously via Supabase)
+      }
       const { error } = await signIn(email, password);
       setLoading(false);
       if (error) {
         const msg = error.includes('Invalid') ? 'Email ou mot de passe incorrect' : error;
         setMessage({ type: 'error', text: msg });
+      } else {
+        setSessionValidated();
       }
     }
   };
@@ -153,7 +194,7 @@ export default function AuthPage() {
             {mode === 'login' ? 'Bienvenue' : mode === 'signup' ? 'Créer un compte' : 'Réinitialiser'}
           </h2>
           <p style={{ fontSize: 12, color: HUB.textSecondary }}>
-            {mode === 'login' ? 'Connectez-vous à votre espace éditorial' : mode === 'signup' ? 'Commencez à gérer vos publications' : 'Entrez votre email pour recevoir un lien'}
+            {mode === 'login' ? 'Connectez-vous à votre espace éditorial' : mode === 'signup' ? 'Accès sur invitation — entrez votre code' : 'Entrez votre email pour recevoir un lien'}
           </p>
         </div>
 
@@ -163,6 +204,20 @@ export default function AuthPage() {
             <div>
               <label style={labelStyle}>Nom complet</label>
               <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Marie Dupont" style={inputStyle} autoFocus />
+            </div>
+          )}
+
+          {/* Invite code — required for new accounts */}
+          {mode !== 'reset' && (
+            <div>
+              <label style={labelStyle}>Code d&apos;invitation {mode === 'login' && <span style={{ opacity: 0.5 }}>(optionnel si déjà inscrit)</span>}</label>
+              <input value={inviteCode} onChange={e => setInviteCode(e.target.value.toUpperCase())} placeholder="JABR-XXXX-XXXX"
+                style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.05em' }} />
+              {mode === 'signup' && !inviteCode && (
+                <div style={{ fontSize: 11, color: HUB.goldLight, marginTop: 6, opacity: 0.7 }}>
+                  Accès sur invitation uniquement. Pas de code ? Contactez contact@jabrilia.com
+                </div>
+              )}
             </div>
           )}
           <div>

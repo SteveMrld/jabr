@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import JabrApp from '@/components/jabr/JabrApp';
 import { ArrowRight, X } from 'lucide-react';
 import type { Author } from '@/lib/authors';
+import { hasValidSession } from '@/lib/inviteSystem';
+import { useRouter } from 'next/navigation';
 
 const DEMO_AUTHOR: Author = {
   id: 'demo-author',
@@ -20,6 +22,14 @@ const DEMO_AUTHOR: Author = {
 
 export default function DemoPage() {
   const [bannerVisible, setBannerVisible] = useState(true);
+  const router = useRouter();
+
+  // Redirect if no valid session
+  useEffect(() => {
+    if (!hasValidSession()) {
+      router.push('/auth');
+    }
+  }, [router]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
